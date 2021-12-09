@@ -20,12 +20,10 @@ end
 
 if socket.SOCK_RAW and socket.SO_BINDTODEVICE then
     -- Open raw socket
-
     fd, err = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP)
     assert(fd, err)
 
     -- Optionally, bind to specific device
-
     --local ok, err = M.setsockopt(fd, M.SOL_SOCKET, M.SO_BINDTODEVICE, 'wlan0')
     --assert(ok, err)
 
@@ -45,15 +43,12 @@ if socket.SOCK_RAW and socket.SO_BINDTODEVICE then
 
     local tsReq = vstruct.write('> 2*u1 3*u2 3*u4', {13, 0, 0, 0x4600, 0x0, time_after_midnight_ms, 0, 0})
     local tsReq = vstruct.write('> 2*u1 3*u2 3*u4', {13, 0, calculate_checksum(tsReq), 0x4600, 0x0, time_after_midnight_ms, 0, 0})
-    --tsReq = vstruct.write('> 2*u1 3*u2 3*u4', {13, 0, 0x1d1f, 0x4600, 0x1, 69766071, 0, 0})
 
     -- Send message
-
     local ok, err = socket.sendto(fd, tsReq, { family= socket.AF_INET, addr='9.9.9.9', port=0})
     assert(ok, err)
 
     -- Read reply
-
     local data, sa = socket.recvfrom(fd, 1024)
     assert(data, sa)
     ipStart = string.byte(data, 1)
