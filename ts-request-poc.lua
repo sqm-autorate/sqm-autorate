@@ -1,14 +1,30 @@
 local bit = require 'bit32'
 local math = require 'math'
+local posix = require "posix"
 local socket = require 'posix.sys.socket'
 local time = require 'posix.time'
 local vstruct = require 'vstruct'
+
+local reflectorArrayV4 = {'9.9.9.9', '9.9.9.10', '149.112.112.10', '149.112.112.11', '149.112.112.112'}
+-- local reflectorArrayV6 = {'2620:fe::10', '2620:fe::fe:10'} -- TODO Implement IPv6 support?
+local tickRate = 1.0 -- For now, this is as low as we can go with posix.sleep(). Need an alternative.
+
+local function get_time_after_midnight_ms()
+    timespec = time.clock_gettime(time.CLOCK_REALTIME)
+    return (timespec.tv_sec % 86400 * 1000) + (math.floor(timespec.tv_nsec / 1000000))
+end
+
+local function decToHex(number, digits)
+    local bitMask = (bit.lshift(1, (digits * 4))) - 1
+    local strFmt = "%0"..digits.."X"
+    return string.format(strFmt, bit.band(number, bitMask))
+end
 
 local function calculate_checksum(data)
     checksum = 0
 
     for i = 1, #data - 1, 2  do
-       checksum = checksum + (bit.lshift(string.byte(data, i), 8)) + string.byte(data, i + 1)
+        checksum = checksum + (bit.lshift(string.byte(data, i), 8)) + string.byte(data, i + 1)
     end
 
     if bit.rshift(checksum, 16) then
@@ -19,18 +35,6 @@ local function calculate_checksum(data)
 end
 
 if socket.SOCK_RAW and socket.SO_BINDTODEVICE then
-    -- Open raw socket
-    fd, err = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP)
-    assert(fd, err)
-
-    -- Optionally, bind to specific device
-    --local ok, err = M.setsockopt(fd, M.SOL_SOCKET, M.SO_BINDTODEVICE, 'wlan0')
-    --assert(ok, err)
-
-    -- Create a raw ICMP timestamp request message
-    timespec = time.clock_gettime(time.CLOCK_REALTIME)
-    time_after_midnight_ms = (timespec.tv_sec % 86400 * 1000) + (math.floor(timespec.tv_nsec / 1000000))
-
     -- ICMP timestamp header
         -- Type - 1 byte
         -- Code - 1 byte
@@ -41,30 +45,49 @@ if socket.SOCK_RAW and socket.SO_BINDTODEVICE then
         -- Received timestamp - 4 bytes
         -- Transmit timestamp - 4 bytes
 
-    local tsReq = vstruct.write('> 2*u1 3*u2 3*u4', {13, 0, 0, 0x4600, 0x0, time_after_midnight_ms, 0, 0})
-    local tsReq = vstruct.write('> 2*u1 3*u2 3*u4', {13, 0, calculate_checksum(tsReq), 0x4600, 0x0, time_after_midnight_ms, 0, 0})
+    -- Send message loop
+    repeat 
+        for _,reflector in ipairs(reflectorArrayV4) do
+            -- Create a raw ICMP timestamp request message
+            local time_after_midnight_ms = get_time_after_midnight_ms()
+            local tsReq = vstruct.write('> 2*u1 3*u2 3*u4', {13, 0, 0, 0x4600, 0, time_after_midnight_ms, 0, 0})
+            local tsReq = vstruct.write('> 2*u1 3*u2 3*u4', {13, 0, calculate_checksum(tsReq), 0x4600, 0, time_after_midnight_ms, 0, 0})
+            
+            -- Open raw socket
+            local fd, err = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP)
+            assert(fd, err)
 
-    -- Send message
-    local ok, err = socket.sendto(fd, tsReq, { family= socket.AF_INET, addr='9.9.9.9', port=0})
-    assert(ok, err)
+            -- Optionally, bind to specific device
+            --local ok, err = M.setsockopt(fd, M.SOL_SOCKET, M.SO_BINDTODEVICE, 'wlan0')
+            --assert(ok, err)
 
-    -- Read reply
-    local data, sa = socket.recvfrom(fd, 1024)
-    assert(data, sa)
-    ipStart = string.byte(data, 1)
-    ipVer = bit.rshift(ipStart, 4)
-    hdrLen = (ipStart - ipVer * 16) * 4
+            -- Send ICMP TS request
+            local ok, err = socket.sendto(fd, tsReq, { family=socket.AF_INET, addr=reflector, port=0})
+            assert(ok, err)
 
-    tsResp = vstruct.read('> 2*u1 3*u2 3*u4', string.sub(data, hdrLen + 1, #data))
-    timespec = time.clock_gettime(time.CLOCK_REALTIME)
-    time_after_midnight_ms = (timespec.tv_sec % 86400 * 1000) + (math.floor(timespec.tv_nsec / 1000000))
+            -- Read ICMP TS reply
+            local data, sa = socket.recvfrom(fd, 1024)
+            assert(data, sa)
+            local ipStart = string.byte(data, 1)
+            local ipVer = bit.rshift(ipStart, 4)
+            local hdrLen = (ipStart - ipVer * 16) * 4
 
-    originalTS = tsResp[6]
-    receiveTS = tsResp[7]
-    transmitTS = tsResp[8]
+            local tsResp = vstruct.read('> 2*u1 3*u2 3*u4', string.sub(data, hdrLen + 1, #data))
+            local time_after_midnight_ms = get_time_after_midnight_ms()
 
-    rtt = time_after_midnight_ms - originalTS
-    print('Current time', time_after_midnight_ms)
-    print('We transmitted at', originalTS)
-    print('RTT', rtt)
+            local originalTS = tsResp[6]
+            local receiveTS = tsResp[7]
+            local transmitTS = tsResp[8]
+
+            local rtt = time_after_midnight_ms - originalTS
+
+            print('Reflector IP', reflector)
+            print('Current time', time_after_midnight_ms)
+            print('We transmitted at', originalTS)
+            print('RTT', rtt)
+        end
+
+        print('')
+        posix.sleep(tickRate) -- TODO This seems to not support < 1 second frequency. Not great.
+    until 1 == 0
 end
