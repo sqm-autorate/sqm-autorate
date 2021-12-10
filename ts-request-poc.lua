@@ -1,13 +1,12 @@
 local bit = require 'bit32'
 local math = require 'math'
-local posix = require "posix"
 local socket = require 'posix.sys.socket'
 local time = require 'posix.time'
 local vstruct = require 'vstruct'
 
 local reflectorArrayV4 = {'9.9.9.9', '9.9.9.10', '149.112.112.10', '149.112.112.11', '149.112.112.112'}
 -- local reflectorArrayV6 = {'2620:fe::10', '2620:fe::fe:10'} -- TODO Implement IPv6 support?
-local tickRate = 1.0 -- For now, this is as low as we can go with posix.sleep(). Need an alternative.
+local tickRate = 0.5 -- For now, this is as low as we can go with posix.sleep(). Need an alternative.
 
 local function get_time_after_midnight_ms()
     timespec = time.clock_gettime(time.CLOCK_REALTIME)
@@ -88,6 +87,6 @@ if socket.SOCK_RAW and socket.SO_BINDTODEVICE then
         end
 
         print('')
-        posix.sleep(tickRate) -- TODO This seems to not support < 1 second frequency. Not great.
+        time.nanosleep({tv_sec = 0, tv_nsec = tickRate * 1000000000})
     until 1 == 0
 end
