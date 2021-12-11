@@ -1,7 +1,7 @@
 local bit = require 'bit32'
 local math = require 'math'
+local posix = require 'posix'
 local socket = require 'posix.sys.socket'
--- local socket = require 'socket'
 local time = require 'posix.time'
 local vstruct = require 'vstruct'
 
@@ -38,7 +38,7 @@ local OWD_avg = {}
 local sender_coroutine_array = {}
 local receiver_coroutine_array = {}
 
-local runtime_in_ms = 0
+local cur_process_id = posix.getpid()
 
 -- Open raw socket
 local sock, err = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP)
@@ -103,7 +103,7 @@ local function update_tc_rates()
     print("TBD")
 end
 
-local function receive_ts_ping(reflector)
+local function receive_ts_ping(reflector, packet_id)
     -- Read ICMP TS reply
     local id
     local tsResp
@@ -122,8 +122,9 @@ local function receive_ts_ping(reflector)
 
         source_addr = sa
         id = decToHex(tsResp[4], 4)
-        -- print(id)
-    until id == "4600"
+        print(id)
+        print("Looking for",packet_id)
+    until id == packet_id
 
     local originalTS = tsResp[6]
     local receiveTS = tsResp[7]
@@ -153,7 +154,7 @@ local function receive_ts_ping(reflector)
     end
 end
 
-local function send_ts_ping(reflector)
+local function send_ts_ping(reflector, packet_id)
     -- ICMP timestamp header
         -- Type - 1 byte
         -- Code - 1 byte:
@@ -166,8 +167,8 @@ local function send_ts_ping(reflector)
 
     -- Create a raw ICMP timestamp request message
     local time_after_midnight_ms = get_time_after_midnight_ms()
-    local tsReq = vstruct.write('> 2*u1 3*u2 3*u4', {13, 0, 0, 0x4600, 0, time_after_midnight_ms, 0, 0})
-    local tsReq = vstruct.write('> 2*u1 3*u2 3*u4', {13, 0, calculate_checksum(tsReq), 0x4600, 0, time_after_midnight_ms, 0, 0})
+    local tsReq = vstruct.write('> 2*u1 3*u2 3*u4', {13, 0, 0, packet_id, 0, time_after_midnight_ms, 0, 0})
+    local tsReq = vstruct.write('> 2*u1 3*u2 3*u4', {13, 0, calculate_checksum(tsReq), packet_id, 0, time_after_midnight_ms, 0, 0})
 
     -- Send ICMP TS request
     local ok, err = socket.sendto(sock, tsReq, {family=socket.AF_INET, addr=reflector, port=0})
@@ -237,15 +238,17 @@ end
 
 ---------------------------- Begin Coroutine Setup ----------------------------
 -- Set up the OWD constructs
-for _,reflector in ipairs(reflectorArrayV4) do
+for i,reflector in ipairs(reflectorArrayV4) do
     OWD_cur[reflector] = {['uplink_time'] = -1, ['downlink_time'] = -1, ['query_count'] = 0}
     OWD_avg[reflector] = {['uplink_time_avg'] = {}, ['downlink_time_avg'] = {}}
+
+    local pkt_id = decToHex(cur_process_id + i, 4)
 
     sender_cr = coroutine.create(function ()
         local r_ip = reflector
 
         while true do
-            send_ts_ping(r_ip)
+            send_ts_ping(r_ip, pkt_id)
             coroutine.yield()
         end
     end)
@@ -255,7 +258,7 @@ for _,reflector in ipairs(reflectorArrayV4) do
         local r_ip = reflector
 
         while true do
-            receive_ts_ping(r_ip)
+            receive_ts_ping(r_ip, pkt_id)
             coroutine.yield()
         end
     end)
