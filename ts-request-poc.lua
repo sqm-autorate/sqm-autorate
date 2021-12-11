@@ -88,6 +88,57 @@ local function update_tc_rates()
     print("TBD")
 end
 
+local function send_and_receive_ping(sock)
+    -- ICMP timestamp header
+    -- Type - 1 byte
+    -- Code - 1 byte
+    -- Checksum - 2 bytes
+    -- Identifier - 2 bytes
+    -- Sequence number - 2 bytes
+    -- Original timestamp - 4 bytes
+    -- Received timestamp - 4 bytes
+    -- Transmit timestamp - 4 bytes
+    print(sock)
+    -- Create a raw ICMP timestamp request message
+    local time_after_midnight_ms = get_time_after_midnight_ms()
+    local tsReq = vstruct.write('> 2*u1 3*u2 3*u4', {13, 0, 0, 0x4600, 0, time_after_midnight_ms, 0, 0})
+    local tsReq = vstruct.write('> 2*u1 3*u2 3*u4', {13, 0, calculate_checksum(tsReq), 0x4600, 0, time_after_midnight_ms, 0, 0})
+
+    -- Send ICMP TS request
+    local ok, err = socket.sendto(sock, tsReq, {family=socket.AF_INET, addr=reflector, port=0})
+    assert(ok, err)
+
+    -- Read ICMP TS reply
+    local data, sa = socket.recvfrom(sock, 1024)
+    assert(data, sa)
+
+    local ipStart = string.byte(data, 1)
+    local ipVer = bit.rshift(ipStart, 4)
+    local hdrLen = (ipStart - ipVer * 16) * 4
+
+    local tsResp = vstruct.read('> 2*u1 3*u2 3*u4', string.sub(data, hdrLen + 1, #data))
+    local time_after_midnight_ms = get_time_after_midnight_ms()
+
+    local originalTS = tsResp[6]
+    local receiveTS = tsResp[7]
+    local transmitTS = tsResp[8]
+
+    local rtt = time_after_midnight_ms - originalTS
+
+    local uplink_time = receiveTS - originalTS
+    local downlink_time = originalTS + rtt - transmitTS
+
+    local new_query_count = OWD_cur[reflector]['query_count'] + 1
+    OWD_cur[reflector] = {['uplink_time'] = uplink_time, ['downlink_time'] = downlink_time, ['query_count'] = new_query_count}
+
+    -- TBD: This is not ready--it's a placeholder. Idea is to create a moving average calculation...
+    OWD_avg[reflector] = {['uplink_time_avg'] = uplink_time, ['downlink_time_avg'] = downlink_time}
+
+    if debug then
+        print('Reflector IP: '..reflector..'  |  Current time: '..time_after_midnight_ms..'  |  TX at: '..originalTS..'  |  RTT: '..rtt..'  |  UL time: '..uplink_time..'  |  DL time: '..downlink_time)
+    end
+end
+
 
 -- Set up the OWD constructs
 for _,reflector in ipairs(reflectorArrayV4) do
@@ -96,64 +147,15 @@ for _,reflector in ipairs(reflectorArrayV4) do
 
     cr = coroutine.create(function ()
         -- Open raw socket
-        local fd, err = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP)
-        assert(fd, err)
+        local sock, err = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP)
+        assert(sock, err)
 
         -- Optionally, bind to specific device
-        --local ok, err = M.setsockopt(fd, M.SOL_SOCKET, M.SO_BINDTODEVICE, 'wlan0')
+        --local ok, err = M.setsockopt(sock, M.SOL_SOCKET, M.SO_BINDTODEVICE, 'wlan0')
         --assert(ok, err)
 
         repeat
-            -- ICMP timestamp header
-            -- Type - 1 byte
-            -- Code - 1 byte
-            -- Checksum - 2 bytes
-            -- Identifier - 2 bytes
-            -- Sequence number - 2 bytes
-            -- Original timestamp - 4 bytes
-            -- Received timestamp - 4 bytes
-            -- Transmit timestamp - 4 bytes
-
-            -- Create a raw ICMP timestamp request message
-            local time_after_midnight_ms = get_time_after_midnight_ms()
-            local tsReq = vstruct.write('> 2*u1 3*u2 3*u4', {13, 0, 0, 0x4600, 0, time_after_midnight_ms, 0, 0})
-            local tsReq = vstruct.write('> 2*u1 3*u2 3*u4', {13, 0, calculate_checksum(tsReq), 0x4600, 0, time_after_midnight_ms, 0, 0})
-
-            -- Send ICMP TS request
-            local ok, err = socket.sendto(fd, tsReq, { family=socket.AF_INET, addr=reflector, port=0})
-            assert(ok, err)
-
-            -- Read ICMP TS reply
-            local data, sa = socket.recvfrom(fd, 1024)
-            assert(data, sa)
-
-            local ipStart = string.byte(data, 1)
-            local ipVer = bit.rshift(ipStart, 4)
-            local hdrLen = (ipStart - ipVer * 16) * 4
-
-            local tsResp = vstruct.read('> 2*u1 3*u2 3*u4', string.sub(data, hdrLen + 1, #data))
-            local time_after_midnight_ms = get_time_after_midnight_ms()
-
-            local originalTS = tsResp[6]
-            local receiveTS = tsResp[7]
-            local transmitTS = tsResp[8]
-
-            local rtt = time_after_midnight_ms - originalTS
-
-            local uplink_time = receiveTS - originalTS
-            local downlink_time = originalTS + rtt - transmitTS
-
-            local new_query_count = OWD_cur[reflector]['query_count'] + 1
-            OWD_cur[reflector] = {['uplink_time'] = uplink_time, ['downlink_time'] = downlink_time, ['query_count'] = new_query_count}
-
-            -- TBD: This is not ready--it's a placeholder. Idea is to create a moving average calculation...
-
-            OWD_avg[reflector] = {['uplink_time_avg'] = uplink_time, ['downlink_time_avg'] = downlink_time}
-
-            if debug then
-                print('Reflector IP: '..reflector..'  |  Current time: '..time_after_midnight_ms..'  |  TX at: '..originalTS..'  |  RTT: '..rtt..'  |  UL time: '..uplink_time..'  |  DL time: '..downlink_time)
-            end
-
+            send_and_receive_ping(sock)
             coroutine.yield()
         until 0 == 1
     end)
