@@ -4,6 +4,7 @@ local socket = require 'posix.sys.socket'
 local time = require 'posix.time'
 local vstruct = require 'vstruct'
 
+---------------------------- Begin Local Variables ----------------------------
 local debug = true
 local enable_verbose_output = false -- enable (true) or disable (false) output monitoring lines showing bandwidth changes
 
@@ -34,6 +35,12 @@ local OWD_cur = {}
 local OWD_avg = {}
 
 local coroutine_array = {}
+---------------------------- End Local Variables ----------------------------
+
+-- Bail out early if we don't have RAW socket permission
+if not socket.SOCK_RAW then
+    error("Houston, we have a problem. RAW socket permission is a must and you don't have it.")
+end
 
 -- verify these are correct using 'cat /sys/class/...'
 if dl_if:find("^veth.+") then
@@ -57,7 +64,7 @@ if debug then
     print("tx_bytes_path: " .. tx_bytes_path)
 end
 
-
+---------------------------- Begin Local Functions ----------------------------
 local function get_time_after_midnight_ms()
     timespec = time.clock_gettime(time.CLOCK_REALTIME) -- @_FailSafe reports good results with this...
     -- timespec = time.clock_gettime(time.CLOCK_MONOTONIC) -- @Lochnair reported better success with this...
@@ -88,7 +95,7 @@ local function update_tc_rates()
     print("TBD")
 end
 
-local function send_and_receive_ping(sock)
+local function send_and_receive_ping(sock, reflector)
     -- ICMP timestamp header
     -- Type - 1 byte
     -- Code - 1 byte
@@ -98,7 +105,7 @@ local function send_and_receive_ping(sock)
     -- Original timestamp - 4 bytes
     -- Received timestamp - 4 bytes
     -- Transmit timestamp - 4 bytes
-    print(sock)
+
     -- Create a raw ICMP timestamp request message
     local time_after_midnight_ms = get_time_after_midnight_ms()
     local tsReq = vstruct.write('> 2*u1 3*u2 3*u4', {13, 0, 0, 0x4600, 0, time_after_midnight_ms, 0, 0})
@@ -134,18 +141,21 @@ local function send_and_receive_ping(sock)
     -- TBD: This is not ready--it's a placeholder. Idea is to create a moving average calculation...
     OWD_avg[reflector] = {['uplink_time_avg'] = uplink_time, ['downlink_time_avg'] = downlink_time}
 
-    if debug then
-        print('Reflector IP: '..reflector..'  |  Current time: '..time_after_midnight_ms..'  |  TX at: '..originalTS..'  |  RTT: '..rtt..'  |  UL time: '..uplink_time..'  |  DL time: '..downlink_time)
-    end
+    -- if debug then
+    --     print('Reflector IP: '..reflector..'  |  Current time: '..time_after_midnight_ms..'  |  TX at: '..originalTS..'  |  RTT: '..rtt..'  |  UL time: '..uplink_time..'  |  DL time: '..downlink_time)
+    -- end
 end
+---------------------------- End Local Functions ----------------------------
 
-
+---------------------------- Begin Coroutine Setup ----------------------------
 -- Set up the OWD constructs
 for _,reflector in ipairs(reflectorArrayV4) do
     OWD_cur[reflector] = {['uplink_time'] = -1, ['downlink_time'] = -1, ['query_count'] = 0}
     OWD_avg[reflector] = {['uplink_time_avg'] = {}, ['downlink_time_avg'] = {}}
 
     cr = coroutine.create(function ()
+        local rIp = reflector
+
         -- Open raw socket
         local sock, err = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP)
         assert(sock, err)
@@ -154,38 +164,37 @@ for _,reflector in ipairs(reflectorArrayV4) do
         --local ok, err = M.setsockopt(sock, M.SOL_SOCKET, M.SO_BINDTODEVICE, 'wlan0')
         --assert(ok, err)
 
-        repeat
-            send_and_receive_ping(sock)
+        while true do
+            send_and_receive_ping(sock, rIp)
             coroutine.yield()
-        until 0 == 1
+        end
     end)
     table.insert(coroutine_array, cr)
 end
+---------------------------- End Coroutine Setup ----------------------------
 
--- TBD: Should this entire loop be moved to a background thread??
--- if socket.SOCK_RAW and socket.SO_BINDTODEVICE then
-if socket.SOCK_RAW then
-    repeat
-        for _,cr in ipairs(coroutine_array) do
-            coroutine.resume(cr)
+---------------------------- Begin Conductor Loop ----------------------------
+while true do
+    for _,cr in ipairs(coroutine_array) do
+        coroutine.resume(cr)
+    end
+
+    if debug then
+        print('')
+        for k,v in pairs(OWD_cur) do
+            for i,j in pairs(v) do
+                print(k, i, j)
+            end
         end
-        
-        -- if debug then
-        --     print('')
-        --     for k,v in pairs(OWD_cur) do
-        --         for i,j in pairs(v) do
-        --             print(k, i, j)
-        --         end
-        --     end
-            
-        --     -- print('')
-        --     -- for k,v in pairs(OWD_avg) do
-        --     --     for i,j in pairs(v) do
-        --     --         print(k, i, j)
-        --     --     end
-        --     -- end
-        -- end
 
-        time.nanosleep({tv_sec = 0, tv_nsec = tick_duration * 1000000000})
-    until 1 == 0
+        -- print('')
+        -- for k,v in pairs(OWD_avg) do
+        --     for i,j in pairs(v) do
+        --         print(k, i, j)
+        --     end
+        -- end
+    end
+
+    time.nanosleep({tv_sec = 0, tv_nsec = tick_duration * 1000000000})
 end
+---------------------------- End Conductor Loop ----------------------------
