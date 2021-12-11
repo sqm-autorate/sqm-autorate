@@ -4,9 +4,58 @@ local socket = require 'posix.sys.socket'
 local time = require 'posix.time'
 local vstruct = require 'vstruct'
 
+local debug = true
+local enable_verbose_output = false -- enable (true) or disable (false) output monitoring lines showing bandwidth changes
+
+local ul_if = "eth0" -- upload interface
+local dl_if = "ifb4eth0" -- download interface
+
+local base_ul_rate = 25750 -- steady state bandwidth for upload
+local base_dl_rate = 462500 -- steady state bandwidth for download
+
+local tick_duration = 0.5 -- seconds to wait between ticks
+
 local reflectorArrayV4 = {'9.9.9.9', '9.9.9.10', '149.112.112.10', '149.112.112.11', '149.112.112.112'}
 -- local reflectorArrayV6 = {'2620:fe::10', '2620:fe::fe:10'} -- TODO Implement IPv6 support?
-local tickRate = 0.5 -- For now, this is as low as we can go with posix.sleep(). Need an alternative.
+
+local alpha_OWD_increase = 0.001 -- how rapidly baseline OWD is allowed to increase
+local alpha_OWD_decrease = 0.9 -- how rapidly baseline OWD is allowed to decrease
+
+local rate_adjust_OWD_spike = 0.010 -- how rapidly to reduce bandwidth upon detection of bufferbloat
+local rate_adjust_load_high = 0.005 -- how rapidly to increase bandwidth upon high load detected
+local rate_adjust_load_low = 0.0025 -- how rapidly to return to base rate upon low load detected
+
+local load_thresh = 0.5 -- % of currently set bandwidth for detecting high load
+
+local max_delta_OWD = 15 -- increase from baseline RTT for detection of bufferbloat
+
+-- TODO: Create a construct to hold the ongoing OWD data
+local OWD_cur = {}
+local OWD_avg = {}
+
+-- verify these are correct using 'cat /sys/class/...'
+if dl_if:find("^veth.+") then
+    rx_bytes_path = "/sys/class/net/" .. dl_if .. "/statistics/tx_bytes"
+elseif dl_if:find("^ifb.+") then
+    rx_bytes_path = "/sys/class/net/" .. dl_if .. "/statistics/tx_bytes"
+else
+    rx_bytes_path = "/sys/class/net/" .. dl_if .. "/statistics/rx_bytes"
+end
+
+if ul_if:find("^veth.+") then
+    tx_bytes_path = "/sys/class/net/" .. ul_if .. "/statistics/rx_bytes"
+elseif ul_if:find("^ifb.+") then
+    tx_bytes_path = "/sys/class/net/" .. ul_if .. "/statistics/rx_bytes"
+else
+    tx_bytes_path = "/sys/class/net/" .. ul_if .. "/statistics/tx_bytes"
+end
+
+if debug then
+    print("rx_bytes_path: " .. rx_bytes_path)
+    print("tx_bytes_path: " .. tx_bytes_path)
+end
+
+
 
 local function get_time_after_midnight_ms()
     timespec = time.clock_gettime(time.CLOCK_REALTIME)
@@ -33,6 +82,19 @@ local function calculate_checksum(data)
     return bit.bnot(checksum)
 end
 
+local function update_tc_rates()
+    print("TBD")
+end
+
+-- Set up the OWD constructs
+-- for _,reflector in ipairs(reflectorArrayV4) do
+--     OWD_cur[reflector] = {}
+--     OWD_avg[reflector] = {}
+
+
+-- end
+
+-- TBD: Should this entire loop be moved to a background thread??
 if socket.SOCK_RAW and socket.SO_BINDTODEVICE then
     -- ICMP timestamp header
         -- Type - 1 byte
@@ -45,7 +107,7 @@ if socket.SOCK_RAW and socket.SO_BINDTODEVICE then
         -- Transmit timestamp - 4 bytes
 
     -- Send message loop
-    repeat 
+    repeat
         for _,reflector in ipairs(reflectorArrayV4) do
             -- Create a raw ICMP timestamp request message
             local time_after_midnight_ms = get_time_after_midnight_ms()
@@ -67,6 +129,7 @@ if socket.SOCK_RAW and socket.SO_BINDTODEVICE then
             -- Read ICMP TS reply
             local data, sa = socket.recvfrom(fd, 1024)
             assert(data, sa)
+
             local ipStart = string.byte(data, 1)
             local ipVer = bit.rshift(ipStart, 4)
             local hdrLen = (ipStart - ipVer * 16) * 4
@@ -80,13 +143,31 @@ if socket.SOCK_RAW and socket.SO_BINDTODEVICE then
 
             local rtt = time_after_midnight_ms - originalTS
 
-            print('Reflector IP', reflector)
-            print('Current time', time_after_midnight_ms)
-            print('We transmitted at', originalTS)
-            print('RTT', rtt)
+            local uplink_time = receiveTS - originalTS
+            local downlink_time = originalTS + rtt - transmitTS
+
+            OWD_cur[reflector] = {['uplink_time'] = uplink_time, ['downlink_time'] = downlink_time}
+
+            if debug then
+                print('Reflector IP', reflector)
+                print('Current time', time_after_midnight_ms)
+                print('We transmitted at', originalTS)
+                print('RTT', rtt)
+                print('UL Time', uplink_time)
+                print('DL Time', downlink_time)
+            end
         end
 
         print('')
-        time.nanosleep({tv_sec = 0, tv_nsec = tickRate * 1000000000})
+        
+        if debug then
+            for k,v in pairs(OWD_cur) do
+                for i,j in pairs(v) do
+                    print(k, i, j)
+                end
+            end
+        end
+
+        time.nanosleep({tv_sec = 0, tv_nsec = tick_duration * 1000000000})
     until 1 == 0
 end
