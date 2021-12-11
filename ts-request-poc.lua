@@ -33,6 +33,13 @@ local max_delta_OWD = 15 -- increase from baseline RTT for detection of bufferbl
 local OWD_cur = {}
 local OWD_avg = {}
 
+
+-- Set up the OWD constructs
+for _,reflector in ipairs(reflectorArrayV4) do
+    OWD_cur[reflector] = {['uplink_time'] = -1, ['downlink_time'] = -1, ['query_count'] = 0}
+    OWD_avg[reflector] = {['uplink_time_avg'] = -1, ['downlink_time_avg'] = -1}
+end
+
 -- verify these are correct using 'cat /sys/class/...'
 if dl_if:find("^veth.+") then
     rx_bytes_path = "/sys/class/net/" .. dl_if .. "/statistics/tx_bytes"
@@ -54,7 +61,6 @@ if debug then
     print("rx_bytes_path: " .. rx_bytes_path)
     print("tx_bytes_path: " .. tx_bytes_path)
 end
-
 
 
 local function get_time_after_midnight_ms()
@@ -86,13 +92,6 @@ local function update_tc_rates()
     print("TBD")
 end
 
--- Set up the OWD constructs
--- for _,reflector in ipairs(reflectorArrayV4) do
---     OWD_cur[reflector] = {}
---     OWD_avg[reflector] = {}
-
-
--- end
 
 -- TBD: Should this entire loop be moved to a background thread??
 if socket.SOCK_RAW and socket.SO_BINDTODEVICE then
@@ -146,22 +145,32 @@ if socket.SOCK_RAW and socket.SO_BINDTODEVICE then
             local uplink_time = receiveTS - originalTS
             local downlink_time = originalTS + rtt - transmitTS
 
-            OWD_cur[reflector] = {['uplink_time'] = uplink_time, ['downlink_time'] = downlink_time}
+            local new_query_count = OWD_cur[reflector]['query_count'] + 1
+            OWD_cur[reflector] = {['uplink_time'] = uplink_time, ['downlink_time'] = downlink_time, ['query_count'] = new_query_count}
 
-            if debug then
-                print('Reflector IP', reflector)
-                print('Current time', time_after_midnight_ms)
-                print('We transmitted at', originalTS)
-                print('RTT', rtt)
-                print('UL Time', uplink_time)
-                print('DL Time', downlink_time)
-            end
+            -- TBD: This is not ready--it's a placeholder. Idea is to create a moving average calculation...
+            OWD_avg[reflector] = {['uplink_time_avg'] = uplink_time, ['downlink_time_avg'] = downlink_time}
+
+            -- if debug then
+            --     print('Reflector IP', reflector)
+            --     print('Current time', time_after_midnight_ms)
+            --     print('We transmitted at', originalTS)
+            --     print('RTT', rtt)
+            --     print('UL Time', uplink_time)
+            --     print('DL Time', downlink_time)
+            -- end
         end
-
-        print('')
         
         if debug then
+            print('')
             for k,v in pairs(OWD_cur) do
+                for i,j in pairs(v) do
+                    print(k, i, j)
+                end
+            end
+            
+            print('')
+            for k,v in pairs(OWD_avg) do
                 for i,j in pairs(v) do
                     print(k, i, j)
                 end
