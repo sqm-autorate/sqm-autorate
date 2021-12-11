@@ -1,6 +1,7 @@
 local bit = require 'bit32'
 local math = require 'math'
 local socket = require 'posix.sys.socket'
+-- local socket = require 'socket'
 local time = require 'posix.time'
 local vstruct = require 'vstruct'
 
@@ -30,16 +31,19 @@ local load_thresh = 0.5 -- % of currently set bandwidth for detecting high load
 
 local max_delta_OWD = 15 -- increase from baseline RTT for detection of bufferbloat
 
--- TODO: Create a construct to hold the ongoing OWD data
+-- Create a construct to hold the ongoing OWD data
 local OWD_cur = {}
 local OWD_avg = {}
 
 local coroutine_array = {}
+
+local runtime_in_ms = 0
 ---------------------------- End Local Variables ----------------------------
 
 -- Bail out early if we don't have RAW socket permission
 if not socket.SOCK_RAW then
-    error("Houston, we have a problem. RAW socket permission is a must and you don't have it.")
+    error("Houston, we have a problem. RAW socket permission is a must
+        and you do NOT have it (are you root/sudo?).")
 end
 
 -- verify these are correct using 'cat /sys/class/...'
@@ -95,7 +99,7 @@ local function update_tc_rates()
     print("TBD")
 end
 
-local function send_and_receive_ping(sock, reflector)
+local function send_and_receive_ts_ping(sock, reflector, sock_timestamp)
     -- ICMP timestamp header
     -- Type - 1 byte
     -- Code - 1 byte
@@ -105,7 +109,8 @@ local function send_and_receive_ping(sock, reflector)
     -- Original timestamp - 4 bytes
     -- Received timestamp - 4 bytes
     -- Transmit timestamp - 4 bytes
-
+    local sock, err = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP)
+    -- assert(sock, err)
     -- Create a raw ICMP timestamp request message
     local time_after_midnight_ms = get_time_after_midnight_ms()
     local tsReq = vstruct.write('> 2*u1 3*u2 3*u4', {13, 0, 0, 0x4600, 0, time_after_midnight_ms, 0, 0})
@@ -132,6 +137,12 @@ local function send_and_receive_ping(sock, reflector)
 
     local rtt = time_after_midnight_ms - originalTS
 
+    if debug then
+        print(time_after_midnight_ms)
+        print(rtt)
+        print(originalTS)
+    end
+
     local uplink_time = receiveTS - originalTS
     local downlink_time = originalTS + rtt - transmitTS
 
@@ -142,7 +153,9 @@ local function send_and_receive_ping(sock, reflector)
     OWD_avg[reflector] = {['uplink_time_avg'] = uplink_time, ['downlink_time_avg'] = downlink_time}
 
     -- if debug then
-    --     print('Reflector IP: '..reflector..'  |  Current time: '..time_after_midnight_ms..'  |  TX at: '..originalTS..'  |  RTT: '..rtt..'  |  UL time: '..uplink_time..'  |  DL time: '..downlink_time)
+    --     print('Reflector IP: '..reflector..'  |  Current time: '..time_after_midnight_ms..
+    --         '  |  TX at: '..originalTS..'  |  RTT: '..rtt..'  |  UL time: '..uplink_time..
+    --         '  |  DL time: '..downlink_time)
     -- end
 end
 ---------------------------- End Local Functions ----------------------------
@@ -154,18 +167,17 @@ for _,reflector in ipairs(reflectorArrayV4) do
     OWD_avg[reflector] = {['uplink_time_avg'] = {}, ['downlink_time_avg'] = {}}
 
     cr = coroutine.create(function ()
-        local rIp = reflector
+        local r_ip = reflector
 
         -- Open raw socket
-        local sock, err = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP)
-        assert(sock, err)
+        -- local sock, err = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP)
+        -- assert(sock, err)
 
-        -- Optionally, bind to specific device
-        --local ok, err = M.setsockopt(sock, M.SOL_SOCKET, M.SO_BINDTODEVICE, 'wlan0')
-        --assert(ok, err)
+        -- Create socket birth certificate timestamp
+        local socket_timestamp = get_time_after_midnight_ms()
 
         while true do
-            send_and_receive_ping(sock, rIp)
+            send_and_receive_ts_ping(sock, r_ip, socket_timestamp)
             coroutine.yield()
         end
     end)
@@ -175,10 +187,14 @@ end
 
 ---------------------------- Begin Conductor Loop ----------------------------
 while true do
+    cycle_start_time_in_ms = get_time_after_midnight_ms()
+
+    -- Reflector query loop
     for _,cr in ipairs(coroutine_array) do
         coroutine.resume(cr)
     end
 
+    -- Debug stuffz...
     if debug then
         print('')
         for k,v in pairs(OWD_cur) do
@@ -195,6 +211,10 @@ while true do
         -- end
     end
 
+    -- Tick timer
     time.nanosleep({tv_sec = 0, tv_nsec = tick_duration * 1000000000})
+    cycle_end_time_in_ms = get_time_after_midnight_ms()
+    runtime_in_ms = runtime_in_ms + (cycle_end_time_in_ms - cycle_start_time_in_ms)
+    print("Runtime", runtime_in_ms)
 end
 ---------------------------- End Conductor Loop ----------------------------
