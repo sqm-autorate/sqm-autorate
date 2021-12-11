@@ -42,8 +42,8 @@ local runtime_in_ms = 0
 
 -- Bail out early if we don't have RAW socket permission
 if not socket.SOCK_RAW then
-    error("Houston, we have a problem. RAW socket permission is a must
-        and you do NOT have it (are you root/sudo?).")
+    error("Houston, we have a problem. RAW socket permission is a must "..
+        "and you do NOT have it (are you root/sudo?).")
 end
 
 -- verify these are correct using 'cat /sys/class/...'
@@ -109,8 +109,7 @@ local function send_and_receive_ts_ping(sock, reflector, sock_timestamp)
     -- Original timestamp - 4 bytes
     -- Received timestamp - 4 bytes
     -- Transmit timestamp - 4 bytes
-    local sock, err = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP)
-    -- assert(sock, err)
+
     -- Create a raw ICMP timestamp request message
     local time_after_midnight_ms = get_time_after_midnight_ms()
     local tsReq = vstruct.write('> 2*u1 3*u2 3*u4', {13, 0, 0, 0x4600, 0, time_after_midnight_ms, 0, 0})
@@ -152,11 +151,11 @@ local function send_and_receive_ts_ping(sock, reflector, sock_timestamp)
     -- TBD: This is not ready--it's a placeholder. Idea is to create a moving average calculation...
     OWD_avg[reflector] = {['uplink_time_avg'] = uplink_time, ['downlink_time_avg'] = downlink_time}
 
-    -- if debug then
-    --     print('Reflector IP: '..reflector..'  |  Current time: '..time_after_midnight_ms..
-    --         '  |  TX at: '..originalTS..'  |  RTT: '..rtt..'  |  UL time: '..uplink_time..
-    --         '  |  DL time: '..downlink_time)
-    -- end
+    if debug then
+        print('Reflector IP: '..reflector..'  |  Current time: '..time_after_midnight_ms..
+            '  |  TX at: '..originalTS..'  |  RTT: '..rtt..'  |  UL time: '..uplink_time..
+            '  |  DL time: '..downlink_time)
+    end
 end
 ---------------------------- End Local Functions ----------------------------
 
@@ -170,8 +169,8 @@ for _,reflector in ipairs(reflectorArrayV4) do
         local r_ip = reflector
 
         -- Open raw socket
-        -- local sock, err = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP)
-        -- assert(sock, err)
+        local sock, err = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP)
+        assert(sock, err)
 
         -- Create socket birth certificate timestamp
         local socket_timestamp = get_time_after_midnight_ms()
