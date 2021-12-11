@@ -35,7 +35,8 @@ local max_delta_OWD = 15 -- increase from baseline RTT for detection of bufferbl
 local OWD_cur = {}
 local OWD_avg = {}
 
-local coroutine_array = {}
+local sender_coroutine_array = {}
+local receiver_coroutine_array = {}
 
 local runtime_in_ms = 0
 
@@ -102,27 +103,7 @@ local function update_tc_rates()
     print("TBD")
 end
 
-local function send_and_receive_ts_ping(reflector)
-    -- ICMP timestamp header
-        -- Type - 1 byte
-        -- Code - 1 byte:
-        -- Checksum - 2 bytes
-        -- Identifier - 2 bytes
-        -- Sequence number - 2 bytes
-        -- Original timestamp - 4 bytes
-        -- Received timestamp - 4 bytes
-        -- Transmit timestamp - 4 bytes
-
-    -- Create a raw ICMP timestamp request message
-    local time_after_midnight_ms = get_time_after_midnight_ms()
-    local tsReq = vstruct.write('> 2*u1 3*u2 3*u4', {13, 0, 0, 0x4600, 0, time_after_midnight_ms, 0, 0})
-    local tsReq = vstruct.write('> 2*u1 3*u2 3*u4', {13, 0, calculate_checksum(tsReq), 0x4600, 0, time_after_midnight_ms, 0, 0})
-
-    -- Send ICMP TS request
-    local sock, err = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP)
-    local ok, err = socket.sendto(sock, tsReq, {family=socket.AF_INET, addr=reflector, port=0})
-    assert(ok, err)
-
+local function receive_ts_ping(reflector)
     -- Read ICMP TS reply
     local id
     local tsResp
@@ -141,7 +122,7 @@ local function send_and_receive_ts_ping(reflector)
 
         source_addr = sa
         id = decToHex(tsResp[4], 4)
-        print(id)
+        -- print(id)
     until id == "4600"
 
     local originalTS = tsResp[6]
@@ -150,11 +131,11 @@ local function send_and_receive_ts_ping(reflector)
 
     local rtt = time_after_midnight_ms - originalTS
 
-    if debug then
-        print(time_after_midnight_ms)
-        print(rtt)
-        print(originalTS)
-    end
+    -- if debug then
+    --     print(time_after_midnight_ms)
+    --     print(rtt)
+    --     print(originalTS)
+    -- end
 
     local uplink_time = receiveTS - originalTS
     local downlink_time = originalTS + rtt - transmitTS
@@ -170,6 +151,27 @@ local function send_and_receive_ts_ping(reflector)
             '  |  TX at: '..originalTS..'  |  RTT: '..rtt..'  |  UL time: '..uplink_time..
             '  |  DL time: '..downlink_time..'  |  Source IP: '..source_addr.addr)
     end
+end
+
+local function send_ts_ping(reflector)
+    -- ICMP timestamp header
+        -- Type - 1 byte
+        -- Code - 1 byte:
+        -- Checksum - 2 bytes
+        -- Identifier - 2 bytes
+        -- Sequence number - 2 bytes
+        -- Original timestamp - 4 bytes
+        -- Received timestamp - 4 bytes
+        -- Transmit timestamp - 4 bytes
+
+    -- Create a raw ICMP timestamp request message
+    local time_after_midnight_ms = get_time_after_midnight_ms()
+    local tsReq = vstruct.write('> 2*u1 3*u2 3*u4', {13, 0, 0, 0x4600, 0, time_after_midnight_ms, 0, 0})
+    local tsReq = vstruct.write('> 2*u1 3*u2 3*u4', {13, 0, calculate_checksum(tsReq), 0x4600, 0, time_after_midnight_ms, 0, 0})
+
+    -- Send ICMP TS request
+    local ok, err = socket.sendto(sock, tsReq, {family=socket.AF_INET, addr=reflector, port=0})
+    assert(ok, err)
 end
 
 local function send_and_receive_ts_ping6(sock, reflector, sock_timestamp)
@@ -239,15 +241,25 @@ for _,reflector in ipairs(reflectorArrayV4) do
     OWD_cur[reflector] = {['uplink_time'] = -1, ['downlink_time'] = -1, ['query_count'] = 0}
     OWD_avg[reflector] = {['uplink_time_avg'] = {}, ['downlink_time_avg'] = {}}
 
-    cr = coroutine.create(function ()
+    sender_cr = coroutine.create(function ()
         local r_ip = reflector
 
         while true do
-            send_and_receive_ts_ping(r_ip)
+            send_ts_ping(r_ip)
             coroutine.yield()
         end
     end)
-    table.insert(coroutine_array, cr)
+    table.insert(sender_coroutine_array, sender_cr)
+
+    receiver_cr = coroutine.create(function()
+        local r_ip = reflector
+
+        while true do
+            receive_ts_ping(r_ip)
+            coroutine.yield()
+        end
+    end)
+    table.insert(receiver_coroutine_array, receiver_cr)
 end
 
 ---- DISABLED for now until some ICMPv6 stuff is figured out...
@@ -276,34 +288,33 @@ end
 
 ---------------------------- Begin Conductor Loop ----------------------------
 while true do
-    cycle_start_time_in_ms = get_time_after_midnight_ms()
-
     -- Reflector query loop
-    for _,cr in ipairs(coroutine_array) do
-        coroutine.resume(cr)
+    for _,sender in ipairs(sender_coroutine_array) do
+        coroutine.resume(sender)
+    end
+
+    for _,receiver in ipairs(receiver_coroutine_array) do
+        coroutine.resume(receiver)
     end
 
     -- Debug stuffz...
-    if debug then
-        print('')
-        for k,v in pairs(OWD_cur) do
-            for i,j in pairs(v) do
-                print(k, i, j)
-            end
-        end
+    -- if debug then
+    --     print('')
+    --     for k,v in pairs(OWD_cur) do
+    --         for i,j in pairs(v) do
+    --             print(k, i, j)
+    --         end
+    --     end
 
-        -- print('')
-        -- for k,v in pairs(OWD_avg) do
-        --     for i,j in pairs(v) do
-        --         print(k, i, j)
-        --     end
-        -- end
-    end
+    --     -- print('')
+    --     -- for k,v in pairs(OWD_avg) do
+    --     --     for i,j in pairs(v) do
+    --     --         print(k, i, j)
+    --     --     end
+    --     -- end
+    -- end
 
     -- Tick timer
     time.nanosleep({tv_sec = 0, tv_nsec = tick_duration * 1000000000})
-    cycle_end_time_in_ms = get_time_after_midnight_ms()
-    runtime_in_ms = runtime_in_ms + (cycle_end_time_in_ms - cycle_start_time_in_ms)
-    print("Runtime", runtime_in_ms)
 end
 ---------------------------- End Conductor Loop ----------------------------
