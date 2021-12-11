@@ -33,12 +33,83 @@ local max_delta_OWD = 15 -- increase from baseline RTT for detection of bufferbl
 local OWD_cur = {}
 local OWD_avg = {}
 
+local coroutine_array = {}
 
 -- Set up the OWD constructs
 for _,reflector in ipairs(reflectorArrayV4) do
     OWD_cur[reflector] = {['uplink_time'] = -1, ['downlink_time'] = -1, ['query_count'] = 0}
-    OWD_avg[reflector] = {['uplink_time_avg'] = -1, ['downlink_time_avg'] = -1}
+    OWD_avg[reflector] = {['uplink_time_avg'] = {}, ['downlink_time_avg'] = {}}
+
+    cr = coroutine.create(function ()
+        -- ICMP timestamp header
+        -- Type - 1 byte
+        -- Code - 1 byte
+        -- Checksum - 2 bytes
+        -- Identifier - 2 bytes
+        -- Sequence number - 2 bytes
+        -- Original timestamp - 4 bytes
+        -- Received timestamp - 4 bytes
+        -- Transmit timestamp - 4 bytes
+
+        -- Create a raw ICMP timestamp request message
+        local time_after_midnight_ms = get_time_after_midnight_ms()
+        local tsReq = vstruct.write('> 2*u1 3*u2 3*u4', {13, 0, 0, 0x4600, 0, time_after_midnight_ms, 0, 0})
+        local tsReq = vstruct.write('> 2*u1 3*u2 3*u4', {13, 0, calculate_checksum(tsReq), 0x4600, 0, time_after_midnight_ms, 0, 0})
+
+        -- Open raw socket
+        local fd, err = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP)
+        assert(fd, err)
+
+    -- Optionally, bind to specific device
+        --local ok, err = M.setsockopt(fd, M.SOL_SOCKET, M.SO_BINDTODEVICE, 'wlan0')
+        --assert(ok, err)
+
+        -- Send ICMP TS request
+        local ok, err = socket.sendto(fd, tsReq, { family=socket.AF_INET, addr=reflector, port=0})
+        assert(ok, err)
+
+        -- Read ICMP TS reply
+        local data, sa = socket.recvfrom(fd, 1024)
+        assert(data, sa)
+
+        local ipStart = string.byte(data, 1)
+        local ipVer = bit.rshift(ipStart, 4)
+        local hdrLen = (ipStart - ipVer * 16) * 4
+
+        local tsResp = vstruct.read('> 2*u1 3*u2 3*u4', string.sub(data, hdrLen + 1, #data))
+        local time_after_midnight_ms = get_time_after_midnight_ms()
+
+        local originalTS = tsResp[6]
+        local receiveTS = tsResp[7]
+        local transmitTS = tsResp[8]
+
+        local rtt = time_after_midnight_ms - originalTS
+
+        local uplink_time = receiveTS - originalTS
+        local downlink_time = originalTS + rtt - transmitTS
+
+        local new_query_count = OWD_cur[reflector]['query_count'] + 1
+        OWD_cur[reflector] = {['uplink_time'] = uplink_time, ['downlink_time'] = downlink_time, ['query_count'] = new_query_count}
+
+        -- TBD: This is not ready--it's a placeholder. Idea is to create a moving average calculation...
+
+        OWD_avg[reflector] = {['uplink_time_avg'] = uplink_time, ['downlink_time_avg'] = downlink_time}
+
+        -- if debug then
+        --     print('Reflector IP', reflector)
+        --     print('Current time', time_after_midnight_ms)
+        --     print('We transmitted at', originalTS)
+        --     print('RTT', rtt)
+        --     print('UL Time', uplink_time)
+        --     print('DL Time', downlink_time)
+        -- end
+
+        coroutine.yield()
+    end)
+    table.insert(coroutine_array, cr)
 end
+
+print(coroutine_array)
 
 -- verify these are correct using 'cat /sys/class/...'
 if dl_if:find("^veth.+") then
@@ -64,7 +135,8 @@ end
 
 
 local function get_time_after_midnight_ms()
-    timespec = time.clock_gettime(time.CLOCK_REALTIME)
+    timespec = time.clock_gettime(time.CLOCK_REALTIME) -- @_FailSafe reports good results with this...
+    -- timespec = time.clock_gettime(time.CLOCK_MONOTONIC) -- @Lochnair reported better success with this...
     return (timespec.tv_sec % 86400 * 1000) + (math.floor(timespec.tv_nsec / 1000000))
 end
 
@@ -94,71 +166,11 @@ end
 
 
 -- TBD: Should this entire loop be moved to a background thread??
-if socket.SOCK_RAW and socket.SO_BINDTODEVICE then
-    -- ICMP timestamp header
-        -- Type - 1 byte
-        -- Code - 1 byte
-        -- Checksum - 2 bytes
-        -- Identifier - 2 bytes
-        -- Sequence number - 2 bytes
-        -- Original timestamp - 4 bytes
-        -- Received timestamp - 4 bytes
-        -- Transmit timestamp - 4 bytes
-
-    -- Send message loop
+-- if socket.SOCK_RAW and socket.SO_BINDTODEVICE then
+if socket.SOCK_RAW then
     repeat
-        for _,reflector in ipairs(reflectorArrayV4) do
-            -- Create a raw ICMP timestamp request message
-            local time_after_midnight_ms = get_time_after_midnight_ms()
-            local tsReq = vstruct.write('> 2*u1 3*u2 3*u4', {13, 0, 0, 0x4600, 0, time_after_midnight_ms, 0, 0})
-            local tsReq = vstruct.write('> 2*u1 3*u2 3*u4', {13, 0, calculate_checksum(tsReq), 0x4600, 0, time_after_midnight_ms, 0, 0})
-            
-            -- Open raw socket
-            local fd, err = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP)
-            assert(fd, err)
-
-            -- Optionally, bind to specific device
-            --local ok, err = M.setsockopt(fd, M.SOL_SOCKET, M.SO_BINDTODEVICE, 'wlan0')
-            --assert(ok, err)
-
-            -- Send ICMP TS request
-            local ok, err = socket.sendto(fd, tsReq, { family=socket.AF_INET, addr=reflector, port=0})
-            assert(ok, err)
-
-            -- Read ICMP TS reply
-            local data, sa = socket.recvfrom(fd, 1024)
-            assert(data, sa)
-
-            local ipStart = string.byte(data, 1)
-            local ipVer = bit.rshift(ipStart, 4)
-            local hdrLen = (ipStart - ipVer * 16) * 4
-
-            local tsResp = vstruct.read('> 2*u1 3*u2 3*u4', string.sub(data, hdrLen + 1, #data))
-            local time_after_midnight_ms = get_time_after_midnight_ms()
-
-            local originalTS = tsResp[6]
-            local receiveTS = tsResp[7]
-            local transmitTS = tsResp[8]
-
-            local rtt = time_after_midnight_ms - originalTS
-
-            local uplink_time = receiveTS - originalTS
-            local downlink_time = originalTS + rtt - transmitTS
-
-            local new_query_count = OWD_cur[reflector]['query_count'] + 1
-            OWD_cur[reflector] = {['uplink_time'] = uplink_time, ['downlink_time'] = downlink_time, ['query_count'] = new_query_count}
-
-            -- TBD: This is not ready--it's a placeholder. Idea is to create a moving average calculation...
-            OWD_avg[reflector] = {['uplink_time_avg'] = uplink_time, ['downlink_time_avg'] = downlink_time}
-
-            -- if debug then
-            --     print('Reflector IP', reflector)
-            --     print('Current time', time_after_midnight_ms)
-            --     print('We transmitted at', originalTS)
-            --     print('RTT', rtt)
-            --     print('UL Time', uplink_time)
-            --     print('DL Time', downlink_time)
-            -- end
+        for _,cr in ipairs(coroutine_array) do
+            coroutine.resume(cr)
         end
         
         if debug then
@@ -169,12 +181,12 @@ if socket.SOCK_RAW and socket.SO_BINDTODEVICE then
                 end
             end
             
-            print('')
-            for k,v in pairs(OWD_avg) do
-                for i,j in pairs(v) do
-                    print(k, i, j)
-                end
-            end
+            -- print('')
+            -- for k,v in pairs(OWD_avg) do
+            --     for i,j in pairs(v) do
+            --         print(k, i, j)
+            --     end
+            -- end
         end
 
         time.nanosleep({tv_sec = 0, tv_nsec = tick_duration * 1000000000})
