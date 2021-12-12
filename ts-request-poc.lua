@@ -15,7 +15,7 @@ local dl_if = "ifb4eth0" -- download interface
 local base_ul_rate = 25750 -- steady state bandwidth for upload
 local base_dl_rate = 462500 -- steady state bandwidth for download
 
-local tick_duration = 1.0 -- seconds to wait between ticks
+local tick_duration = 500.0 -- seconds to wait between ticks
 
 local reflector_array_v4 = {'9.9.9.9', '9.9.9.10', '149.112.112.10', '149.112.112.11', '149.112.112.112'}
 local reflector_array_v6 = {'2620:fe::10', '2620:fe::fe:10'} -- TODO Implement IPv6 support?
@@ -36,8 +36,6 @@ local OWD_cur = {}
 local OWD_avg = {}
 
 local sender_coroutine_array = {}
--- local receiver_coroutine_array = {}
-local packet_id_array = {}
 
 local cur_process_id = posix.getpid()
 
@@ -80,7 +78,7 @@ local function get_time_after_midnight_ms()
     return (timespec.tv_sec % 86400 * 1000) + (math.floor(timespec.tv_nsec / 1000000))
 end
 
-local function decToHex(number, digits)
+local function dec_to_hex(number, digits)
     local bitMask = (bit.lshift(1, (digits * 4))) - 1
     local strFmt = "%0"..digits.."X"
     return string.format(strFmt, bit.band(number, bitMask))
@@ -117,7 +115,7 @@ local function get_table_len(tbl)
     return count
 end
 
-local function receive_ts_ping()
+local function receive_ts_ping(pkt_id)
     -- Read ICMP TS reply
     local reflector_array_len = get_table_len(reflector_array_v4)
     local loop_count = 0
@@ -130,12 +128,12 @@ local function receive_ts_ping()
         local hdrLen = (ipStart - ipVer * 16) * 4
         local tsResp = vstruct.read('> 2*u1 3*u2 3*u4', string.sub(data, hdrLen + 1, #data))
         local time_after_midnight_ms = get_time_after_midnight_ms()
-        local pkt_id = decToHex(tsResp[4], 4)
+        local src_pkt_id = tsResp[4]
         local pos = get_table_position(reflector_array_v4, sa.addr)
 
         -- A pos > 0 indicates the current sa.addr is a known member of the reflector array
         -- if (pos > 0 and tostring(packet_id_array[pos]) == tostring(pkt_id)) then
-        if (pos > 0 and pkt_id == "FEED") then
+        if (pos > 0 and src_pkt_id == pkt_id) then
             loop_count = loop_count + 1
 
             local reflector = sa.addr
@@ -151,16 +149,16 @@ local function receive_ts_ping()
             -- TBD: This is not ready--it's a placeholder. Idea is to create a moving average calculation...
             OWD_avg[reflector] = {['uplink_time_avg'] = uplink_time, ['downlink_time_avg'] = downlink_time}
 
-            if debug then
-                print('Reflector IP: '..reflector..'  |  Current time: '..time_after_midnight_ms..
-                    '  |  TX at: '..originalTS..'  |  RTT: '..rtt..'  |  UL time: '..uplink_time..
-                    '  |  DL time: '..downlink_time..'  |  Source IP: '..sa.addr)
-            end
+            -- if debug then
+            --     print('Reflector IP: '..reflector..'  |  Current time: '..time_after_midnight_ms..
+            --         '  |  TX at: '..originalTS..'  |  RTT: '..rtt..'  |  UL time: '..uplink_time..
+            --         '  |  DL time: '..downlink_time..'  |  Source IP: '..sa.addr)
+            -- end
         end
     end
 end
 
-local function send_ts_ping(reflector, packet_id)
+local function send_ts_ping(reflector, pkt_id)
     -- ICMP timestamp header
         -- Type - 1 byte
         -- Code - 1 byte:
@@ -173,8 +171,9 @@ local function send_ts_ping(reflector, packet_id)
 
     -- Create a raw ICMP timestamp request message
     local time_after_midnight_ms = get_time_after_midnight_ms()
-    local tsReq = vstruct.write('> 2*u1 3*u2 3*u4', {13, 0, 0, 0xFEED, 0, time_after_midnight_ms, 0, 0})
-    local tsReq = vstruct.write('> 2*u1 3*u2 3*u4', {13, 0, calculate_checksum(tsReq), 0xFEED, 0, time_after_midnight_ms, 0, 0})
+    --print(pkt_id)
+    local tsReq = vstruct.write('> 2*u1 3*u2 3*u4', {13, 0, 0, pkt_id, 0, time_after_midnight_ms, 0, 0})
+    local tsReq = vstruct.write('> 2*u1 3*u2 3*u4', {13, 0, calculate_checksum(tsReq), pkt_id, 0, time_after_midnight_ms, 0, 0})
 
     -- Send ICMP TS request
     local ok, err = socket.sendto(sock, tsReq, {family=socket.AF_INET, addr=reflector, port=0})
@@ -202,7 +201,7 @@ local function send_and_receive_ts_ping6(sock, reflector, sock_timestamp)
     assert(ok, err)
 
     -- Read ICMP TS reply
-    local data, sa = socket.recvfrom(sock, 1024)
+    local data, sa = socket.recvfrom(sock, 100) -- IPv4 ICMP should only be 56bytes. This may need tweaking...
     assert(data, sa)
 
     local ipStart = string.byte(data, 1)
@@ -243,19 +242,19 @@ end
 ---------------------------- End Local Functions ----------------------------
 
 ---------------------------- Begin Coroutine Setup ----------------------------
+-- Set a packet ID
+local packet_id = cur_process_id + 32768
+
 -- Set up the OWD constructs
 for i,reflector in ipairs(reflector_array_v4) do
     OWD_cur[reflector] = {['uplink_time'] = -1, ['downlink_time'] = -1, ['query_count'] = 0}
     OWD_avg[reflector] = {['uplink_time_avg'] = {}, ['downlink_time_avg'] = {}}
 
-    local pkt_id = decToHex(cur_process_id + i, 4)
-    table.insert(packet_id_array, tostring(pkt_id))
-
     sender_cr = coroutine.create(function ()
         local r_ip = reflector
 
         while true do
-            send_ts_ping(r_ip, pkt_id)
+            send_ts_ping(r_ip, packet_id)
             coroutine.yield()
         end
     end)
@@ -264,7 +263,7 @@ end
 
 local receiver_cr = coroutine.create(function()
     while true do
-        receive_ts_ping()
+        receive_ts_ping(packet_id)
         coroutine.yield()
     end
 end)
@@ -303,13 +302,13 @@ while true do
     coroutine.resume(receiver_cr)
 
     -- Debug stuffz...
-    -- if debug then
-    --     print('')
-    --     for k,v in pairs(OWD_cur) do
-    --         for i,j in pairs(v) do
-    --             print(k, i, j)
-    --         end
-    --     end
+    if debug then
+        print('')
+        for k,v in pairs(OWD_cur) do
+            for i,j in pairs(v) do
+                print(k, i, j)
+            end
+        end
 
     --     -- print('')
     --     -- for k,v in pairs(OWD_avg) do
@@ -317,10 +316,10 @@ while true do
     --     --         print(k, i, j)
     --     --     end
     --     -- end
-    -- end
+    end
 
     -- Tick timer
-    -- time.nanosleep({tv_sec = 3, tv_nsec = tick_duration * 1000000000})
+    -- time.nanosleep({tv_sec = 0, tv_nsec = tick_duration * 1000000000})
     time.nanosleep({tv_sec = 1})
 end
 ---------------------------- End Conductor Loop ----------------------------
