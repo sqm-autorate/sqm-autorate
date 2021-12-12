@@ -111,40 +111,51 @@ local function get_table_position(tbl, item)
     return 0
 end
 
+local function get_table_len(tbl)
+    local count = 0
+    for _ in pairs(tbl) do count = count + 1 end
+    return count
+end
+
 local function receive_ts_ping()
     -- Read ICMP TS reply
-    -- while true do
-    local data, sa = socket.recvfrom(sock, 100)
-    assert(data, sa)
+    local reflector_array_len = get_table_len(reflector_array_v4)
+    local loop_count = 0
+    while loop_count < reflector_array_len do
+        local data, sa = socket.recvfrom(sock, 100)
+        assert(data, sa)
 
-    local ipStart = string.byte(data, 1)
-    local ipVer = bit.rshift(ipStart, 4)
-    local hdrLen = (ipStart - ipVer * 16) * 4
-    local tsResp = vstruct.read('> 2*u1 3*u2 3*u4', string.sub(data, hdrLen + 1, #data))
-    local time_after_midnight_ms = get_time_after_midnight_ms()
-    local pkt_id = decToHex(tsResp[4], 4)
-    local pos = get_table_position(reflector_array_v4, sa.addr)
+        local ipStart = string.byte(data, 1)
+        local ipVer = bit.rshift(ipStart, 4)
+        local hdrLen = (ipStart - ipVer * 16) * 4
+        local tsResp = vstruct.read('> 2*u1 3*u2 3*u4', string.sub(data, hdrLen + 1, #data))
+        local time_after_midnight_ms = get_time_after_midnight_ms()
+        local pkt_id = decToHex(tsResp[4], 4)
+        local pos = get_table_position(reflector_array_v4, sa.addr)
 
-    -- A pos > 0 indicates the current sa.addr is a known member of the reflector array
-    -- if (pos > 0 and tostring(packet_id_array[pos]) == tostring(pkt_id)) then
-    if (pos > 0 and pkt_id == "FEED") then
-        local reflector = sa.addr
-        local originalTS = tsResp[6]
-        local receiveTS = tsResp[7]
-        local transmitTS = tsResp[8]
-        local rtt = time_after_midnight_ms - originalTS
-        local uplink_time = receiveTS - originalTS
-        local downlink_time = originalTS + rtt - transmitTS
-        local new_query_count = OWD_cur[reflector]['query_count'] + 1
+        -- A pos > 0 indicates the current sa.addr is a known member of the reflector array
+        -- if (pos > 0 and tostring(packet_id_array[pos]) == tostring(pkt_id)) then
+        if (pos > 0 and pkt_id == "FEED") then
+            loop_count = loop_count + 1
 
-        OWD_cur[reflector] = {['uplink_time'] = uplink_time, ['downlink_time'] = downlink_time, ['query_count'] = new_query_count}
-        -- TBD: This is not ready--it's a placeholder. Idea is to create a moving average calculation...
-        OWD_avg[reflector] = {['uplink_time_avg'] = uplink_time, ['downlink_time_avg'] = downlink_time}
+            local reflector = sa.addr
+            local originalTS = tsResp[6]
+            local receiveTS = tsResp[7]
+            local transmitTS = tsResp[8]
+            local rtt = time_after_midnight_ms - originalTS
+            local uplink_time = receiveTS - originalTS
+            local downlink_time = originalTS + rtt - transmitTS
+            local new_query_count = OWD_cur[reflector]['query_count'] + 1
 
-        if debug then
-            print('Reflector IP: '..reflector..'  |  Current time: '..time_after_midnight_ms..
-                '  |  TX at: '..originalTS..'  |  RTT: '..rtt..'  |  UL time: '..uplink_time..
-                '  |  DL time: '..downlink_time..'  |  Source IP: '..sa.addr)
+            OWD_cur[reflector] = {['uplink_time'] = uplink_time, ['downlink_time'] = downlink_time, ['query_count'] = new_query_count}
+            -- TBD: This is not ready--it's a placeholder. Idea is to create a moving average calculation...
+            OWD_avg[reflector] = {['uplink_time_avg'] = uplink_time, ['downlink_time_avg'] = downlink_time}
+
+            if debug then
+                print('Reflector IP: '..reflector..'  |  Current time: '..time_after_midnight_ms..
+                    '  |  TX at: '..originalTS..'  |  RTT: '..rtt..'  |  UL time: '..uplink_time..
+                    '  |  DL time: '..downlink_time..'  |  Source IP: '..sa.addr)
+            end
         end
     end
 end
@@ -287,10 +298,9 @@ while true do
     -- Reflector query loop
     for _,sender in ipairs(sender_coroutine_array) do
         coroutine.resume(sender)
-        coroutine.resume(receiver_cr)
     end
 
-    -- coroutine.resume(receiver_cr)
+    coroutine.resume(receiver_cr)
 
     -- Debug stuffz...
     -- if debug then
@@ -310,7 +320,6 @@ while true do
     -- end
 
     -- Tick timer
-    print("HERE")
     -- time.nanosleep({tv_sec = 3, tv_nsec = tick_duration * 1000000000})
     time.nanosleep({tv_sec = 1})
 end
