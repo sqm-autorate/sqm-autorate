@@ -15,10 +15,10 @@ local dl_if = "ifb4eth0" -- download interface
 local base_ul_rate = 25750 -- steady state bandwidth for upload
 local base_dl_rate = 462500 -- steady state bandwidth for download
 
-local tick_duration = 0.5 -- seconds to wait between ticks
+local tick_duration = 1.0 -- seconds to wait between ticks
 
-local reflectorArrayV4 = {'9.9.9.9', '9.9.9.10', '149.112.112.10', '149.112.112.11', '149.112.112.112'}
-local reflectorArrayV6 = {'2620:fe::10', '2620:fe::fe:10'} -- TODO Implement IPv6 support?
+local reflector_array_v4 = {'9.9.9.9', '9.9.9.10', '149.112.112.10', '149.112.112.11', '149.112.112.112'}
+local reflector_array_v6 = {'2620:fe::10', '2620:fe::fe:10'} -- TODO Implement IPv6 support?
 
 local alpha_OWD_increase = 0.001 -- how rapidly baseline OWD is allowed to increase
 local alpha_OWD_decrease = 0.9 -- how rapidly baseline OWD is allowed to decrease
@@ -36,7 +36,8 @@ local OWD_cur = {}
 local OWD_avg = {}
 
 local sender_coroutine_array = {}
-local receiver_coroutine_array = {}
+-- local receiver_coroutine_array = {}
+local packet_id_array = {}
 
 local cur_process_id = posix.getpid()
 
@@ -75,7 +76,7 @@ end
 
 ---------------------------- Begin Local Functions ----------------------------
 local function get_time_after_midnight_ms()
-    timespec = time.clock_gettime(time.CLOCK_REALTIME) -- @_FailSafe reports good results with this...
+    timespec = time.clock_gettime(time.CLOCK_REALTIME)
     return (timespec.tv_sec % 86400 * 1000) + (math.floor(timespec.tv_nsec / 1000000))
 end
 
@@ -103,54 +104,48 @@ local function update_tc_rates()
     print("TBD")
 end
 
-local function receive_ts_ping(reflector, packet_id)
+local function get_table_position(tbl, item)
+    for i,value in ipairs(tbl) do
+        if value == item then return i end
+    end
+    return 0
+end
+
+local function receive_ts_ping()
     -- Read ICMP TS reply
-    local id
-    local tsResp
-    local source_addr
-    local time_after_midnight_ms
-    repeat
-        local data, sa = socket.recvfrom(sock, 1024)
-        assert(data, sa)
+    -- while true do
+    local data, sa = socket.recvfrom(sock, 100)
+    assert(data, sa)
 
-        local ipStart = string.byte(data, 1)
-        local ipVer = bit.rshift(ipStart, 4)
-        local hdrLen = (ipStart - ipVer * 16) * 4
+    local ipStart = string.byte(data, 1)
+    local ipVer = bit.rshift(ipStart, 4)
+    local hdrLen = (ipStart - ipVer * 16) * 4
+    local tsResp = vstruct.read('> 2*u1 3*u2 3*u4', string.sub(data, hdrLen + 1, #data))
+    local time_after_midnight_ms = get_time_after_midnight_ms()
+    local pkt_id = decToHex(tsResp[4], 4)
+    local pos = get_table_position(reflector_array_v4, sa.addr)
 
-        tsResp = vstruct.read('> 2*u1 3*u2 3*u4', string.sub(data, hdrLen + 1, #data))
-        time_after_midnight_ms = get_time_after_midnight_ms()
+    -- A pos > 0 indicates the current sa.addr is a known member of the reflector array
+    -- if (pos > 0 and tostring(packet_id_array[pos]) == tostring(pkt_id)) then
+    if (pos > 0 and pkt_id == "FEED") then
+        local reflector = sa.addr
+        local originalTS = tsResp[6]
+        local receiveTS = tsResp[7]
+        local transmitTS = tsResp[8]
+        local rtt = time_after_midnight_ms - originalTS
+        local uplink_time = receiveTS - originalTS
+        local downlink_time = originalTS + rtt - transmitTS
+        local new_query_count = OWD_cur[reflector]['query_count'] + 1
 
-        source_addr = sa
-        id = decToHex(tsResp[4], 4)
-        print(id)
-        print("Looking for",packet_id)
-    until id == packet_id
+        OWD_cur[reflector] = {['uplink_time'] = uplink_time, ['downlink_time'] = downlink_time, ['query_count'] = new_query_count}
+        -- TBD: This is not ready--it's a placeholder. Idea is to create a moving average calculation...
+        OWD_avg[reflector] = {['uplink_time_avg'] = uplink_time, ['downlink_time_avg'] = downlink_time}
 
-    local originalTS = tsResp[6]
-    local receiveTS = tsResp[7]
-    local transmitTS = tsResp[8]
-
-    local rtt = time_after_midnight_ms - originalTS
-
-    -- if debug then
-    --     print(time_after_midnight_ms)
-    --     print(rtt)
-    --     print(originalTS)
-    -- end
-
-    local uplink_time = receiveTS - originalTS
-    local downlink_time = originalTS + rtt - transmitTS
-
-    local new_query_count = OWD_cur[reflector]['query_count'] + 1
-    OWD_cur[reflector] = {['uplink_time'] = uplink_time, ['downlink_time'] = downlink_time, ['query_count'] = new_query_count}
-
-    -- TBD: This is not ready--it's a placeholder. Idea is to create a moving average calculation...
-    OWD_avg[reflector] = {['uplink_time_avg'] = uplink_time, ['downlink_time_avg'] = downlink_time}
-
-    if debug then
-        print('Reflector IP: '..reflector..'  |  Current time: '..time_after_midnight_ms..
-            '  |  TX at: '..originalTS..'  |  RTT: '..rtt..'  |  UL time: '..uplink_time..
-            '  |  DL time: '..downlink_time..'  |  Source IP: '..source_addr.addr)
+        if debug then
+            print('Reflector IP: '..reflector..'  |  Current time: '..time_after_midnight_ms..
+                '  |  TX at: '..originalTS..'  |  RTT: '..rtt..'  |  UL time: '..uplink_time..
+                '  |  DL time: '..downlink_time..'  |  Source IP: '..sa.addr)
+        end
     end
 end
 
@@ -167,8 +162,8 @@ local function send_ts_ping(reflector, packet_id)
 
     -- Create a raw ICMP timestamp request message
     local time_after_midnight_ms = get_time_after_midnight_ms()
-    local tsReq = vstruct.write('> 2*u1 3*u2 3*u4', {13, 0, 0, packet_id, 0, time_after_midnight_ms, 0, 0})
-    local tsReq = vstruct.write('> 2*u1 3*u2 3*u4', {13, 0, calculate_checksum(tsReq), packet_id, 0, time_after_midnight_ms, 0, 0})
+    local tsReq = vstruct.write('> 2*u1 3*u2 3*u4', {13, 0, 0, 0xFEED, 0, time_after_midnight_ms, 0, 0})
+    local tsReq = vstruct.write('> 2*u1 3*u2 3*u4', {13, 0, calculate_checksum(tsReq), 0xFEED, 0, time_after_midnight_ms, 0, 0})
 
     -- Send ICMP TS request
     local ok, err = socket.sendto(sock, tsReq, {family=socket.AF_INET, addr=reflector, port=0})
@@ -212,11 +207,11 @@ local function send_and_receive_ts_ping6(sock, reflector, sock_timestamp)
 
     local rtt = time_after_midnight_ms - originalTS
 
-    if debug then
-        print(time_after_midnight_ms)
-        print(rtt)
-        print(originalTS)
-    end
+    -- if debug then
+    --     print(time_after_midnight_ms)
+    --     print(rtt)
+    --     print(originalTS)
+    -- end
 
     local uplink_time = receiveTS - originalTS
     local downlink_time = originalTS + rtt - transmitTS
@@ -238,11 +233,12 @@ end
 
 ---------------------------- Begin Coroutine Setup ----------------------------
 -- Set up the OWD constructs
-for i,reflector in ipairs(reflectorArrayV4) do
+for i,reflector in ipairs(reflector_array_v4) do
     OWD_cur[reflector] = {['uplink_time'] = -1, ['downlink_time'] = -1, ['query_count'] = 0}
     OWD_avg[reflector] = {['uplink_time_avg'] = {}, ['downlink_time_avg'] = {}}
 
     local pkt_id = decToHex(cur_process_id + i, 4)
+    table.insert(packet_id_array, tostring(pkt_id))
 
     sender_cr = coroutine.create(function ()
         local r_ip = reflector
@@ -253,20 +249,17 @@ for i,reflector in ipairs(reflectorArrayV4) do
         end
     end)
     table.insert(sender_coroutine_array, sender_cr)
-
-    receiver_cr = coroutine.create(function()
-        local r_ip = reflector
-
-        while true do
-            receive_ts_ping(r_ip, pkt_id)
-            coroutine.yield()
-        end
-    end)
-    table.insert(receiver_coroutine_array, receiver_cr)
 end
 
+local receiver_cr = coroutine.create(function()
+    while true do
+        receive_ts_ping()
+        coroutine.yield()
+    end
+end)
+
 ---- DISABLED for now until some ICMPv6 stuff is figured out...
--- for _,reflector in ipairs(reflectorArrayV6) do
+-- for _,reflector in ipairs(reflector_array_v6) do
 --     OWD_cur[reflector] = {['uplink_time'] = -1, ['downlink_time'] = -1, ['query_count'] = 0}
 --     OWD_avg[reflector] = {['uplink_time_avg'] = {}, ['downlink_time_avg'] = {}}
 
@@ -294,11 +287,10 @@ while true do
     -- Reflector query loop
     for _,sender in ipairs(sender_coroutine_array) do
         coroutine.resume(sender)
+        coroutine.resume(receiver_cr)
     end
 
-    for _,receiver in ipairs(receiver_coroutine_array) do
-        coroutine.resume(receiver)
-    end
+    -- coroutine.resume(receiver_cr)
 
     -- Debug stuffz...
     -- if debug then
@@ -318,6 +310,8 @@ while true do
     -- end
 
     -- Tick timer
-    time.nanosleep({tv_sec = 0, tv_nsec = tick_duration * 1000000000})
+    print("HERE")
+    -- time.nanosleep({tv_sec = 3, tv_nsec = tick_duration * 1000000000})
+    time.nanosleep({tv_sec = 1})
 end
 ---------------------------- End Conductor Loop ----------------------------
