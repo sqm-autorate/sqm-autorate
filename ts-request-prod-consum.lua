@@ -37,7 +37,7 @@ local max_delta_OWD = 15 -- increase from baseline RTT for detection of bufferbl
 local OWD_cur = {}
 local OWD_avg = {}
 
-local cur_process_id = posix.getpid()
+local cur_process_id = posix.getpid()["pid"]
 
 local packets_on_the_wire = 0
 
@@ -126,7 +126,7 @@ local function receive_ts_ping(pkt_id)
     -- Read ICMP TS reply
     local entry_time = get_time_after_midnight_ms()
 
-    while packets_on_the_wire > 0 and (get_time_after_midnight_ms() - entry_time) < 500 do
+    while true do
         local data, sa = socket.recvfrom(sock, 100) -- An IPv4 ICMP reply should be ~56bytes. This value may need tweaking.
 
         if data then
@@ -141,27 +141,26 @@ local function receive_ts_ping(pkt_id)
             -- A pos > 0 indicates the current sa.addr is a known member of the reflector array
             if (pos > 0 and src_pkt_id == pkt_id) then
                 packets_on_the_wire = packets_on_the_wire - 1
-
-                local reflector = sa.addr
-                local originalTS = tsResp[6]
-                local receiveTS = tsResp[7]
-                local transmitTS = tsResp[8]
-                local rtt = time_after_midnight_ms - originalTS
-                local uplink_time = receiveTS - originalTS
-                local downlink_time = originalTS + rtt - transmitTS
-                local new_query_count = OWD_cur[reflector]['query_count'] + 1
-
-                OWD_cur[reflector] = {['uplink_time'] = uplink_time, ['downlink_time'] = downlink_time, ['query_count'] = new_query_count}
-                -- TBD: This is not ready--it's a placeholder. Idea is to create a moving average calculation...
-                OWD_avg[reflector] = {['uplink_time_avg'] = uplink_time, ['downlink_time_avg'] = downlink_time}
+		local data = {
+                reflector = sa.addr,
+                originalTS = tsResp[6],
+		receiveTS = tsResp[7],
+		transmitTS = tsResp[8],
+                rtt = time_after_midnight_ms - originalTS,
+                uplink_time = receiveTS - originalTS,
+                downlink_time = originalTS + rtt - transmitTS}
 
                 if debug then
                     print('Reflector IP: '..reflector..'  |  Current time: '..time_after_midnight_ms..
                         '  |  TX at: '..originalTS..'  |  RTT: '..rtt..'  |  UL time: '..uplink_time..
                         '  |  DL time: '..downlink_time..'  |  Source IP: '..sa.addr)
                 end
+		coroutine.yield(data)
             end
-        end
+        else
+	   coroutine.yield(nil)
+	end
+	
     end
 end
 
@@ -185,6 +184,7 @@ local function send_ts_ping(reflector, pkt_id)
     -- Send ICMP TS request
     local ok = socket.sendto(sock, tsReq, {family=socket.AF_INET, addr=reflector, port=0})
     if ok then packets_on_the_wire = packets_on_the_wire + 1 end
+    return ok
 end
 ---------------------------- End Local Functions ----------------------------
 
@@ -203,16 +203,6 @@ end
 -- Set a packet ID
 local packet_id = cur_process_id + 32768
 
-local function receive()
-    receive_ts_ping(packet_id)
-    return coroutine.yield()
-end
-
-local function send(cons, reflector_ip)
-    send_ts_ping(reflector_ip, packet_id)
-    local status, value = coroutine.resume(cons, reflector_ip)
-    return value
-end
 
 local function consumer()
     return coroutine.create(function(x)
@@ -240,16 +230,32 @@ end
 local tick_rate_nsec = tick_rate * 1000000000
 
 -- Constructor Gadget...
-local function producer(cons)
+local function pinger()
     while true do
         for _,reflector in ipairs(reflector_array_v4) do
-            time.nanosleep({tv_sec = 0, tv_nsec = tick_rate_nsec})
-            send(cons, reflector)
+	   result = send_ts_ping(reflector,packet_id)
+	   coroutine.yield(reflector,result)
         end
     end
 end
 
 -- Start this whole thing in motion!
-producer(consumer())
 
+local function conductor()
+   pings = coroutine.create(pinger)
+   receiver = coroutine.create(receive_ts_ping)
+   while true do
+      refl, ok = coroutine.resume(pings)
+      if not ok then
+	 print("Could not send packet to ".. refl)
+      end
+      timedata = coroutine.resume(receiver,packet_id)
+      if timedata then
+	 -- do some math magic
+      end
+      time.nanosleep({tv_sec = 0, tv_nsec = tick_rate_nsec})
+   end
+end
+
+conductor() -- go!
 ---------------------------- End Conductor Loop ----------------------------
