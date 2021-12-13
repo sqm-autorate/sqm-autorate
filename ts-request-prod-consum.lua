@@ -219,17 +219,21 @@ local function pinger(freq)
     if debug then
         print("Entered pinger()")
     end
-    local lastsends, lastsendns = posix.clock_gettime(posix.CLOCK_REALTIME)
+    local lastsend, err = posix.clock_gettime(posix.CLOCK_REALTIME)
     while true do
         for _, reflector in ipairs(reflector_array_v4) do
-            local curtimes, curtimens = posix.clock_gettime(posix.CLOCK_REALTIME)
+            local curtime, err = posix.clock_gettime(posix.CLOCK_REALTIME)
             if debug then
                 print("Output from pinger() loop -- reflector curtimes curtimens", reflector, curtimes, curtimens)
             end
-            while (curtimes - lastsends) + (curtimens - lastsendns) / 1e9 < freq do
+            while ((curtime.tv_sec - lastsend.tv_sec) + (curtime.tv_nsec - lastsend.tv_nsec) / 1e9) < freq do
                 -- do nothing until next send time
+                -- time.nanosleep({
+                --     tv_sec = 1,
+                --     tv_nsec = 0
+                -- })
                 coroutine.yield(reflector, nil)
-                curtimes, curtimens = posix.clock_gettime(posix.CLOCK_REALTIME)
+                curtime, err = posix.clock_gettime(posix.CLOCK_REALTIME)
                 if debug then
                     print("Output from pinger() loop -- reflector curtimes curtimens", reflector, curtimes, curtimens)
                 end
@@ -238,7 +242,7 @@ local function pinger(freq)
             if debug then
                 print("Result from send_ts_ping()", result)
             end
-            lastsends, lastsendns = posix.clock_gettime(posix.CLOCK_REALTIME)
+            lastsend, err = posix.clock_gettime(posix.CLOCK_REALTIME)
             coroutine.yield(reflector, result)
         end
     end
