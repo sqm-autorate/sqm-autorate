@@ -198,6 +198,8 @@ local packet_id = cur_process_id + 32768
 
 local function receive()
     local result = receive_ts_ping(packet_id)
+
+    -- Parse and process results if we got them...
     if result then
         for i,j in pairs(result) do
             for k,v in pairs(j) do
@@ -205,6 +207,7 @@ local function receive()
             end
         end
     end
+
     return coroutine.yield()
 end
 
@@ -218,6 +221,7 @@ local function consumer()
     return coroutine.create(function(x)
         while true do
             local x = receive()
+            print("!!! Got this for x", x)
             -- print('')
             -- for k,v in pairs(OWD_cur) do
             --     for i,j in pairs(v) do
