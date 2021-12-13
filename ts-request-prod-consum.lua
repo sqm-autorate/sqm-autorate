@@ -86,11 +86,6 @@ local function aelseb(a, b)
     end
 end
 
-local function get_time_after_midnight_ms()
-    timespec = time.clock_gettime(time.CLOCK_REALTIME)
-    return (timespec.tv_sec % 86400 * 1000) + (math.floor(timespec.tv_nsec / 1000000))
-end
-
 local function get_current_time()
     local time_s, time_ns = 0, 0
     val1, val2 = time.clock_gettime(time.CLOCK_REALTIME)
@@ -102,6 +97,11 @@ local function get_current_time()
         time_ns = val2
     end
     return time_s, time_ns
+end
+
+local function get_time_after_midnight_ms()
+    time_s, time_ns = get_current_time()
+    return (time_s % 86400 * 1000) + (math.floor(time_ns / 1000000))
 end
 
 local function dec_to_hex(number, digits)
