@@ -145,8 +145,8 @@ local function receive_ts_ping(pkt_id)
 		
                 if debug then
                     print('Reflector IP: '..reflector..'  |  Current time: '..time_after_midnight_ms..
-                        '  |  TX at: '..originalTS..'  |  RTT: '..rtt..'  |  UL time: '..uplink_time..
-                        '  |  DL time: '..downlink_time..'  |  Source IP: '..sa.addr)
+                        '  |  TX at: '..stats.originalTS..'  |  RTT: '..stats.rtt..'  |  UL time: '..stats.uplink_time..
+                        '  |  DL time: '..stats.downlink_time..'  |  Source IP: '..sa.addr)
                 end
                 coroutine.yield(stats)
             end
