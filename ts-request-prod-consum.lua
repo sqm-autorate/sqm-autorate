@@ -33,13 +33,8 @@ local max_delta_OWD = 15 -- increase from baseline RTT for detection of bufferbl
 
 
 ---------------------------- Begin Internal Local Variables ----------------------------
--- Constructs to hold the ongoing OWD data
-local OWD_cur = {}
-local OWD_avg = {}
-
+local tick_rate_nsec = tick_rate * 1000000000
 local cur_process_id = posix.getpid()
-
-local packets_on_the_wire = 0
 
 -- Create raw socket
 local sock = assert(socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP), "Failed to create socket")
@@ -105,9 +100,6 @@ local function calculate_checksum(data)
     return bit.bnot(checksum)
 end
 
-local function update_tc_rates()
-    print("TBD")
-end
 
 local function get_table_position(tbl, item)
     for i,value in ipairs(tbl) do
@@ -124,39 +116,41 @@ end
 
 local function receive_ts_ping(pkt_id)
     -- Read ICMP TS reply
-    local entry_time = get_time_after_midnight_ms()
-    local received_pings = {}
-
-    while packets_on_the_wire > 0 and (get_time_after_midnight_ms() - entry_time) < 500 do
+    while true do
         local data, sa = socket.recvfrom(sock, 100) -- An IPv4 ICMP reply should be ~56bytes. This value may need tweaking.
 
         if data then
-            local ipStart = string.byte(data, 1)
-            local ipVer = bit.rshift(ipStart, 4)
-            local hdrLen = (ipStart - ipVer * 16) * 4
-            local tsResp = vstruct.read('> 2*u1 3*u2 3*u4', string.sub(data, hdrLen + 1, #data))
+            local ip_start = string.byte(data, 1)
+            local ip_ver = bit.rshift(ip_start, 4)
+            local hdr_len = (ip_start - ip_ver * 16) * 4
+            local ts_resp = vstruct.read('> 2*u1 3*u2 3*u4', string.sub(data, hdr_len + 1, #data))
             local time_after_midnight_ms = get_time_after_midnight_ms()
-            local src_pkt_id = tsResp[4]
+            local src_pkt_id = ts_resp[4]
             local pos = get_table_position(reflector_array_v4, sa.addr)
 
             -- A pos > 0 indicates the current sa.addr is a known member of the reflector array
             if (pos > 0 and src_pkt_id == pkt_id) then
-                packets_on_the_wire = packets_on_the_wire - 1
+                local stats = {
+                    reflector = sa.addr,
+                    original_ts = ts_resp[6],
+                    receive_ts = ts_resp[7],
+                    transmit_ts = ts_resp[8],
+                    rtt = time_after_midnight_ms - ts_resp[6],
+                    uplink_time = ts_resp[7] - ts_resp[6],
+                    downlink_time = time_after_midnight_ms - ts_resp[8]
+                }
 
-                local reflector = sa.addr
-                local originalTS = tsResp[6]
-                local receiveTS = tsResp[7]
-                local transmitTS = tsResp[8]
-                local rtt = time_after_midnight_ms - originalTS
-                local uplink_time = receiveTS - originalTS
-                local downlink_time = originalTS + rtt - transmitTS
-
-                table.insert(received_pings, {['reflector'] = reflector, ['rtt'] = rtt, ['uplink_time'] = uplink_time, ['downlink_time'] = downlink_time})
+                if debug then
+                    print('Reflector IP: '..stats.reflector..'  |  Current time: '..time_after_midnight_ms..
+                        '  |  TX at: '..stats.original_ts..'  |  RTT: '..stats.rtt..'  |  UL time: '..stats.uplink_time..
+                        '  |  DL time: '..stats.downlink_time)
+                end
+                coroutine.yield(stats)
             end
+        else
+            coroutine.yield(nil)
         end
     end
-
-    if get_table_len(received_pings) > 0 then return received_pings else return nil end
 end
 
 local function send_ts_ping(reflector, pkt_id)
@@ -177,81 +171,87 @@ local function send_ts_ping(reflector, pkt_id)
 
     -- Send ICMP TS request
     local ok = socket.sendto(sock, tsReq, {family=socket.AF_INET, addr=reflector, port=0})
-    if ok then packets_on_the_wire = packets_on_the_wire + 1 end
+    return ok
 end
 ---------------------------- End Local Functions ----------------------------
 
----------------------------- Begin Coroutine Setup ----------------------------
-
--- Set up the OWD constructs
-for i,reflector in ipairs(reflector_array_v4) do
-    OWD_cur[reflector] = {['uplink_time'] = -1, ['downlink_time'] = -1, ['query_count'] = 0}
-    OWD_avg[reflector] = {['uplink_time_avg'] = {}, ['downlink_time_avg'] = {}}
-end
-
----------------------------- End Coroutine Setup ----------------------------
 
 ---------------------------- Begin Conductor Loop ----------------------------
 
 -- Set a packet ID
 local packet_id = cur_process_id + 32768
 
-local function receive()
-    local result = receive_ts_ping(packet_id)
-
-    -- Parse and process results if we got them...
-    if result then
-        for i,j in pairs(result) do
-            for k,v in pairs(j) do
-                print(k,v)
-            end
-        end
-    end
-
-    return coroutine.yield()
-end
-
-local function send(cons, reflector_ip)
-    send_ts_ping(reflector_ip, packet_id)
-    local status, value = coroutine.resume(cons, reflector_ip)
-    return value
-end
-
-local function consumer()
-    return coroutine.create(function(x)
-        while true do
-            local x = receive()
-            print("!!! Got this for x", x)
-            -- print('')
-            -- for k,v in pairs(OWD_cur) do
-            --     for i,j in pairs(v) do
-            --         print(k, i, j)
-            --     end
-            -- end
-
-            -- print('')
-            -- for k,v in pairs(OWD_avg) do
-            --     for i,j in pairs(v) do
-            --         print(k, i, j)
-            --     end
-            -- end
-        end
-    end)
-end
-
-local tick_rate_nsec = tick_rate * 1000000000
-
 -- Constructor Gadget...
-local function producer(cons)
+local function pinger()
     while true do
         for _,reflector in ipairs(reflector_array_v4) do
-            time.nanosleep({tv_sec = 0, tv_nsec = tick_rate_nsec})
-            send(cons, reflector)
+            result = send_ts_ping(reflector,packet_id)
+            coroutine.yield(reflector,result)
         end
     end
 end
 
 -- Start this whole thing in motion!
-producer(consumer())
+local function conductor()
+    local pings = coroutine.create(pinger)
+    local receiver = coroutine.create(receive_ts_ping)
 
+    local OWDbaseline = {}
+    local slowfactor = .9
+    local OWDrecent = {}
+    local fastfactor = .2
+
+    -- Set up OWD tables
+    for _,reflector in ipairs(reflector_array_v4) do
+        OWDbaseline[reflector] = {["upewma"] = nil}
+        OWDrecent[reflector] = {["upewma"] = nil}
+        OWDbaseline[reflector] = {["downewma"] = nil}
+        OWDrecent[reflector] = {["downewma"] = nil}
+    end
+
+    while true do
+        local ok, refl, worked = coroutine.resume(pings)
+
+        if not ok or not worked then
+            print("Could not send packet to ".. refl)
+        end
+
+        local timedata = nil
+        ok,timedata = coroutine.resume(receiver,packet_id)
+
+        if ok and timedata then
+            if not OWDbaseline[timedata.reflector].upewma then
+                OWDbaseline[timedata.reflector].upewma = timedata.uplink_time
+            end
+            if not OWDrecent[timedata.reflector].upewma then
+                OWDrecent[timedata.reflector].upewma = timedata.uplink_time
+            end
+            if not OWDbaseline[timedata.reflector].downewma then
+                OWDbaseline[timedata.reflector].downewma = timedata.downlink_time
+            end
+            if not OWDrecent[timedata.reflector].downewma then
+                OWDrecent[timedata.reflector].downewma = timedata.downlink_time
+            end
+
+            OWDbaseline[timedata.reflector].upewma = OWDbaseline[timedata.reflector].upewma * slowfactor + (1-slowfactor) * timedata.uplink_time
+            OWDrecent[timedata.reflector].upewma = OWDrecent[timedata.reflector].upewma * fastfactor + (1-fastfactor) * timedata.uplink_time
+            OWDbaseline[timedata.reflector].downewma = OWDbaseline[timedata.reflector].downewma * slowfactor + (1-slowfactor) * timedata.downlink_time
+            OWDrecent[timedata.reflector].downewma = OWDrecent[timedata.reflector].downewma * fastfactor + (1-fastfactor) * timedata.downlink_time
+
+            for ref,val in pairs(OWDbaseline) do
+                upewma = val.upewma and val.upewma or "?" -- Hacky Lua version of a ternary
+                downewma = val.downewma and val.downewma or "?" -- Hacky Lua version of a ternary
+                print("Reflector " .. ref .. " up baseline = " .. upewma  .. " down baseline = " .. downewma)
+            end
+            for ref,val in pairs(OWDrecent) do
+                upewma = val.upewma and val.upewma or "?" -- Hacky Lua version of a ternary
+                downewma = val.downewma and val.downewma or "?" -- Hacky Lua version of a ternary
+                print("Reflector " .. ref .. " up baseline = " .. upewma  .. " down baseline = " .. downewma)
+            end
+        end
+        time.nanosleep({tv_sec = 0, tv_nsec = tick_rate_nsec})
+    end
+end
+
+conductor() -- go!
 ---------------------------- End Conductor Loop ----------------------------
