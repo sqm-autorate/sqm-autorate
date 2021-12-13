@@ -10,7 +10,8 @@ local debug = true
 local ul_if = "eth0" -- upload interface
 local dl_if = "ifb4eth0" -- download interface
 
-local tick_rate = 0.5 -- Frequency in seconds
+local send_rate = 0.5 -- Frequency in seconds of sends
+local read_rate = 100 -- the number of read attempts per send
 
 local reflector_array_v4 = {'9.9.9.9', '9.9.9.10', '149.112.112.10', '149.112.112.11', '149.112.112.112'}
 --local reflector_array_v6 = {'2620:fe::10', '2620:fe::fe:10'} -- TODO Implement IPv6 support?
@@ -42,7 +43,7 @@ local reflector_array_v4 = {'9.9.9.9', '9.9.9.10', '149.112.112.10', '149.112.11
 
 ---------------------------- Begin Internal Local Variables ----------------------------
 
-local tick_rate_nsec = tick_rate * 1000000000
+local tick_rate_nsec = math.floor(send_rate * 1000000000 / read_rate)
 local cur_process_id = posix.getpid()
 local packet_id = cur_process_id + 32768
 local rx_bytes_path = ""
@@ -196,13 +197,18 @@ local function conductor()
     local slowfactor = .9
     local OWDrecent = {}
     local fastfactor = .2
+    local send_on_zero = 0
 
     while true do
-        local ok, refl, worked = coroutine.resume(pings)
+        if send_on_zero <= 0 then
+            send_on_zero = read_rate
+            local ok, refl, worked = coroutine.resume(pings)
 
-        if not ok or not worked then
-            print("Could not send packet to ".. refl)
+            if not ok or not worked then
+                print("Could not send packet to ".. refl)
+            end
         end
+        send_on_zero = send_on_zero - 1
 
         local timedata = nil
         ok,timedata = coroutine.resume(receiver,packet_id)
@@ -229,20 +235,16 @@ local function conductor()
             end
 
             OWDbaseline[timedata.reflector].upewma = OWDbaseline[timedata.reflector].upewma * slowfactor + (1-slowfactor) * timedata.uplink_time
-            OWDrecent[timedata.reflector].upewma = OWDrecent[timedata.reflector].upewma * fastfactor + (1-fastfactor) * timedata.uplink_time
             OWDbaseline[timedata.reflector].downewma = OWDbaseline[timedata.reflector].downewma * slowfactor + (1-slowfactor) * timedata.downlink_time
-            OWDrecent[timedata.reflector].downewma = OWDrecent[timedata.reflector].downewma * fastfactor + (1-fastfactor) * timedata.downlink_time
+            print("Reflector " .. timedata.reflector ..
+                " up baseline = " .. OWDbaseline[timedata.reflector].upewma  ..
+                " down baseline = " .. OWDbaseline[timedata.reflector].downewma)
 
-            for ref,val in pairs(OWDbaseline) do
-                upewma = val.upewma and val.upewma or "?" -- Hacky Lua version of a ternary
-                downewma = val.downewma and val.downewma or "?" -- Hacky Lua version of a ternary
-                print("Reflector " .. ref .. " up baseline = " .. upewma  .. " down baseline = " .. downewma)
-            end
-            for ref,val in pairs(OWDrecent) do
-                upewma = val.upewma and val.upewma or "?" -- Hacky Lua version of a ternary
-                downewma = val.downewma and val.downewma or "?" -- Hacky Lua version of a ternary
-                print("Reflector " .. ref .. " up baseline = " .. upewma  .. " down baseline = " .. downewma)
-            end
+            OWDrecent[timedata.reflector].upewma = OWDrecent[timedata.reflector].upewma * fastfactor + (1-fastfactor) * timedata.uplink_time
+            OWDrecent[timedata.reflector].downewma = OWDrecent[timedata.reflector].downewma * fastfactor + (1-fastfactor) * timedata.downlink_time
+            print("Reflector " .. timedata.reflector ..
+                " up recent = " .. OWDrecent[timedata.reflector].upewma  ..
+                " down recent = " .. OWDrecent[timedata.reflector].downewma)
         end
         time.nanosleep({tv_sec = 0, tv_nsec = tick_rate_nsec})
     end
