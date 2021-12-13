@@ -216,6 +216,12 @@ local function conductor()
         ok,timedata = coroutine.resume(receiver,packet_id)
         print("timedata = ", timedata)
         if ok and timedata then
+	   if not OWDbaseline[timedata.reflector] then
+	      OWDbaseline[timedata.reflector] = {}
+	   end
+	   if not OWDrecent[timedata.reflector] then
+	      OWDrecent[timedata.reflector] = {}
+	   end
 	   if not OWDbaseline[timedata.reflector].upewma then
 	      OWDbaseline[timedata.reflector].upewma = timedata.uplink_time
 	   end
