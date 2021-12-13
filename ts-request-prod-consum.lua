@@ -194,19 +194,26 @@ end
 local packet_id = cur_process_id + 32768
 
 -- Constructor Gadget...
-local function pinger()
+local function pinger(freq)
+   local lastsends,lastsendns = posix.clock_gettime(posix.CLOCK_REALTIME)
     while true do
-        for _,reflector in ipairs(reflector_array_v4) do
-            result = send_ts_ping(reflector,packet_id)
-            coroutine.yield(reflector,result)
+       for _,reflector in ipairs(reflector_array_v4) do
+	  local curtimes,curtimens = posix.clock_gettime(posix.CLOCK_REALTIME)
+	  while (curtimes - lastsends) + (curtimens - lastsendns)/1e9 < freq do
+	     -- do nothing until next send time
+	     coroutine.yield(reflector,nil)
+	  end
+	  result = send_ts_ping(reflector,packet_id)
+	  lastsends,lastsendns = posix.clock_gettime(posix.CLOCK_REALTIME) 
+	  coroutine.yield(reflector,result)
         end
     end
 end
 
 -- Start this whole thing in motion!
 local function conductor()
-    local pings = coroutine.create(pinger)
-    local receiver = coroutine.create(receive_ts_ping)
+   local pings = coroutine.create(pinger)
+   local receiver = coroutine.create(receive_ts_ping)
 
     local OWDbaseline = {}
     local slowfactor = .9
@@ -214,13 +221,9 @@ local function conductor()
     local fastfactor = .2
 
     while true do
-        local ok, refl, worked = coroutine.resume(pings)
-	local sleeptimens = tick_rate/(#reflector_array_v4 + #reflector_array_v6)*1e9
-	local sleeptimes = sleeptimens - sleeptimens%1e9
-	sleeptimens = sleeptimens%1.0
-        if not ok or not worked then
-            print("Could not send packet to ".. refl)
-        end
+       local ok, refl, worked = coroutine.resume(pings,tick_rate/(#reflector_array_v4))
+	local sleeptimens = 500000.0
+	local sleeptimes = 0.0
 
         local timedata = nil
         ok,timedata = coroutine.resume(receiver,packet_id)
