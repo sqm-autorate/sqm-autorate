@@ -35,7 +35,7 @@ local max_delta_OWD = 15 -- increase from baseline RTT for detection of bufferbl
 ---------------------------- Begin Internal Local Variables ----------------------------
 
 
-local cur_process_id = posix.getpid()["pid"]
+local cur_process_id = posix.getpid()
 
 local packets_on_the_wire = 0
 
