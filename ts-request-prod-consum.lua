@@ -6,7 +6,7 @@ local time = require 'posix.time'
 local vstruct = require 'vstruct'
 
 ---------------------------- Begin User-Configurable Local Variables ----------------------------
-local debug = true
+local debug = false
 local enable_verbose_output = false -- enable (true) or disable (false) output monitoring lines showing bandwidth changes
 
 local ul_if = "eth0" -- upload interface
@@ -89,6 +89,19 @@ end
 local function get_time_after_midnight_ms()
     timespec = time.clock_gettime(time.CLOCK_REALTIME)
     return (timespec.tv_sec % 86400 * 1000) + (math.floor(timespec.tv_nsec / 1000000))
+end
+
+local function get_current_time()
+    local time_s, time_ns = 0, 0
+    val1, val2 = time.clock_gettime(time.CLOCK_REALTIME)
+    if type(val1) == "table" then
+        time_s = val1.tv_sec
+        time_ns = val1.tv_nsec
+    else
+        time_s = val1
+        time_ns = val2
+    end
+    return time_s, time_ns
 end
 
 local function dec_to_hex(number, digits)
@@ -219,21 +232,16 @@ local function pinger(freq)
     if debug then
         print("Entered pinger()")
     end
-    local lastsend, err = posix.clock_gettime(posix.CLOCK_REALTIME)
+    local lastsend_s, lastsend_ns = get_current_time()
     while true do
         for _, reflector in ipairs(reflector_array_v4) do
-            local curtime, err = posix.clock_gettime(posix.CLOCK_REALTIME)
+            local curtime_s, curtime_ns = get_current_time()
             if debug then
                 print("Output from pinger() loop -- reflector curtimes curtimens", reflector, curtimes, curtimens)
             end
-            while ((curtime.tv_sec - lastsend.tv_sec) + (curtime.tv_nsec - lastsend.tv_nsec) / 1e9) < freq do
-                -- do nothing until next send time
-                -- time.nanosleep({
-                --     tv_sec = 1,
-                --     tv_nsec = 0
-                -- })
+            while ((curtime_s - lastsend_s) + (curtime_ns - lastsend_ns) / 1e9) < freq do
                 coroutine.yield(reflector, nil)
-                curtime, err = posix.clock_gettime(posix.CLOCK_REALTIME)
+                curtime_s, curtime_ns = get_current_time()
                 if debug then
                     print("Output from pinger() loop -- reflector curtimes curtimens", reflector, curtimes, curtimens)
                 end
@@ -242,7 +250,7 @@ local function pinger(freq)
             if debug then
                 print("Result from send_ts_ping()", result)
             end
-            lastsend, err = posix.clock_gettime(posix.CLOCK_REALTIME)
+            lastsend_s, lastsend_ns = get_current_time()
             coroutine.yield(reflector, result)
         end
     end
