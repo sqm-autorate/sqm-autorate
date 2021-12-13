@@ -16,8 +16,6 @@ local dl_if = "ifb4eth0" -- download interface
 local base_ul_rate = 25750 -- steady state bandwidth for upload
 local base_dl_rate = 462500 -- steady state bandwidth for download
 
-local tick_duration = 1.0 -- seconds to wait between ticks
-
 local reflector_array_v4 = {'9.9.9.9', '9.9.9.10', '149.112.112.10', '149.112.112.11', '149.112.112.112'}
 local reflector_array_v6 = {'2620:fe::10', '2620:fe::fe:10'} -- TODO Implement IPv6 support?
 
