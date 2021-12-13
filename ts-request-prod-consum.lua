@@ -203,14 +203,6 @@ local function conductor()
     local OWDrecent = {}
     local fastfactor = .2
 
-    -- Set up OWD tables
-    for _,reflector in ipairs(reflector_array_v4) do
-        OWDbaseline[reflector] = {["upewma"] = nil}
-        OWDrecent[reflector] = {["upewma"] = nil}
-        OWDbaseline[reflector] = {["downewma"] = nil}
-        OWDrecent[reflector] = {["downewma"] = nil}
-    end
-
     while true do
         local ok, refl, worked = coroutine.resume(pings)
 
@@ -222,6 +214,13 @@ local function conductor()
         ok,timedata = coroutine.resume(receiver,packet_id)
 
         if ok and timedata then
+            if not OWDbaseline[timedata.reflector] then
+                OWDbaseline[timedata.reflector] = {}
+            end
+            if not OWDrecent[timedata.reflector] then
+                OWDrecent[timedata.reflector] = {}
+            end
+
             if not OWDbaseline[timedata.reflector].upewma then
                 OWDbaseline[timedata.reflector].upewma = timedata.uplink_time
             end
