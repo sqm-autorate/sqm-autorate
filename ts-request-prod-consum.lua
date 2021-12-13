@@ -279,7 +279,7 @@ local function ratecontrol(baseline, recent)
     local lastchgs, lastchgns = get_current_time()
 
     while true do
-        nows, nowns = get_current_time()
+        local nows, nowns = get_current_time()
         if (nows - lastchgs) + (nowns - lastchgns) / 1e9 > min_change_interval then
             local speedsneedchange = nil
             -- logic here to decide if the stats indicate needing a change
@@ -287,7 +287,7 @@ local function ratecontrol(baseline, recent)
 
                 -- if it's been long enough, and the stats indicate needing to change speeds
                 -- change speeds here
-                lastchs, lastchgns = get_current_time()
+                local lastchs, lastchgns = get_current_time()
             end
         end
         coroutine.yield(nil)
