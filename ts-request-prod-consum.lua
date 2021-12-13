@@ -307,15 +307,17 @@ local function conductor()
             OWDrecent[timedata.reflector].downewma = OWDrecent[timedata.reflector].downewma * fastfactor +
                                                          (1 - fastfactor) * timedata.downlink_time
 
-            for ref, val in pairs(OWDbaseline) do
-                local upewma = aelseb(val.upewma, "?")
-                local downewma = aelseb(val.downewma, "?")
-                print("Reflector " .. ref .. " up baseline = " .. upewma .. " down baseline = " .. downewma)
-            end
-            for ref, val in pairs(OWDrecent) do
-                local upewma = aelseb(val.upewma, "?")
-                local downewma = aelseb(val.downewma, "?")
-                print("Reflector " .. ref .. " up baseline = " .. upewma .. " down baseline = " .. downewma)
+            if enable_verbose_output then
+                for ref, val in pairs(OWDbaseline) do
+                    local upewma = aelseb(val.upewma, "?")
+                    local downewma = aelseb(val.downewma, "?")
+                    print("Reflector " .. ref .. " up baseline = " .. upewma .. " down baseline = " .. downewma)
+                end
+                for ref, val in pairs(OWDrecent) do
+                    local upewma = aelseb(val.upewma, "?")
+                    local downewma = aelseb(val.downewma, "?")
+                    print("Reflector " .. ref .. " up baseline = " .. upewma .. " down baseline = " .. downewma)
+                end
             end
         end
         time.nanosleep({
