@@ -4,7 +4,6 @@ local posix = require 'posix'
 local socket = require 'posix.sys.socket'
 local time = require 'posix.time'
 local vstruct = require 'vstruct'
-local new_socket = require 'socket'
 
 ---------------------------- Begin User-Configurable Local Variables ----------------------------
 local debug = true
