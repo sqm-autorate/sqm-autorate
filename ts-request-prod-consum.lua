@@ -15,6 +15,8 @@ local dl_if = "ifb4eth0" -- download interface
 local base_ul_rate = 25750 -- steady state bandwidth for upload
 local base_dl_rate = 462500 -- steady state bandwidth for download
 
+local tick_rate = 0.5 -- Frequency in seconds
+
 local reflector_array_v4 = {'9.9.9.9', '9.9.9.10', '149.112.112.10', '149.112.112.11', '149.112.112.112'}
 local reflector_array_v6 = {'2620:fe::10', '2620:fe::fe:10'} -- TODO Implement IPv6 support?
 
@@ -120,12 +122,12 @@ local function get_table_len(tbl)
     return count
 end
 
-local function receive_ts_ping(pkt_id, packets_on_the_wire)
+local function receive_ts_ping(pkt_id)
     -- Read ICMP TS reply
     local entry_time = get_time_after_midnight_ms()
 
     while packets_on_the_wire > 0 and (get_time_after_midnight_ms() - entry_time) < 500 do
-        local data, sa = socket.recvfrom(sock, 1024) -- An IPv4 ICMP reply should be ~56bytes. This value may need tweaking.
+        local data, sa = socket.recvfrom(sock, 100) -- An IPv4 ICMP reply should be ~56bytes. This value may need tweaking.
 
         if data then
             local ipStart = string.byte(data, 1)
@@ -181,7 +183,8 @@ local function send_ts_ping(reflector, pkt_id)
     local tsReq = vstruct.write('> 2*u1 3*u2 3*u4', {13, 0, calculate_checksum(tsReq), pkt_id, 0, time_after_midnight_ms, 0, 0})
 
     -- Send ICMP TS request
-    local result = assert(socket.sendto(sock, tsReq, {family=socket.AF_INET, addr=reflector, port=0}), "Failed to send packet")
+    local ok = socket.sendto(sock, tsReq, {family=socket.AF_INET, addr=reflector, port=0})
+    if ok then packets_on_the_wire = packets_on_the_wire + 1 end
 end
 ---------------------------- End Local Functions ----------------------------
 
@@ -201,13 +204,12 @@ end
 local packet_id = cur_process_id + 32768
 
 local function receive()
-    receive_ts_ping(packet_id, packets_on_the_wire)
+    receive_ts_ping(packet_id)
     return coroutine.yield()
 end
 
 local function send(cons, reflector_ip)
     send_ts_ping(reflector_ip, packet_id)
-    packets_on_the_wire = packets_on_the_wire + 1
     local status, value = coroutine.resume(cons, reflector_ip)
     return value
 end
@@ -235,10 +237,13 @@ local function consumer()
     end)
 end
 
+local tick_rate_nsec = tick_rate * 1000000000
+
 -- Constructor Gadget...
 local function producer(cons)
     while true do
         for _,reflector in ipairs(reflector_array_v4) do
+            time.nanosleep({tv_sec = 0, tv_nsec = tick_rate_nsec})
             send(cons, reflector)
         end
     end
