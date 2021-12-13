@@ -225,7 +225,8 @@ local function pinger(freq)
             local curtimes, curtimens = posix.clock_gettime(posix.CLOCK_REALTIME)
             while (curtimes - lastsends) + (curtimens - lastsendns) / 1e9 < freq do
                 -- do nothing until next send time
-                coroutine.yield(reflector, nil)
+	       coroutine.yield(reflector, nil)
+	       curtimes, curtimens = posix.clock_gettime(posix.CLOCK_REALTIME)
             end
             result = send_ts_ping(reflector, packet_id)
             if debug then
