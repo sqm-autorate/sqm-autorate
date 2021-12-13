@@ -33,6 +33,7 @@ local max_delta_OWD = 15 -- increase from baseline RTT for detection of bufferbl
 
 
 ---------------------------- Begin Internal Local Variables ----------------------------
+
 local tick_rate_nsec = tick_rate * 1000000000
 local cur_process_id = posix.getpid()
 
@@ -180,6 +181,7 @@ end
 
 -- Set a packet ID
 local packet_id = cur_process_id + 32768
+local tick_rate_nsec = tick_rate * 1000000000
 
 -- Constructor Gadget...
 local function pinger()
