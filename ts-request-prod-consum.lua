@@ -88,7 +88,7 @@ end
 
 local function get_current_time()
     local time_s, time_ns = 0, 0
-    val1, val2 = time.clock_gettime(time.CLOCK_REALTIME)
+    local val1, val2 = time.clock_gettime(time.CLOCK_REALTIME)
     if type(val1) == "table" then
         time_s = val1.tv_sec
         time_ns = val1.tv_nsec
