@@ -129,6 +129,10 @@ local function get_table_len(tbl)
 end
 
 local function receive_ts_ping(pkt_id)
+    if debug then
+        print("Entered receive_ts_ping() with values", pkt_id)
+    end
+
     -- Read ICMP TS reply
     while true do
         local data, sa = socket.recvfrom(sock, 100) -- An IPv4 ICMP reply should be ~56bytes. This value may need tweaking.
@@ -158,10 +162,14 @@ local function receive_ts_ping(pkt_id)
                     print('Reflector IP: ' .. stats.reflector .. '  |  Current time: ' .. time_after_midnight_ms ..
                               '  |  TX at: ' .. stats.original_ts .. '  |  RTT: ' .. stats.rtt .. '  |  UL time: ' ..
                               stats.uplink_time .. '  |  DL time: ' .. stats.downlink_time)
+                    print("Exiting receive_ts_ping() with stats return")
                 end
                 coroutine.yield(stats)
             end
         else
+            if debug then
+                print("Exiting receive_ts_ping() with nil return")
+            end
             coroutine.yield(nil)
         end
     end
@@ -178,6 +186,10 @@ local function send_ts_ping(reflector, pkt_id)
     -- Received timestamp - 4 bytes
     -- Transmit timestamp - 4 bytes
 
+    if debug then
+        print("Entered send_ts_ping() with values", reflector, pkt_id)
+    end
+
     -- Create a raw ICMP timestamp request message
     local time_after_midnight_ms = get_time_after_midnight_ms()
     local tsReq = vstruct.write('> 2*u1 3*u2 3*u4', {13, 0, 0, pkt_id, 0, time_after_midnight_ms, 0, 0})
@@ -190,6 +202,9 @@ local function send_ts_ping(reflector, pkt_id)
         addr = reflector,
         port = 0
     })
+    if debug then
+        print("Exiting send_ts_ping()")
+    end
     return ok
 end
 ---------------------------- End Local Functions ----------------------------
@@ -201,6 +216,9 @@ local packet_id = cur_process_id + 32768
 
 -- Constructor Gadget...
 local function pinger(freq)
+    if debug then
+        print("Entered pinger()")
+    end
     local lastsends, lastsendns = posix.clock_gettime(posix.CLOCK_REALTIME)
     while true do
         for _, reflector in ipairs(reflector_array_v4) do
@@ -210,6 +228,9 @@ local function pinger(freq)
                 coroutine.yield(reflector, nil)
             end
             result = send_ts_ping(reflector, packet_id)
+            if debug then
+                print("Result from send_ts_ping()", result)
+            end
             lastsends, lastsendns = posix.clock_gettime(posix.CLOCK_REALTIME)
             coroutine.yield(reflector, result)
         end
@@ -218,6 +239,9 @@ end
 
 -- Start this whole thing in motion!
 local function conductor()
+    if debug then
+        print("Entered conductor()")
+    end
     local pings = coroutine.create(pinger)
     local receiver = coroutine.create(receive_ts_ping)
 
