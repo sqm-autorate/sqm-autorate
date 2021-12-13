@@ -125,6 +125,7 @@ end
 local function receive_ts_ping(pkt_id)
     -- Read ICMP TS reply
     local entry_time = get_time_after_midnight_ms()
+    local received_pings = {}
 
     while packets_on_the_wire > 0 and (get_time_after_midnight_ms() - entry_time) < 500 do
         local data, sa = socket.recvfrom(sock, 100) -- An IPv4 ICMP reply should be ~56bytes. This value may need tweaking.
@@ -149,20 +150,13 @@ local function receive_ts_ping(pkt_id)
                 local rtt = time_after_midnight_ms - originalTS
                 local uplink_time = receiveTS - originalTS
                 local downlink_time = originalTS + rtt - transmitTS
-                local new_query_count = OWD_cur[reflector]['query_count'] + 1
 
-                OWD_cur[reflector] = {['uplink_time'] = uplink_time, ['downlink_time'] = downlink_time, ['query_count'] = new_query_count}
-                -- TBD: This is not ready--it's a placeholder. Idea is to create a moving average calculation...
-                OWD_avg[reflector] = {['uplink_time_avg'] = uplink_time, ['downlink_time_avg'] = downlink_time}
-
-                if debug then
-                    print('Reflector IP: '..reflector..'  |  Current time: '..time_after_midnight_ms..
-                        '  |  TX at: '..originalTS..'  |  RTT: '..rtt..'  |  UL time: '..uplink_time..
-                        '  |  DL time: '..downlink_time..'  |  Source IP: '..sa.addr)
-                end
+                table.insert(received_pings, {['reflector'] = reflector, ['rtt'] = rtt, ['uplink_time'] = uplink_time, ['downlink_time'] = downlink_time})
             end
         end
     end
+
+    if get_table_len(received_pings) > 0 then return received_pings else return nil end
 end
 
 local function send_ts_ping(reflector, pkt_id)
@@ -178,7 +172,6 @@ local function send_ts_ping(reflector, pkt_id)
 
     -- Create a raw ICMP timestamp request message
     local time_after_midnight_ms = get_time_after_midnight_ms()
-    -- print(pkt_id)
     local tsReq = vstruct.write('> 2*u1 3*u2 3*u4', {13, 0, 0, pkt_id, 0, time_after_midnight_ms, 0, 0})
     local tsReq = vstruct.write('> 2*u1 3*u2 3*u4', {13, 0, calculate_checksum(tsReq), pkt_id, 0, time_after_midnight_ms, 0, 0})
 
@@ -204,7 +197,14 @@ end
 local packet_id = cur_process_id + 32768
 
 local function receive()
-    receive_ts_ping(packet_id)
+    local result = receive_ts_ping(packet_id)
+    if result then
+        for i,j in pairs(result) do
+            for k,v in pairs(j) do
+                print(k,v)
+            end
+        end
+    end
     return coroutine.yield()
 end
 
@@ -218,12 +218,12 @@ local function consumer()
     return coroutine.create(function(x)
         while true do
             local x = receive()
-            print('')
-            for k,v in pairs(OWD_cur) do
-                for i,j in pairs(v) do
-                    print(k, i, j)
-                end
-            end
+            -- print('')
+            -- for k,v in pairs(OWD_cur) do
+            --     for i,j in pairs(v) do
+            --         print(k, i, j)
+            --     end
+            -- end
 
             -- print('')
             -- for k,v in pairs(OWD_avg) do
@@ -231,8 +231,6 @@ local function consumer()
             --         print(k, i, j)
             --     end
             -- end
-
-            print("Packets on the wire:",packets_on_the_wire)
         end
     end)
 end
