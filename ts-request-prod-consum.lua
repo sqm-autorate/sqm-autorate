@@ -4,6 +4,7 @@ local posix = require 'posix'
 local socket = require 'posix.sys.socket'
 local time = require 'posix.time'
 local vstruct = require 'vstruct'
+local new_socket = require 'socket'
 
 ---------------------------- Begin User-Configurable Local Variables ----------------------------
 local debug = true
@@ -42,12 +43,13 @@ local cur_process_id = posix.getpid()
 local packets_on_the_wire = 0
 
 -- Create raw socket
-local sock, err = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP)
-assert(sock, err)
-local ok, err = socket.setsockopt(sock, socket.SOL_SOCKET, socket.SO_RCVTIMEO, 0, 500000) -- 500000 usec = 500 msec
-assert(ok, err)
-local ok, err = socket.setsockopt(sock, socket.SOL_SOCKET, socket.SO_SNDTIMEO, 0, 500000) -- 500000 usec = 500 msec
-assert(ok, err)
+local sock = assert(socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP), "Failed to create socket")
+-- socket.setsockopt(sock, socket.SOL_SOCKET, socket.SO_RCVTIMEO, 0, 500)
+-- socket.setsockopt(sock, socket.SOL_SOCKET, socket.SO_SNDTIMEO, 0, 500)
+
+-- Set non-blocking flag on socket
+local flags = posix.fcntl(sock, posix.F_GETFL)
+assert(posix.fcntl(sock, posix.F_SETFL, bit.bor(flags, posix.O_NONBLOCK)), "Failed to set non-blocking flag")
 ---------------------------- End Local Variables ----------------------------
 
 -- Bail out early if we don't have RAW socket permission
@@ -129,11 +131,10 @@ local function receive_ts_ping(pkt_id, packets_on_the_wire)
 
     while packets_on_the_wire > 0 and (get_time_after_midnight_ms() - entry_time) < 500 do
         print("HERE1")
-        -- local ok, err = socket.setsockopt(sock, socket.SOL_SOCKET, socket.SO_RCVTIMEO, 0, 500000)
-        -- local val, err, errnum = socket.getsockopt(sock, socket.SOL_SOCKET, socket.SO_RCVTIMEO)
-        -- print(val.tv_sec,val.tv_usec)
+        local val, err, errnum = socket.getsockopt(sock, socket.SOL_SOCKET, socket.SO_RCVTIMEO)
+        print(val.tv_sec,val.tv_usec)
         print(packets_on_the_wire)
-        local data, sa = socket.recvfrom(sock, 100)
+        local data, sa = socket.recvfrom(sock, 1024) -- An IPv4 ICMP reply should be ~56bytes. This value may need tweaking.
         assert(data, sa)
         print("HERE2")
 
