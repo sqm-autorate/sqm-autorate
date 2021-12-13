@@ -143,7 +143,7 @@ local function receive_ts_ping(pkt_id)
 		transmitTS = tsResp[8],
                 rtt = time_after_midnight_ms - tsResp[6],
                 uplink_time = tsResp[7] - tsResp[6],
-                downlink_time = tsResp[6] + rtt - tsResp[8]}
+                downlink_time = time_after_midnight_ms - tsResp[8]}
 
                 if debug then
                     print('Reflector IP: '..reflector..'  |  Current time: '..time_after_midnight_ms..
