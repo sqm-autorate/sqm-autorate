@@ -220,7 +220,6 @@ local function send_ts_ping(reflector, pkt_id)
     return ok
 end
 
-
 ---------------------------- End Local Functions ----------------------------
 
 ---------------------------- Begin Conductor Loop ----------------------------
@@ -277,24 +276,23 @@ local function pinger(freq)
 end
 
 local function ratecontrol(baseline, recent)
-   local lastchgs,lastchgns = get_current_time()
+    local lastchgs, lastchgns = get_current_time()
 
-   while true do
-      nows,nowns = get_current_time()
-      if (nows - lastchgs) + (nowns - lastchgns)/1e9 > min_change_interval then
-	 local speedsneedchange = nil
-	 -- logic here to decide if the stats indicate needing a change
-	 if  speedsneedchange then
-	    
-	    -- if it's been long enough, and the stats indicate needing to change speeds
-	    -- change speeds here
-	    lastchs,lastchgns = get_current_time()
-	 end
-      end
-      coroutine.yield(nil)
-   end
+    while true do
+        nows, nowns = get_current_time()
+        if (nows - lastchgs) + (nowns - lastchgns) / 1e9 > min_change_interval then
+            local speedsneedchange = nil
+            -- logic here to decide if the stats indicate needing a change
+            if speedsneedchange then
+
+                -- if it's been long enough, and the stats indicate needing to change speeds
+                -- change speeds here
+                lastchs, lastchgns = get_current_time()
+            end
+        end
+        coroutine.yield(nil)
+    end
 end
-
 
 -- Start this whole thing in motion!
 local function conductor()
@@ -304,7 +302,7 @@ local function conductor()
     local pings = coroutine.create(pinger)
     local receiver = coroutine.create(receive_ts_ping)
     local regulator = coroutine.create(ratecontrol)
-    
+
     local OWDbaseline = {}
     local slowfactor = .9
     local OWDrecent = {}
@@ -348,12 +346,14 @@ local function conductor()
             OWDrecent[timedata.reflector].downewma = OWDrecent[timedata.reflector].downewma * fastfactor +
                                                          (1 - fastfactor) * timedata.downlink_time
 
-	    -- when baseline is above the recent, set equal to recent, so we track down more quickly
-	    OWDbaseline[timedata.reflector].upewma = math.min(OWDbaseline[timedata.reflector].upewma,OWDrecent[timedata.reflector].upewma)
-	    OWDbaseline[timedata.reflector].downewma = math.min(OWDbaseline[timedata.reflector].downewma,OWDrecent[timedata.reflector].downewma)
-	    
-	    coroutine.resume(regulator,OWDbaseline,OWDrecent)
-	    
+            -- when baseline is above the recent, set equal to recent, so we track down more quickly
+            OWDbaseline[timedata.reflector].upewma = math.min(OWDbaseline[timedata.reflector].upewma,
+                OWDrecent[timedata.reflector].upewma)
+            OWDbaseline[timedata.reflector].downewma = math.min(OWDbaseline[timedata.reflector].downewma,
+                OWDrecent[timedata.reflector].downewma)
+
+            coroutine.resume(regulator, OWDbaseline, OWDrecent)
+
             if enable_verbose_output then
                 for ref, val in pairs(OWDbaseline) do
                     local upewma = aelseb(val.upewma, "?")
