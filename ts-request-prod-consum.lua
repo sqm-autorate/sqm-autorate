@@ -213,6 +213,7 @@ local function conductor()
         end
         local timedata = nil
         ok,timedata = coroutine.resume(receiver,packet_id)
+        print("timedata = ", timedata)
         if ok and timedata then
             OWDbaseline[timedata.reflector].upewma = OWDbaseline[timedata.reflector].upewma * slowfactor + (1-slowfactor) * timedata.uplink_time
             OWDrecent[timedata.reflector].upewma = OWDrecent[timedata.reflector].upewma * fastfactor + (1-fastfactor) * timedata.uplink_time
