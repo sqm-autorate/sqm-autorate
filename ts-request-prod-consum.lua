@@ -223,10 +223,16 @@ local function pinger(freq)
     while true do
         for _, reflector in ipairs(reflector_array_v4) do
             local curtimes, curtimens = posix.clock_gettime(posix.CLOCK_REALTIME)
+            if debug then
+                print("Output from pinger() loop -- reflector curtimes curtimens", reflector, curtimes, curtimens)
+            end
             while (curtimes - lastsends) + (curtimens - lastsendns) / 1e9 < freq do
                 -- do nothing until next send time
                 coroutine.yield(reflector, nil)
                 curtimes, curtimens = posix.clock_gettime(posix.CLOCK_REALTIME)
+                if debug then
+                    print("Output from pinger() loop -- reflector curtimes curtimens", reflector, curtimes, curtimens)
+                end
             end
             result = send_ts_ping(reflector, packet_id)
             if debug then
