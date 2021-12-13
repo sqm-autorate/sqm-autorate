@@ -33,9 +33,7 @@ local max_delta_OWD = 15 -- increase from baseline RTT for detection of bufferbl
 
 
 ---------------------------- Begin Internal Local Variables ----------------------------
--- Constructs to hold the ongoing OWD data
-local OWD_cur = {}
-local OWD_avg = {}
+
 
 local cur_process_id = posix.getpid()["pid"]
 
@@ -105,9 +103,6 @@ local function calculate_checksum(data)
     return bit.bnot(checksum)
 end
 
-local function update_tc_rates()
-    print("TBD")
-end
 
 local function get_table_position(tbl, item)
     for i,value in ipairs(tbl) do
@@ -141,7 +136,7 @@ local function receive_ts_ping(pkt_id)
             -- A pos > 0 indicates the current sa.addr is a known member of the reflector array
             if (pos > 0 and src_pkt_id == pkt_id) then
                 packets_on_the_wire = packets_on_the_wire - 1
-		local data = {
+		local stats = {
                 reflector = sa.addr,
                 originalTS = tsResp[6],
 		receiveTS = tsResp[7],
@@ -155,7 +150,7 @@ local function receive_ts_ping(pkt_id)
                         '  |  TX at: '..originalTS..'  |  RTT: '..rtt..'  |  UL time: '..uplink_time..
                         '  |  DL time: '..downlink_time..'  |  Source IP: '..sa.addr)
                 end
-		coroutine.yield(data)
+		coroutine.yield(stats)
             end
         else
 	   coroutine.yield(nil)
@@ -188,44 +183,12 @@ local function send_ts_ping(reflector, pkt_id)
 end
 ---------------------------- End Local Functions ----------------------------
 
----------------------------- Begin Coroutine Setup ----------------------------
-
--- Set up the OWD constructs
-for i,reflector in ipairs(reflector_array_v4) do
-    OWD_cur[reflector] = {['uplink_time'] = -1, ['downlink_time'] = -1, ['query_count'] = 0}
-    OWD_avg[reflector] = {['uplink_time_avg'] = {}, ['downlink_time_avg'] = {}}
-end
-
----------------------------- End Coroutine Setup ----------------------------
 
 ---------------------------- Begin Conductor Loop ----------------------------
 
 -- Set a packet ID
 local packet_id = cur_process_id + 32768
 
-
-local function consumer()
-    return coroutine.create(function(x)
-        while true do
-            local x = receive()
-            print('')
-            for k,v in pairs(OWD_cur) do
-                for i,j in pairs(v) do
-                    print(k, i, j)
-                end
-            end
-
-            -- print('')
-            -- for k,v in pairs(OWD_avg) do
-            --     for i,j in pairs(v) do
-            --         print(k, i, j)
-            --     end
-            -- end
-
-            print("Packets on the wire:",packets_on_the_wire)
-        end
-    end)
-end
 
 local tick_rate_nsec = tick_rate * 1000000000
 
@@ -242,17 +205,35 @@ end
 -- Start this whole thing in motion!
 
 local function conductor()
-   pings = coroutine.create(pinger)
-   receiver = coroutine.create(receive_ts_ping)
+   local pings = coroutine.create(pinger)
+   local receiver = coroutine.create(receive_ts_ping)
+   
+   local OWDbaseline = {}
+   local slowfactor = .9
+   local OWDrecent = {}
+   local fastfactor = .2
+   
    while true do
-      refl, ok = coroutine.resume(pings)
-      if not ok then
+      local ok, refl, worked = coroutine.resume(pings)
+      if not ok or not worked then
 	 print("Could not send packet to ".. refl)
       end
-      timedata = coroutine.resume(receiver,packet_id)
-      if timedata then
-	 -- do some math magic
+      local timedata = nil
+      ok,timedata = coroutine.resume(receiver,packet_id)
+      if ok and timedata then
+	 OWDbaseline[timedata.reflector].upewma = OWDbaseline[timedata.reflector].upewma * slowfactor + (1-slowfactor) * timedata.uplink_time
+	 OWDrecent[timedata.reflector].upewma = OWDrecent[timedata.reflector].upewma * fastfactor + (1-fastfactor) * timedata.uplink_time
+	 OWDbaseline[timedata.reflector].downewma = OWDbaseline[timedata.reflector].downewma * slowfactor + (1-slowfactor) * timedata.downlink_time
+	 OWDrecent[timedata.reflector].downewma = OWDrecent[timedata.reflector].downewma * fastfactor + (1-fastfactor) * timedata.downlink_time
       end
+      for ref,val in pairs(OWDbaseline) do
+	 print("Reflector " .. ref .. " up baseline = " .. val.upewma .. " down baseline = " .. val.downewma)
+      end
+
+      for ref,val in pairs(OWDrecent) do
+	 print("Reflector " .. ref .. " up baseline = " .. val.upewma .. " down baseline = " .. val.downewma)
+      end
+
       time.nanosleep({tv_sec = 0, tv_nsec = tick_rate_nsec})
    end
 end
