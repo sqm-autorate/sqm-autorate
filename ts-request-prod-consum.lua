@@ -220,7 +220,6 @@ local function send_ts_ping(reflector, pkt_id)
     return ok
 end
 
-
 ---------------------------- End Local Functions ----------------------------
 
 ---------------------------- Begin Conductor Loop ----------------------------
@@ -308,7 +307,6 @@ local function ratecontrol(baseline, recent)
    end
 end
 
-
 -- Start this whole thing in motion!
 local function conductor()
     if debug then
@@ -317,7 +315,7 @@ local function conductor()
     local pings = coroutine.create(pinger)
     local receiver = coroutine.create(receive_ts_ping)
     local regulator = coroutine.create(ratecontrol)
-    
+
     local OWDbaseline = {}
     local slowfactor = .9
     local OWDrecent = {}
@@ -361,12 +359,14 @@ local function conductor()
             OWDrecent[timedata.reflector].downewma = OWDrecent[timedata.reflector].downewma * fastfactor +
                                                          (1 - fastfactor) * timedata.downlink_time
 
-	    -- when baseline is above the recent, set equal to recent, so we track down more quickly
-	    OWDbaseline[timedata.reflector].upewma = math.min(OWDbaseline[timedata.reflector].upewma,OWDrecent[timedata.reflector].upewma)
-	    OWDbaseline[timedata.reflector].downewma = math.min(OWDbaseline[timedata.reflector].downewma,OWDrecent[timedata.reflector].downewma)
-	    
-	    coroutine.resume(regulator,OWDbaseline,OWDrecent)
-	    
+            -- when baseline is above the recent, set equal to recent, so we track down more quickly
+            OWDbaseline[timedata.reflector].upewma = math.min(OWDbaseline[timedata.reflector].upewma,
+                OWDrecent[timedata.reflector].upewma)
+            OWDbaseline[timedata.reflector].downewma = math.min(OWDbaseline[timedata.reflector].downewma,
+                OWDrecent[timedata.reflector].downewma)
+
+            coroutine.resume(regulator, OWDbaseline, OWDrecent)
+
             if enable_verbose_output then
                 for ref, val in pairs(OWDbaseline) do
                     local upewma = aelseb(val.upewma, "?")
