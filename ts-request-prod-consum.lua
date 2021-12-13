@@ -34,7 +34,6 @@ local max_delta_OWD = 15 -- increase from baseline RTT for detection of bufferbl
 
 ---------------------------- Begin Internal Local Variables ----------------------------
 
-local tick_rate_nsec = tick_rate * 1000000000
 local cur_process_id = posix.getpid()
 
 -- Create raw socket
@@ -181,7 +180,6 @@ end
 
 -- Set a packet ID
 local packet_id = cur_process_id + 32768
-local tick_rate_nsec = tick_rate * 1000000000
 
 -- Constructor Gadget...
 local function pinger()
@@ -205,7 +203,9 @@ local function conductor()
 
     while true do
         local ok, refl, worked = coroutine.resume(pings)
-
+	local sleeptimens = tick_rate/(#reflector_array_v4 + #reflector_array_v6)*1e9
+	local sleeptimes = sleeptimens - sleeptimens%1e9
+	sleeptimens = sleeptimens%1.0
         if not ok or not worked then
             print("Could not send packet to ".. refl)
         end
@@ -240,17 +240,17 @@ local function conductor()
             OWDrecent[timedata.reflector].downewma = OWDrecent[timedata.reflector].downewma * fastfactor + (1-fastfactor) * timedata.downlink_time
 
             for ref,val in pairs(OWDbaseline) do
-                upewma = val.upewma and val.upewma or "?" -- Hacky Lua version of a ternary
-                downewma = val.downewma and val.downewma or "?" -- Hacky Lua version of a ternary
+                local upewma = if val.upewma then val.upewma else "?" end
+                local downewma = if val.downewma then val.downewma else  "?" end 
                 print("Reflector " .. ref .. " up baseline = " .. upewma  .. " down baseline = " .. downewma)
             end
             for ref,val in pairs(OWDrecent) do
-                upewma = val.upewma and val.upewma or "?" -- Hacky Lua version of a ternary
-                downewma = val.downewma and val.downewma or "?" -- Hacky Lua version of a ternary
+                local upewma = if val.upewma then val.upewma else "?" end
+                local downewma = if val.downewma then val.downewma else  "?" end 
                 print("Reflector " .. ref .. " up baseline = " .. upewma  .. " down baseline = " .. downewma)
             end
         end
-        time.nanosleep({tv_sec = 0, tv_nsec = tick_rate_nsec})
+        time.nanosleep({tv_sec = sleeptimes, tv_nsec = sleeptimens})
     end
 end
 
