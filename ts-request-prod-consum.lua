@@ -7,35 +7,46 @@ local vstruct = require 'vstruct'
 
 ---------------------------- Begin User-Configurable Local Variables ----------------------------
 local debug = true
-local enable_verbose_output = false -- enable (true) or disable (false) output monitoring lines showing bandwidth changes
-
 local ul_if = "eth0" -- upload interface
 local dl_if = "ifb4eth0" -- download interface
-
-local base_ul_rate = 25750 -- steady state bandwidth for upload
-local base_dl_rate = 462500 -- steady state bandwidth for download
 
 local tick_rate = 0.5 -- Frequency in seconds
 
 local reflector_array_v4 = {'9.9.9.9', '9.9.9.10', '149.112.112.10', '149.112.112.11', '149.112.112.112'}
-local reflector_array_v6 = {'2620:fe::10', '2620:fe::fe:10'} -- TODO Implement IPv6 support?
+--local reflector_array_v6 = {'2620:fe::10', '2620:fe::fe:10'} -- TODO Implement IPv6 support?
 
-local alpha_OWD_increase = 0.001 -- how rapidly baseline OWD is allowed to increase
-local alpha_OWD_decrease = 0.9 -- how rapidly baseline OWD is allowed to decrease
+---------------------------- Begin currently unused Variables ----------------------------
+--local enable_verbose_output = false -- enable (true) or disable (false) output monitoring lines showing bandwidth changes
+--local base_ul_rate = 25750 -- steady state bandwidth for upload
+--local base_dl_rate = 462500 -- steady state bandwidth for download
+--local alpha_OWD_increase = 0.001 -- how rapidly baseline OWD is allowed to increase
+--local alpha_OWD_decrease = 0.9 -- how rapidly baseline OWD is allowed to decrease
+--local rate_adjust_OWD_spike = 0.010 -- how rapidly to reduce bandwidth upon detection of bufferbloat
+--local rate_adjust_load_high = 0.005 -- how rapidly to increase bandwidth upon high load detected
+--local rate_adjust_load_low = 0.0025 -- how rapidly to return to base rate upon low load detected
+--local load_thresh = 0.5 -- % of currently set bandwidth for detecting high load
+--local max_delta_OWD = 15 -- increase from baseline RTT for detection of bufferbloat
 
-local rate_adjust_OWD_spike = 0.010 -- how rapidly to reduce bandwidth upon detection of bufferbloat
-local rate_adjust_load_high = 0.005 -- how rapidly to increase bandwidth upon high load detected
-local rate_adjust_load_low = 0.0025 -- how rapidly to return to base rate upon low load detected
+---------------------------- Begin currently unused Local Functions ----------------------------
+--local function dec_to_hex(number, digits)
+--    local bitMask = (bit.lshift(1, (digits * 4))) - 1
+--    local strFmt = "%0"..digits.."X"
+--    return string.format(strFmt, bit.band(number, bitMask))
+--end
 
-local load_thresh = 0.5 -- % of currently set bandwidth for detecting high load
-
-local max_delta_OWD = 15 -- increase from baseline RTT for detection of bufferbloat
-
+--local function get_table_len(tbl)
+--    local count = 0
+--    for _ in pairs(tbl) do count = count + 1 end
+--    return count
+--end
 
 ---------------------------- Begin Internal Local Variables ----------------------------
 
 local tick_rate_nsec = tick_rate * 1000000000
 local cur_process_id = posix.getpid()
+local packet_id = cur_process_id + 32768
+local rx_bytes_path = ""
+local tx_bytes_path = ""
 
 -- Create raw socket
 local sock = assert(socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP), "Failed to create socket")
@@ -77,18 +88,12 @@ end
 
 ---------------------------- Begin Local Functions ----------------------------
 local function get_time_after_midnight_ms()
-    timespec = time.clock_gettime(time.CLOCK_REALTIME)
+    local timespec = time.clock_gettime(time.CLOCK_REALTIME)
     return (timespec.tv_sec % 86400 * 1000) + (math.floor(timespec.tv_nsec / 1000000))
 end
 
-local function dec_to_hex(number, digits)
-    local bitMask = (bit.lshift(1, (digits * 4))) - 1
-    local strFmt = "%0"..digits.."X"
-    return string.format(strFmt, bit.band(number, bitMask))
-end
-
 local function calculate_checksum(data)
-    checksum = 0
+    local checksum = 0
 
     for i = 1, #data - 1, 2  do
         checksum = checksum + (bit.lshift(string.byte(data, i), 8)) + string.byte(data, i + 1)
@@ -107,12 +112,6 @@ local function get_table_position(tbl, item)
         if value == item then return i end
     end
     return 0
-end
-
-local function get_table_len(tbl)
-    local count = 0
-    for _ in pairs(tbl) do count = count + 1 end
-    return count
 end
 
 local function receive_ts_ping(pkt_id)
@@ -178,16 +177,11 @@ end
 
 
 ---------------------------- Begin Conductor Loop ----------------------------
-
--- Set a packet ID
-local packet_id = cur_process_id + 32768
-local tick_rate_nsec = tick_rate * 1000000000
-
 -- Constructor Gadget...
 local function pinger()
     while true do
         for _,reflector in ipairs(reflector_array_v4) do
-            result = send_ts_ping(reflector,packet_id)
+            local result = send_ts_ping(reflector,packet_id)
             coroutine.yield(reflector,result)
         end
     end
