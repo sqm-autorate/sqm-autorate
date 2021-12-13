@@ -44,8 +44,8 @@ local packets_on_the_wire = 0
 
 -- Create raw socket
 local sock = assert(socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP), "Failed to create socket")
--- socket.setsockopt(sock, socket.SOL_SOCKET, socket.SO_RCVTIMEO, 0, 500)
--- socket.setsockopt(sock, socket.SOL_SOCKET, socket.SO_SNDTIMEO, 0, 500)
+socket.setsockopt(sock, socket.SOL_SOCKET, socket.SO_RCVTIMEO, 0, 500)
+socket.setsockopt(sock, socket.SOL_SOCKET, socket.SO_SNDTIMEO, 0, 500)
 
 -- Set non-blocking flag on socket
 local flags = posix.fcntl(sock, posix.F_GETFL)
@@ -125,48 +125,42 @@ end
 
 local function receive_ts_ping(pkt_id, packets_on_the_wire)
     -- Read ICMP TS reply
-    -- local reflector_array_len = get_table_len(reflector_array_v4)
-    -- local loop_count = 0
     local entry_time = get_time_after_midnight_ms()
 
     while packets_on_the_wire > 0 and (get_time_after_midnight_ms() - entry_time) < 500 do
-        print("HERE1")
-        local val, err, errnum = socket.getsockopt(sock, socket.SOL_SOCKET, socket.SO_RCVTIMEO)
-        print(val.tv_sec,val.tv_usec)
-        print(packets_on_the_wire)
         local data, sa = socket.recvfrom(sock, 1024) -- An IPv4 ICMP reply should be ~56bytes. This value may need tweaking.
-        assert(data, sa)
-        print("HERE2")
 
-        local ipStart = string.byte(data, 1)
-        local ipVer = bit.rshift(ipStart, 4)
-        local hdrLen = (ipStart - ipVer * 16) * 4
-        local tsResp = vstruct.read('> 2*u1 3*u2 3*u4', string.sub(data, hdrLen + 1, #data))
-        local time_after_midnight_ms = get_time_after_midnight_ms()
-        local src_pkt_id = tsResp[4]
-        local pos = get_table_position(reflector_array_v4, sa.addr)
-        print("HERE3")
-        -- A pos > 0 indicates the current sa.addr is a known member of the reflector array
-        if (pos > 0 and src_pkt_id == pkt_id) then
-            packets_on_the_wire = packets_on_the_wire - 1
+        if data then
+            local ipStart = string.byte(data, 1)
+            local ipVer = bit.rshift(ipStart, 4)
+            local hdrLen = (ipStart - ipVer * 16) * 4
+            local tsResp = vstruct.read('> 2*u1 3*u2 3*u4', string.sub(data, hdrLen + 1, #data))
+            local time_after_midnight_ms = get_time_after_midnight_ms()
+            local src_pkt_id = tsResp[4]
+            local pos = get_table_position(reflector_array_v4, sa.addr)
 
-            local reflector = sa.addr
-            local originalTS = tsResp[6]
-            local receiveTS = tsResp[7]
-            local transmitTS = tsResp[8]
-            local rtt = time_after_midnight_ms - originalTS
-            local uplink_time = receiveTS - originalTS
-            local downlink_time = originalTS + rtt - transmitTS
-            local new_query_count = OWD_cur[reflector]['query_count'] + 1
+            -- A pos > 0 indicates the current sa.addr is a known member of the reflector array
+            if (pos > 0 and src_pkt_id == pkt_id) then
+                packets_on_the_wire = packets_on_the_wire - 1
 
-            OWD_cur[reflector] = {['uplink_time'] = uplink_time, ['downlink_time'] = downlink_time, ['query_count'] = new_query_count}
-            -- TBD: This is not ready--it's a placeholder. Idea is to create a moving average calculation...
-            OWD_avg[reflector] = {['uplink_time_avg'] = uplink_time, ['downlink_time_avg'] = downlink_time}
+                local reflector = sa.addr
+                local originalTS = tsResp[6]
+                local receiveTS = tsResp[7]
+                local transmitTS = tsResp[8]
+                local rtt = time_after_midnight_ms - originalTS
+                local uplink_time = receiveTS - originalTS
+                local downlink_time = originalTS + rtt - transmitTS
+                local new_query_count = OWD_cur[reflector]['query_count'] + 1
 
-            if debug then
-                print('Reflector IP: '..reflector..'  |  Current time: '..time_after_midnight_ms..
-                    '  |  TX at: '..originalTS..'  |  RTT: '..rtt..'  |  UL time: '..uplink_time..
-                    '  |  DL time: '..downlink_time..'  |  Source IP: '..sa.addr)
+                OWD_cur[reflector] = {['uplink_time'] = uplink_time, ['downlink_time'] = downlink_time, ['query_count'] = new_query_count}
+                -- TBD: This is not ready--it's a placeholder. Idea is to create a moving average calculation...
+                OWD_avg[reflector] = {['uplink_time_avg'] = uplink_time, ['downlink_time_avg'] = downlink_time}
+
+                if debug then
+                    print('Reflector IP: '..reflector..'  |  Current time: '..time_after_midnight_ms..
+                        '  |  TX at: '..originalTS..'  |  RTT: '..rtt..'  |  UL time: '..uplink_time..
+                        '  |  DL time: '..downlink_time..'  |  Source IP: '..sa.addr)
+                end
             end
         end
     end
@@ -190,8 +184,7 @@ local function send_ts_ping(reflector, pkt_id)
     local tsReq = vstruct.write('> 2*u1 3*u2 3*u4', {13, 0, calculate_checksum(tsReq), pkt_id, 0, time_after_midnight_ms, 0, 0})
 
     -- Send ICMP TS request
-    local ok, err = socket.sendto(sock, tsReq, {family=socket.AF_INET, addr=reflector, port=0})
-    assert(ok, err)
+    local result = assert(socket.sendto(sock, tsReq, {family=socket.AF_INET, addr=reflector, port=0}), "Failed to send packet")
 end
 ---------------------------- End Local Functions ----------------------------
 
@@ -210,18 +203,11 @@ end
 -- Set a packet ID
 local packet_id = cur_process_id + 32768
 
--- Set tick timer nanoseconds
-nsecs = tick_duration * 1000000000
-sleep_data = {tv_sec = 0, tv_nsec = 50000000}
-
-
 local function receive()
     receive_ts_ping(packet_id, packets_on_the_wire)
-    -- time.nanosleep(sleep_data)
     return coroutine.yield()
 end
 
---
 local function send(cons, reflector_ip)
     send_ts_ping(reflector_ip, packet_id)
     packets_on_the_wire = packets_on_the_wire + 1
