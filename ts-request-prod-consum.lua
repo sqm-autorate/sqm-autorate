@@ -39,6 +39,14 @@ if type(cur_process_id) == "table" then
     cur_process_id = cur_process_id["pid"]
 end
 
+local loglevel = {
+    DEBUG = "DEBUG",
+    INFO = "INFO",
+    WARN = "WARN",
+    ERROR = "ERROR",
+    FATAL = "FATAL"
+}
+
 -- Create raw socket
 local sock = assert(socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP), "Failed to create socket")
 socket.setsockopt(sock, socket.SOL_SOCKET, socket.SO_RCVTIMEO, 0, 500)
@@ -55,29 +63,14 @@ if not socket.SOCK_RAW then
               "and you do NOT have it (are you root/sudo?).")
 end
 
--- verify these are correct using 'cat /sys/class/...'
-if dl_if:find("^veth.+") then
-    rx_bytes_path = "/sys/class/net/" .. dl_if .. "/statistics/tx_bytes"
-elseif dl_if:find("^ifb.+") then
-    rx_bytes_path = "/sys/class/net/" .. dl_if .. "/statistics/tx_bytes"
-else
-    rx_bytes_path = "/sys/class/net/" .. dl_if .. "/statistics/rx_bytes"
-end
-
-if ul_if:find("^veth.+") then
-    tx_bytes_path = "/sys/class/net/" .. ul_if .. "/statistics/rx_bytes"
-elseif ul_if:find("^ifb.+") then
-    tx_bytes_path = "/sys/class/net/" .. ul_if .. "/statistics/rx_bytes"
-else
-    tx_bytes_path = "/sys/class/net/" .. ul_if .. "/statistics/tx_bytes"
-end
-
-if debug then
-    print("rx_bytes_path: " .. rx_bytes_path)
-    print("tx_bytes_path: " .. tx_bytes_path)
-end
-
 ---------------------------- Begin Local Functions ----------------------------
+
+local function logger(loglevel, message)
+    local cur_date = os.date("%Y%m%dT%H:%M:%S")
+    -- local cur_date = os.date("%c")
+    local out_str = string.format("[%s - %s]: %s", loglevel, cur_date, message)
+    print(out_str)
+end
 
 local function aelseb(a, b)
     if a then
@@ -144,7 +137,7 @@ end
 
 local function receive_ts_ping(pkt_id)
     if debug then
-        print("Entered receive_ts_ping() with values", pkt_id)
+        logger(loglevel.DEBUG, "Entered receive_ts_ping() with value: " .. pkt_id)
     end
 
     -- Read ICMP TS reply
@@ -173,17 +166,20 @@ local function receive_ts_ping(pkt_id)
                 }
 
                 if debug then
-                    print('Reflector IP: ' .. stats.reflector .. '  |  Current time: ' .. time_after_midnight_ms ..
-                              '  |  TX at: ' .. stats.original_ts .. '  |  RTT: ' .. stats.rtt .. '  |  UL time: ' ..
-                              stats.uplink_time .. '  |  DL time: ' .. stats.downlink_time)
-                    print("Exiting receive_ts_ping() with stats return")
+                    logger(loglevel.DEBUG,
+                        'Reflector IP: ' .. stats.reflector .. '  |  Current time: ' .. time_after_midnight_ms ..
+                            '  |  TX at: ' .. stats.original_ts .. '  |  RTT: ' .. stats.rtt .. '  |  UL time: ' ..
+                            stats.uplink_time .. '  |  DL time: ' .. stats.downlink_time)
+                    logger(loglevel.DEBUG, "Exiting receive_ts_ping() with stats return")
                 end
+
                 coroutine.yield(stats)
             end
         else
             if debug then
-                print("Exiting receive_ts_ping() with nil return")
+                logger(loglevel.DEBUG, "Exiting receive_ts_ping() with nil return")
             end
+
             coroutine.yield(nil)
         end
     end
@@ -201,7 +197,7 @@ local function send_ts_ping(reflector, pkt_id)
     -- Transmit timestamp - 4 bytes
 
     if debug then
-        print("Entered send_ts_ping() with values", reflector, pkt_id)
+        logger(loglevel.DEBUG, "Entered send_ts_ping() with values: " .. reflector .. " | " .. pkt_id)
     end
 
     -- Create a raw ICMP timestamp request message
@@ -216,9 +212,11 @@ local function send_ts_ping(reflector, pkt_id)
         addr = reflector,
         port = 0
     })
+
     if debug then
-        print("Exiting send_ts_ping()")
+        logger(loglevel.DEBUG, "Exiting send_ts_ping()")
     end
+
     return ok
 end
 
@@ -227,32 +225,51 @@ end
 
 ---------------------------- Begin Conductor Loop ----------------------------
 
+-- verify these are correct using 'cat /sys/class/...'
+if dl_if:find("^veth.+") then
+    rx_bytes_path = "/sys/class/net/" .. dl_if .. "/statistics/tx_bytes"
+elseif dl_if:find("^ifb.+") then
+    rx_bytes_path = "/sys/class/net/" .. dl_if .. "/statistics/tx_bytes"
+else
+    rx_bytes_path = "/sys/class/net/" .. dl_if .. "/statistics/rx_bytes"
+end
+
+if ul_if:find("^veth.+") then
+    tx_bytes_path = "/sys/class/net/" .. ul_if .. "/statistics/rx_bytes"
+elseif ul_if:find("^ifb.+") then
+    tx_bytes_path = "/sys/class/net/" .. ul_if .. "/statistics/rx_bytes"
+else
+    tx_bytes_path = "/sys/class/net/" .. ul_if .. "/statistics/tx_bytes"
+end
+
+if debug then
+    logger(loglevel.DEBUG, "rx_bytes_path: " .. rx_bytes_path)
+    logger(loglevel.DEBUG, "tx_bytes_path: " .. tx_bytes_path)
+end
+
 -- Set a packet ID
 local packet_id = cur_process_id + 32768
 
 -- Constructor Gadget...
 local function pinger(freq)
     if debug then
-        print("Entered pinger()")
+        logger(loglevel.DEBUG, "Entered pinger()")
     end
     local lastsend_s, lastsend_ns = get_current_time()
     while true do
         for _, reflector in ipairs(reflector_array_v4) do
             local curtime_s, curtime_ns = get_current_time()
-            if debug then
-                print("Output from pinger() loop -- reflector curtimes curtimens", reflector, curtimes, curtimens)
-            end
             while ((curtime_s - lastsend_s) + (curtime_ns - lastsend_ns) / 1e9) < freq do
                 coroutine.yield(reflector, nil)
                 curtime_s, curtime_ns = get_current_time()
-                if debug then
-                    print("Output from pinger() loop -- reflector curtimes curtimens", reflector, curtimes, curtimens)
-                end
             end
-            result = send_ts_ping(reflector, packet_id)
+
+            local result = send_ts_ping(reflector, packet_id)
+
             if debug then
-                print("Result from send_ts_ping()", result)
+                logger(loglevel.DEBUG, "Result from send_ts_ping(): " .. result)
             end
+
             lastsend_s, lastsend_ns = get_current_time()
             coroutine.yield(reflector, result)
         end
@@ -282,7 +299,7 @@ end
 -- Start this whole thing in motion!
 local function conductor()
     if debug then
-        print("Entered conductor()")
+        logger(loglevel.DEBUG, "Entered conductor()")
     end
     local pings = coroutine.create(pinger)
     local receiver = coroutine.create(receive_ts_ping)
@@ -341,12 +358,14 @@ local function conductor()
                 for ref, val in pairs(OWDbaseline) do
                     local upewma = aelseb(val.upewma, "?")
                     local downewma = aelseb(val.downewma, "?")
-                    print("Reflector " .. ref .. " up baseline = " .. upewma .. " down baseline = " .. downewma)
+                    logger(loglevel.INFO,
+                        "Reflector " .. ref .. " up baseline = " .. upewma .. " down baseline = " .. downewma)
                 end
                 for ref, val in pairs(OWDrecent) do
                     local upewma = aelseb(val.upewma, "?")
                     local downewma = aelseb(val.downewma, "?")
-                    print("Reflector " .. ref .. " up baseline = " .. upewma .. " down baseline = " .. downewma)
+                    logger(loglevel.INFO,
+                        "Reflector " .. ref .. " up baseline = " .. upewma .. " down baseline = " .. downewma)
                 end
             end
         end
