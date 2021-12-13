@@ -134,17 +134,17 @@ local function receive_ts_ping(pkt_id)
             if (pos > 0 and src_pkt_id == pkt_id) then
                 packets_on_the_wire = packets_on_the_wire - 1
 
-		local stats = {
-		   reflector = sa.addr,
-		   originalTS = tsResp[6],
-		   receiveTS = tsResp[7],
-		   transmitTS = tsResp[8],
-		   rtt = time_after_midnight_ms - tsResp[6],
-		   uplink_time = tsResp[7] - tsResp[6],
-		   downlink_time = time_after_midnight_ms - tsResp[8]}
-		
+                local stats = {
+                    reflector = sa.addr,
+                    originalTS = tsResp[6],
+                    receiveTS = tsResp[7],
+                    transmitTS = tsResp[8],
+                    rtt = time_after_midnight_ms - tsResp[6],
+                    uplink_time = tsResp[7] - tsResp[6],
+                    downlink_time = time_after_midnight_ms - tsResp[8]}
+
                 if debug then
-                    print('Reflector IP: '..reflector..'  |  Current time: '..time_after_midnight_ms..
+                    print('Reflector IP: '..stats.reflector..'  |  Current time: '..time_after_midnight_ms..
                         '  |  TX at: '..stats.originalTS..'  |  RTT: '..stats.rtt..'  |  UL time: '..stats.uplink_time..
                         '  |  DL time: '..stats.downlink_time..'  |  Source IP: '..sa.addr)
                 end
