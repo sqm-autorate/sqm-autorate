@@ -35,6 +35,9 @@ local max_delta_OWD = 15 -- increase from baseline RTT for detection of bufferbl
 ---------------------------- Begin Internal Local Variables ----------------------------
 
 local cur_process_id = posix.getpid()
+if type(cur_process_id) == "table" then
+   cur_process_id = cur_process_id["pid"]
+end
 
 -- Create raw socket
 local sock = assert(socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP), "Failed to create socket")
@@ -75,6 +78,15 @@ if debug then
 end
 
 ---------------------------- Begin Local Functions ----------------------------
+
+local function aelseb(a,b)
+   if a then
+      return a
+   else
+      return b
+   end
+end
+
 local function get_time_after_midnight_ms()
     timespec = time.clock_gettime(time.CLOCK_REALTIME)
     return (timespec.tv_sec % 86400 * 1000) + (math.floor(timespec.tv_nsec / 1000000))
@@ -240,14 +252,14 @@ local function conductor()
             OWDrecent[timedata.reflector].downewma = OWDrecent[timedata.reflector].downewma * fastfactor + (1-fastfactor) * timedata.downlink_time
 
             for ref,val in pairs(OWDbaseline) do
-                local upewma = if val.upewma then val.upewma else "?" end
-                local downewma = if val.downewma then val.downewma else  "?" end 
-                print("Reflector " .. ref .. " up baseline = " .. upewma  .. " down baseline = " .. downewma)
+	       local upewma = aelseb(val.upewma, "?")
+	       local downewma = aelseb(val.downewma, "?")
+	       print("Reflector " .. ref .. " up baseline = " .. upewma  .. " down baseline = " .. downewma)
             end
             for ref,val in pairs(OWDrecent) do
-                local upewma = if val.upewma then val.upewma else "?" end
-                local downewma = if val.downewma then val.downewma else  "?" end 
-                print("Reflector " .. ref .. " up baseline = " .. upewma  .. " down baseline = " .. downewma)
+	       local upewma = aelseb(val.upewma, "?")
+	       local downewma = aelseb(val.downewma, "?")
+	       print("Reflector " .. ref .. " up baseline = " .. upewma  .. " down baseline = " .. downewma)
             end
         end
         time.nanosleep({tv_sec = sleeptimes, tv_nsec = sleeptimens})
