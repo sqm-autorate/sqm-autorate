@@ -7,7 +7,7 @@ local vstruct = require 'vstruct'
 
 ---------------------------- Begin User-Configurable Local Variables ----------------------------
 local debug = false
-local enable_verbose_output = false -- enable (true) or disable (false) output monitoring lines showing bandwidth changes
+local enable_verbose_output = true -- enable (true) or disable (false) output monitoring lines showing bandwidth changes
 
 local ul_if = "eth0" -- upload interface
 local dl_if = "ifb4eth0" -- download interface
@@ -276,11 +276,11 @@ local function pinger(freq)
 end
 
 local function ratecontrol(baseline, recent)
-    local lastchgs, lastchgns = get_current_time()
+    local lastchg_s, lastchg_ns = get_current_time()
     local min = math.min
     while true do
-        nows, nowns = get_current_time()
-        if (nows - lastchgs) + (nowns - lastchgns) / 1e9 > min_change_interval then
+        local now_s, now_ns = get_current_time()
+        if (now_s - lastchg_s) + (now_ns - lastchg_ns) / 1e9 > min_change_interval then
             local speedsneedchange = nil
             -- logic here to decide if the stats indicate needing a change
             local diffs = {}
@@ -299,8 +299,8 @@ local function ratecontrol(baseline, recent)
 
                 -- if it's been long enough, and the stats indicate needing to change speeds
                 -- change speeds here
-                print("New Speed is ... NOT IMPLEMENTED YET")
-                lastchs, lastchgns = get_current_time()
+                logger(loglevel.WARN, "New Speed is ... NOT IMPLEMENTED YET")
+                lastchg_s, lastchg_ns = get_current_time()
             end
         end
         coroutine.yield(nil)
