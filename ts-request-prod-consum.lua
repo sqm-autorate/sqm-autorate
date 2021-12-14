@@ -276,35 +276,35 @@ local function pinger(freq)
 end
 
 local function ratecontrol(baseline, recent)
-   local lastchgs,lastchgns = get_current_time()
-   local min = math.min
-   while true do
-      nows,nowns = get_current_time()
-      if (nows - lastchgs) + (nowns - lastchgns)/1e9 > min_change_interval then
-	 local speedsneedchange = nil
-	 -- logic here to decide if the stats indicate needing a change
-	 local diffs = {}
-	 local minup = 1/0
-	 local mindown = 1/0
-	 for k,val in baseline do
-	    diffs[k].up = recent[k].upewma - val.upewma
-	    diffs[k].down = recent[k].downewma - val.downewma
-	    minup = min(minup,diffs[k].up)
-	    mindown = min(mindown,diffs[k].down)
-	 end
-	 if minup > max_delta_OWD or mindown > max_delta_OWD then -- we could add complexity to the decision here
-	    speedsneedchange = true
-	 end
-	 if  speedsneedchange then
-	    
-	    -- if it's been long enough, and the stats indicate needing to change speeds
-	    -- change speeds here
-	    print("New Speed is ... NOT IMPLEMENTED YET")
-	    lastchs,lastchgns = get_current_time()
-	 end
-      end
-      coroutine.yield(nil)
-   end
+    local lastchgs, lastchgns = get_current_time()
+    local min = math.min
+    while true do
+        nows, nowns = get_current_time()
+        if (nows - lastchgs) + (nowns - lastchgns) / 1e9 > min_change_interval then
+            local speedsneedchange = nil
+            -- logic here to decide if the stats indicate needing a change
+            local diffs = {}
+            local minup = 1 / 0
+            local mindown = 1 / 0
+            for k, val in baseline do
+                diffs[k].up = recent[k].upewma - val.upewma
+                diffs[k].down = recent[k].downewma - val.downewma
+                minup = min(minup, diffs[k].up)
+                mindown = min(mindown, diffs[k].down)
+            end
+            if minup > max_delta_OWD or mindown > max_delta_OWD then -- we could add complexity to the decision here
+                speedsneedchange = true
+            end
+            if speedsneedchange then
+
+                -- if it's been long enough, and the stats indicate needing to change speeds
+                -- change speeds here
+                print("New Speed is ... NOT IMPLEMENTED YET")
+                lastchs, lastchgns = get_current_time()
+            end
+        end
+        coroutine.yield(nil)
+    end
 end
 
 -- Start this whole thing in motion!
