@@ -292,7 +292,9 @@ local function read_stats_file(file_path)
 end
 
 local function ratecontrol(baseline, recent)
+    local start_s, start_ns = get_current_time() -- first time we entered this loop, times will be relative to this seconds value to preserve precision
     local lastchg_s, lastchg_ns = get_current_time()
+    local lastchg_t = lastchg_s - start_s + lastchg_ns / 1e9
     local min = math.min
     local floor = math.floor
 
@@ -300,11 +302,14 @@ local function ratecontrol(baseline, recent)
     local cur_ul_rate = base_ul_rate
     local prev_rx_bytes = read_stats_file(rx_bytes_path)
     local prev_tx_bytes = read_stats_file(tx_bytes_path)
-    local t_prev_bytes = lastchg_s + lastchg_ns
+    local t_prev_bytes = lastchg_t
+    local t_cur_bytes = lastchg_t
 
     while true do
         local now_s, now_ns = get_current_time()
-        if (now_s - lastchg_s) + (now_ns - lastchg_ns) / 1e9 > min_change_interval then
+        now_s = now_s - start_s
+        local now_t = now_s + now_ns / 1e9
+        if now_t - lastchg_t > min_change_interval then
             local speedsneedchange = nil
             -- logic here to decide if the stats indicate needing a change
             local diffs = {}
@@ -322,33 +327,30 @@ local function ratecontrol(baseline, recent)
                     logger(loglevel.INFO, "minup: " .. minup .. "  mindown: " .. mindown)
                 end
             end
+            -- if it's been long enough, and the stats indicate needing to change speeds
+            -- change speeds here
+            local cur_rx_bytes = read_stats_file(rx_bytes_path)
+            local cur_tx_bytes = read_stats_file(tx_bytes_path)
+	    t_prev_bytes = t_cur_bytes
+            t_cur_bytes = now_t
 
-            if minup > max_delta_OWD or mindown > max_delta_OWD then -- we could add complexity to the decision here
+            local rx_load = (8 / 1000) * (cur_rx_bytes - prev_rx_bytes) / (t_cur_bytes - t_prev_bytes) / cur_dl_rate
+            local tx_load = (8 / 1000) * (cur_tx_bytes - prev_tx_bytes) / (t_cur_bytes - t_prev_bytes) / cur_ul_rate
+            prev_rx_bytes = cur_rx_bytes
+            prev_tx_bytes = cur_tx_bytes
+
+            if minup > max_delta_OWD or mindown > max_delta_OWD or tx_load > load_thresh or rx_load > load_thresh then -- we could add complexity to the decision here
                 speedsneedchange = true
             end
 
             if speedsneedchange then
                 print("SPEED CHANGE PARTY!")
-                -- if it's been long enough, and the stats indicate needing to change speeds
-                -- change speeds here
-                local cur_rx_bytes = read_stats_file(rx_bytes_path)
-                local cur_tx_bytes = read_stats_file(tx_bytes_path)
-                local t_cur_bytes = now_s + now_ns
-
-                local rx_load = (8 / 1000) * (cur_rx_bytes - prev_rx_bytes) / (t_cur_bytes - t_prev_bytes) *
-                                    (1 / cur_dl_rate)
-                local tx_load = (8 / 1000) * (cur_tx_bytes - prev_tx_bytes) / (t_cur_bytes - t_prev_bytes) *
-                                    (1 / cur_ul_rate)
-
-                t_prev_bytes = lastchg_s + lastchg_ns
-                prev_rx_bytes = cur_rx_bytes
-                prev_tx_bytes = cur_tx_bytes
 
                 -- Calculate the next rate for dl and ul
                 -- Determine whether to increase or decrease the rate in dependence on load
                 -- High load, so we would like to increase the rate
                 local next_dl_rate
-                if rx_load < load_thresh then
+                if rx_load > load_thresh then
                     next_dl_rate = floor(cur_dl_rate * (1 + rate_adjust_load_high))
                 else
                     -- Low load, so determine whether to decay down towards base rate, decay up towards base rate, or set as base rate
@@ -368,7 +370,7 @@ local function ratecontrol(baseline, recent)
                 end
 
                 local next_ul_rate
-                if tx_load < load_thresh then
+                if tx_load > load_thresh then
                     next_ul_rate = floor(cur_ul_rate * (1 + rate_adjust_load_high))
                 else
                     -- Low load, so determine whether to decay down towards base rate, decay up towards base rate, or set as base rate
@@ -407,6 +409,8 @@ local function ratecontrol(baseline, recent)
                 end
 
                 lastchg_s, lastchg_ns = get_current_time()
+                lastchg_s = lastchg_s - start_s
+                lastchg_t = lastchg_s + lastchg_ns / 1e9
             end
         end
         coroutine.yield(nil)
