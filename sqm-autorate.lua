@@ -303,6 +303,7 @@ local function ratecontrol(baseline, recent)
     local prev_rx_bytes = read_stats_file(rx_bytes_path)
     local prev_tx_bytes = read_stats_file(tx_bytes_path)
     local t_prev_bytes = lastchg_t
+    local t_cur_bytes = lastchg_t
 
     while true do
         local now_s, now_ns = get_current_time()
@@ -330,8 +331,8 @@ local function ratecontrol(baseline, recent)
             -- change speeds here
             local cur_rx_bytes = read_stats_file(rx_bytes_path)
             local cur_tx_bytes = read_stats_file(tx_bytes_path)
-            local t_cur_bytes = now_t
-            t_prev_bytes = t_cur_bytes
+	    t_prev_bytes = t_cur_bytes
+            t_cur_bytes = now_t
 
             local rx_load = (8 / 1000) * (cur_rx_bytes - prev_rx_bytes) / (t_cur_bytes - t_prev_bytes) / cur_dl_rate
             local tx_load = (8 / 1000) * (cur_tx_bytes - prev_tx_bytes) / (t_cur_bytes - t_prev_bytes) / cur_ul_rate
