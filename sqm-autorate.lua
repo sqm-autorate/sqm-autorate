@@ -292,9 +292,9 @@ local function read_stats_file(file_path)
 end
 
 local function ratecontrol(baseline, recent)
-   local start_s, start_ns = get_current_time() -- first time we entered this loop, times will be relative to this seconds value to preserve precision
-   local lastchg_s, lastchg_ns = get_current_time()
-   local lastchg_t = lastchg_s - start_s + lastchg_ns/1e9
+    local start_s, start_ns = get_current_time() -- first time we entered this loop, times will be relative to this seconds value to preserve precision
+    local lastchg_s, lastchg_ns = get_current_time()
+    local lastchg_t = lastchg_s - start_s + lastchg_ns / 1e9
     local min = math.min
     local floor = math.floor
 
@@ -305,9 +305,9 @@ local function ratecontrol(baseline, recent)
     local t_prev_bytes = lastchg_t
 
     while true do
-       local now_s, now_ns = get_current_time()
-       now_s = now_s - start_s
-       local now_t = now_s + now_ns/1e9
+        local now_s, now_ns = get_current_time()
+        now_s = now_s - start_s
+        local now_t = now_s + now_ns / 1e9
         if now_t - lastchg_t > min_change_interval then
             local speedsneedchange = nil
             -- logic here to decide if the stats indicate needing a change
@@ -326,19 +326,18 @@ local function ratecontrol(baseline, recent)
                     logger(loglevel.INFO, "minup: " .. minup .. "  mindown: " .. mindown)
                 end
             end
-	    -- if it's been long enough, and the stats indicate needing to change speeds
-	    -- change speeds here
-	    local cur_rx_bytes = read_stats_file(rx_bytes_path)
-	    local cur_tx_bytes = read_stats_file(tx_bytes_path)
-	    t_prev_bytes = t_cur_bytes
-	    local t_cur_bytes = now_t
-	    
-	    local rx_load = (8 / 1000) * (cur_rx_bytes - prev_rx_bytes) / (t_cur_bytes - t_prev_bytes) / cur_dl_rate
-	    local tx_load = (8 / 1000) * (cur_tx_bytes - prev_tx_bytes) / (t_cur_bytes - t_prev_bytes) / cur_ul_rate
-	    prev_rx_bytes = cur_rx_bytes
-	    prev_tx_bytes = cur_tx_bytes
+            -- if it's been long enough, and the stats indicate needing to change speeds
+            -- change speeds here
+            local cur_rx_bytes = read_stats_file(rx_bytes_path)
+            local cur_tx_bytes = read_stats_file(tx_bytes_path)
+            t_prev_bytes = t_cur_bytes
+            local t_cur_bytes = now_t
 
-	    
+            local rx_load = (8 / 1000) * (cur_rx_bytes - prev_rx_bytes) / (t_cur_bytes - t_prev_bytes) / cur_dl_rate
+            local tx_load = (8 / 1000) * (cur_tx_bytes - prev_tx_bytes) / (t_cur_bytes - t_prev_bytes) / cur_ul_rate
+            prev_rx_bytes = cur_rx_bytes
+            prev_tx_bytes = cur_tx_bytes
+
             if minup > max_delta_OWD or mindown > max_delta_OWD or tx_load > load_thres or rx_load > load_thresh then -- we could add complexity to the decision here
                 speedsneedchange = true
             end
@@ -409,8 +408,8 @@ local function ratecontrol(baseline, recent)
                 end
 
                 lastchg_s, lastchg_ns = get_current_time()
-		lastchg_s = lastchg_s - start_s
-		lastchg_t = lastchg_s + lastchg_ns/1e9
+                lastchg_s = lastchg_s - start_s
+                lastchg_t = lastchg_s + lastchg_ns / 1e9
             end
         end
         coroutine.yield(nil)
