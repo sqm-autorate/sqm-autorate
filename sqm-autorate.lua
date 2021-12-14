@@ -348,7 +348,7 @@ local function ratecontrol(baseline, recent)
                 -- Determine whether to increase or decrease the rate in dependence on load
                 -- High load, so we would like to increase the rate
                 local next_dl_rate
-                if rx_load >= load_thresh then
+                if rx_load < load_thresh then
                     next_dl_rate = floor(cur_dl_rate * (1 + rate_adjust_load_high))
                 else
                     -- Low load, so determine whether to decay down towards base rate, decay up towards base rate, or set as base rate
@@ -368,7 +368,7 @@ local function ratecontrol(baseline, recent)
                 end
 
                 local next_ul_rate
-                if tx_load >= load_thresh then
+                if tx_load < load_thresh then
                     next_ul_rate = floor(cur_ul_rate * (1 + rate_adjust_load_high))
                 else
                     -- Low load, so determine whether to decay down towards base rate, decay up towards base rate, or set as base rate
@@ -389,11 +389,9 @@ local function ratecontrol(baseline, recent)
 
                 -- TC modification
                 if next_dl_rate ~= cur_dl_rate then
-                    print("HERE DL")
                     os.execute(string.format("tc qdisc change root dev %s cake bandwidth %sKbit", dl_if, next_dl_rate))
                 end
                 if next_ul_rate ~= cur_ul_rate then
-                    print("HERE UL")
                     os.execute(string.format("tc qdisc change root dev %s cake bandwidth %sKbit", ul_if, next_ul_rate))
                 end
 
