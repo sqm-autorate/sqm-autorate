@@ -50,6 +50,10 @@ local loglevel = {
     FATAL = "FATAL"
 }
 
+-- Bandwidth file paths
+local rx_bytes_path = nil
+local tx_bytes_path = nil
+
 -- Create raw socket
 local sock = assert(socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP), "Failed to create socket")
 socket.setsockopt(sock, socket.SOL_SOCKET, socket.SO_RCVTIMEO, 0, 500)
@@ -75,7 +79,7 @@ local function logger(loglevel, message)
     print(out_str)
 end
 
-local function aelseb(a, b)
+local function a_else_b(a, b)
     if a then
         return a
     else
@@ -275,9 +279,28 @@ local function pinger(freq)
     end
 end
 
+local function read_stats_file(file_path)
+    local file = io.open(file_path)
+    if not file then -- TODO Need to fail here because it means the interface stats file does not exist
+        logger(loglevel.FATAL, "Could not open stats file: " .. file_path)
+        os.exit()
+        return nil
+    end
+    local bytes = file:read()
+    file:close()
+    return bytes
+end
+
 local function ratecontrol(baseline, recent)
     local lastchg_s, lastchg_ns = get_current_time()
     local min = math.min
+    local floor = math.floor
+
+    local cur_dl_rate = base_dl_rate
+    local cur_ul_rate = base_ul_rate
+    local prev_rx_bytes = read_stats_file(rx_bytes_path)
+    local prev_tx_bytes = read_stats_file(tx_bytes_path)
+    local t_prev_bytes = lastchg_s + lastchg_ns
 
     while true do
         local now_s, now_ns = get_current_time()
@@ -305,9 +328,76 @@ local function ratecontrol(baseline, recent)
             end
 
             if speedsneedchange then
+                print("SPEED CHANGE PARTY!")
                 -- if it's been long enough, and the stats indicate needing to change speeds
                 -- change speeds here
-                logger(loglevel.WARN, "New Speed is ... NOT IMPLEMENTED YET")
+                local cur_rx_bytes = read_stats_file(rx_bytes_path)
+                local cur_tx_bytes = read_stats_file(tx_bytes_path)
+                local t_cur_bytes = now_s + now_ns
+
+                local rx_load = (8 / 1000) * (cur_rx_bytes - prev_rx_bytes) / (t_cur_bytes - t_prev_bytes) *
+                                    (1 / cur_dl_rate)
+                local tx_load = (8 / 1000) * (cur_tx_bytes - prev_tx_bytes) / (t_cur_bytes - t_prev_bytes) *
+                                    (1 / cur_ul_rate)
+
+                t_prev_bytes = lastchg_s + lastchg_ns
+                prev_rx_bytes = cur_rx_bytes
+                prev_tx_bytes = cur_tx_bytes
+
+                -- Calculate the next rate for dl and ul
+                -- Determine whether to increase or decrease the rate in dependence on load
+                -- High load, so we would like to increase the rate
+                local next_dl_rate
+                if rx_load >= load_thresh then
+                    next_dl_rate = floor(cur_dl_rate * (1 + rate_adjust_load_high))
+                else
+                    -- Low load, so determine whether to decay down towards base rate, decay up towards base rate, or set as base rate
+                    local cur_rate_decayed_down = floor(cur_dl_rate * (1 - rate_adjust_load_low))
+                    local cur_rate_decayed_up = floor(cur_dl_rate * (1 + rate_adjust_load_low))
+
+                    -- Gently decrease to steady state rate
+                    if cur_rate_decayed_down > base_dl_rate then
+                        next_dl_rate = cur_rate_decayed_down
+                        -- Gently increase to steady state rate
+                    elseif cur_rate_decayed_up < base_dl_rate then
+                        next_dl_rate = cur_rate_decayed_up
+                        -- Steady state has been reached
+                    else
+                        next_dl_rate = base_dl_rate
+                    end
+                end
+
+                local next_ul_rate
+                if rx_load >= load_thresh then
+                    next_ul_rate = floor(cur_ul_rate * (1 + rate_adjust_load_high))
+                else
+                    -- Low load, so determine whether to decay down towards base rate, decay up towards base rate, or set as base rate
+                    local cur_rate_decayed_down = floor(cur_ul_rate * (1 - rate_adjust_load_low))
+                    local cur_rate_decayed_up = floor(cur_ul_rate * (1 + rate_adjust_load_low))
+
+                    -- Gently decrease to steady state rate
+                    if cur_rate_decayed_down > base_ul_rate then
+                        next_ul_rate = cur_rate_decayed_down
+                        -- Gently increase to steady state rate
+                    elseif cur_rate_decayed_up < base_ul_rate then
+                        next_ul_rate = cur_rate_decayed_up
+                        -- Steady state has been reached
+                    else
+                        next_ul_rate = base_ul_rate
+                    end
+                end
+
+                cur_dl_rate = next_dl_rate
+                cur_ul_rate = next_ul_rate
+
+                -- TODO TC modification here
+                print("rx_load: " .. rx_load .. " | tx_load: " .. tx_load)
+                print("mindown: " .. mindown .. " | minup: " .. minup)
+                print("cur_dl_rate: " .. cur_dl_rate .. " | cur_ul_rate: " .. cur_ul_rate)
+                if enable_verbose_output then
+                    logger(loglevel.INFO, rx_load .. tx_load .. mindown .. minup .. cur_dl_rate .. cur_ul_rate)
+                end
+
                 lastchg_s, lastchg_ns = get_current_time()
             end
         end
@@ -377,14 +467,14 @@ local function conductor()
 
             if enable_verbose_output then
                 for ref, val in pairs(OWDbaseline) do
-                    local upewma = aelseb(val.upewma, "?")
-                    local downewma = aelseb(val.downewma, "?")
+                    local upewma = a_else_b(val.upewma, "?")
+                    local downewma = a_else_b(val.downewma, "?")
                     logger(loglevel.INFO,
                         "Reflector " .. ref .. " up baseline = " .. upewma .. " down baseline = " .. downewma)
                 end
                 for ref, val in pairs(OWDrecent) do
-                    local upewma = aelseb(val.upewma, "?")
-                    local downewma = aelseb(val.downewma, "?")
+                    local upewma = a_else_b(val.upewma, "?")
+                    local downewma = a_else_b(val.downewma, "?")
                     logger(loglevel.INFO,
                         "Reflector " .. ref .. " up baseline = " .. upewma .. " down baseline = " .. downewma)
                 end
