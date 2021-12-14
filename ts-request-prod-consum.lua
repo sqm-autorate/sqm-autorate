@@ -97,7 +97,7 @@ local function get_current_time()
 end
 
 local function get_time_after_midnight_ms()
-    time_s, time_ns = get_current_time()
+    local time_s, time_ns = get_current_time()
     return (time_s % 86400 * 1000) + (math.floor(time_ns / 1000000))
 end
 
@@ -108,16 +108,13 @@ local function dec_to_hex(number, digits)
 end
 
 local function calculate_checksum(data)
-    checksum = 0
-
+    local checksum = 0
     for i = 1, #data - 1, 2 do
         checksum = checksum + (bit.lshift(string.byte(data, i), 8)) + string.byte(data, i + 1)
     end
-
     if bit.rshift(checksum, 16) then
         checksum = bit.band(checksum, 0xffff) + bit.rshift(checksum, 16)
     end
-
     return bit.bnot(checksum)
 end
 
