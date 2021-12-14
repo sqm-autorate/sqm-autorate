@@ -350,7 +350,9 @@ local function ratecontrol(baseline, recent)
                 -- Determine whether to increase or decrease the rate in dependence on load
                 -- High load, so we would like to increase the rate
                 local next_dl_rate
-                if rx_load > load_thresh then
+		if mindown > max_delta_OWD then
+		   next_dl_rate = floor(cur_dl_rate * (1-rate_adjust_OWD_spike))
+		elseif rx_load > load_thresh then
                     next_dl_rate = floor(cur_dl_rate * (1 + rate_adjust_load_high))
                 else
                     -- Low load, so determine whether to decay down towards base rate, decay up towards base rate, or set as base rate
@@ -370,7 +372,9 @@ local function ratecontrol(baseline, recent)
                 end
 
                 local next_ul_rate
-                if tx_load > load_thresh then
+		if minup > max_delta_OWD then
+		   next_ul_rate = floor(cur_ul_rate * (1-rate_adjust_OWD_spike))
+		elseif tx_load > load_thresh then
                     next_ul_rate = floor(cur_ul_rate * (1 + rate_adjust_load_high))
                 else
                     -- Low load, so determine whether to decay down towards base rate, decay up towards base rate, or set as base rate
