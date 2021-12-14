@@ -387,13 +387,20 @@ local function ratecontrol(baseline, recent)
                     end
                 end
 
-                cur_dl_rate = next_dl_rate
-                cur_ul_rate = next_ul_rate
+                -- TC modification
+                if next_dl_rate ~= cur_dl_rate then
+                    cur_dl_rate = next_dl_rate
+                    os.execute(string.format("tc qdisc change root dev %s cake bandwidth %sKbit", dl_if, next_dl_rate))
+                end
+                if next_ul_rate ~= cur_ul_rate then
+                    cur_ul_rate = next_ul_rate
+                    os.execute(string.format("tc qdisc change root dev %s cake bandwidth %sKbit", ul_if, next_ul_rate))
+                end
 
-                -- TODO TC modification here
                 print("rx_load: " .. rx_load .. " | tx_load: " .. tx_load)
                 print("mindown: " .. mindown .. " | minup: " .. minup)
                 print("cur_dl_rate: " .. cur_dl_rate .. " | cur_ul_rate: " .. cur_ul_rate)
+
                 if enable_verbose_output then
                     logger(loglevel.INFO, rx_load .. tx_load .. mindown .. minup .. cur_dl_rate .. cur_ul_rate)
                 end
