@@ -33,7 +33,7 @@ local rate_adjust_load_low = 0.0025 -- how rapidly to return to base rate upon l
 
 local load_thresh = 0.5 -- % of currently set bandwidth for detecting high load
 
-local max_delta_OWD = 15 -- increase from baseline RTT for detection of bufferbloat
+local max_delta_OWD = 10 -- increase from baseline RTT for detection of bufferbloat
 
 ---------------------------- Begin Internal Local Variables ----------------------------
 
@@ -356,10 +356,10 @@ local function ratecontrol(baseline, recent)
                     local cur_rate_decayed_up = floor(cur_dl_rate * (1 + rate_adjust_load_low))
 
                     -- Gently decrease to steady state rate
-                    if cur_rate_decayed_down > base_dl_rate then
+                    if cur_rate_decayed_down < base_dl_rate then
                         next_dl_rate = cur_rate_decayed_down
                         -- Gently increase to steady state rate
-                    elseif cur_rate_decayed_up < base_dl_rate then
+                    elseif cur_rate_decayed_up > base_dl_rate then
                         next_dl_rate = cur_rate_decayed_up
                         -- Steady state has been reached
                     else
@@ -368,7 +368,7 @@ local function ratecontrol(baseline, recent)
                 end
 
                 local next_ul_rate
-                if rx_load >= load_thresh then
+                if tx_load >= load_thresh then
                     next_ul_rate = floor(cur_ul_rate * (1 + rate_adjust_load_high))
                 else
                     -- Low load, so determine whether to decay down towards base rate, decay up towards base rate, or set as base rate
@@ -376,10 +376,10 @@ local function ratecontrol(baseline, recent)
                     local cur_rate_decayed_up = floor(cur_ul_rate * (1 + rate_adjust_load_low))
 
                     -- Gently decrease to steady state rate
-                    if cur_rate_decayed_down > base_ul_rate then
+                    if cur_rate_decayed_down < base_ul_rate then
                         next_ul_rate = cur_rate_decayed_down
                         -- Gently increase to steady state rate
-                    elseif cur_rate_decayed_up < base_ul_rate then
+                    elseif cur_rate_decayed_up > base_ul_rate then
                         next_ul_rate = cur_rate_decayed_up
                         -- Steady state has been reached
                     else
@@ -389,13 +389,16 @@ local function ratecontrol(baseline, recent)
 
                 -- TC modification
                 if next_dl_rate ~= cur_dl_rate then
-                    cur_dl_rate = next_dl_rate
+                    print("HERE DL")
                     os.execute(string.format("tc qdisc change root dev %s cake bandwidth %sKbit", dl_if, next_dl_rate))
                 end
                 if next_ul_rate ~= cur_ul_rate then
-                    cur_ul_rate = next_ul_rate
+                    print("HERE UL")
                     os.execute(string.format("tc qdisc change root dev %s cake bandwidth %sKbit", ul_if, next_ul_rate))
                 end
+
+                cur_dl_rate = next_dl_rate
+                cur_ul_rate = next_ul_rate
 
                 print("rx_load: " .. rx_load .. " | tx_load: " .. tx_load)
                 print("mindown: " .. mindown .. " | minup: " .. minup)
