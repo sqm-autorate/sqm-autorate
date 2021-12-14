@@ -292,9 +292,7 @@ local function ratecontrol(baseline, recent)
             local mindown = 1 / 0
 
             for k, val in pairs(baseline) do
-                if not diffs[k] then
-                    diffs[k] = {}
-                end
+                diffs[k] = {}
                 diffs[k].up = recent[k].upewma - val.upewma
                 diffs[k].down = recent[k].downewma - val.downewma
                 minup = min(minup, diffs[k].up)
