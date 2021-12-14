@@ -7,7 +7,7 @@ local vstruct = require 'vstruct'
 
 ---------------------------- Begin User-Configurable Local Variables ----------------------------
 local debug = false
-local enable_verbose_output = true -- enable (true) or disable (false) output monitoring lines showing bandwidth changes
+local enable_verbose_output = false -- enable (true) or disable (false) output monitoring lines showing bandwidth changes
 
 local ul_if = "eth0" -- upload interface
 local dl_if = "ifb4eth0" -- download interface
@@ -19,6 +19,9 @@ local tick_rate = 0.5 -- Frequency in seconds
 local min_change_interval = 1.0 -- don't change speeds unless this many seconds has passed since last change
 
 local reflector_array_v4 = {'9.9.9.9', '9.9.9.10', '149.112.112.10', '149.112.112.11', '149.112.112.112'}
+-- local reflector_array_v4 = {'46.227.200.54', '46.227.200.55', '194.242.2.2', '194.242.2.3', '149.112.112.10',
+--                             '149.112.112.11', '149.112.112.112', '193.19.108.2', '193.19.108.3', '9.9.9.9', '9.9.9.10',
+--                             '9.9.9.11'}
 local reflector_array_v6 = {'2620:fe::10', '2620:fe::fe:10'} -- TODO Implement IPv6 support?
 
 local alpha_OWD_increase = 0.001 -- how rapidly baseline OWD is allowed to increase
@@ -278,6 +281,7 @@ end
 local function ratecontrol(baseline, recent)
     local lastchg_s, lastchg_ns = get_current_time()
     local min = math.min
+
     while true do
         local now_s, now_ns = get_current_time()
         if (now_s - lastchg_s) + (now_ns - lastchg_ns) / 1e9 > min_change_interval then
@@ -286,17 +290,26 @@ local function ratecontrol(baseline, recent)
             local diffs = {}
             local minup = 1 / 0
             local mindown = 1 / 0
-            for k, val in baseline do
+
+            for k, val in pairs(baseline) do
+                if not diffs[k] then
+                    diffs[k] = {}
+                end
                 diffs[k].up = recent[k].upewma - val.upewma
                 diffs[k].down = recent[k].downewma - val.downewma
                 minup = min(minup, diffs[k].up)
                 mindown = min(mindown, diffs[k].down)
+
+                if debug then
+                    logger(loglevel.INFO, "minup: " .. minup .. "  mindown: " .. mindown)
+                end
             end
+
             if minup > max_delta_OWD or mindown > max_delta_OWD then -- we could add complexity to the decision here
                 speedsneedchange = true
             end
-            if speedsneedchange then
 
+            if speedsneedchange then
                 -- if it's been long enough, and the stats indicate needing to change speeds
                 -- change speeds here
                 logger(loglevel.WARN, "New Speed is ... NOT IMPLEMENTED YET")
