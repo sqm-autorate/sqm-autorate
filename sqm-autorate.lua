@@ -330,15 +330,15 @@ local function ratecontrol(baseline, recent)
             -- change speeds here
             local cur_rx_bytes = read_stats_file(rx_bytes_path)
             local cur_tx_bytes = read_stats_file(tx_bytes_path)
-            t_prev_bytes = t_cur_bytes
             local t_cur_bytes = now_t
+            t_prev_bytes = t_cur_bytes
 
             local rx_load = (8 / 1000) * (cur_rx_bytes - prev_rx_bytes) / (t_cur_bytes - t_prev_bytes) / cur_dl_rate
             local tx_load = (8 / 1000) * (cur_tx_bytes - prev_tx_bytes) / (t_cur_bytes - t_prev_bytes) / cur_ul_rate
             prev_rx_bytes = cur_rx_bytes
             prev_tx_bytes = cur_tx_bytes
 
-            if minup > max_delta_OWD or mindown > max_delta_OWD or tx_load > load_thres or rx_load > load_thresh then -- we could add complexity to the decision here
+            if minup > max_delta_OWD or mindown > max_delta_OWD or tx_load > load_thresh or rx_load > load_thresh then -- we could add complexity to the decision here
                 speedsneedchange = true
             end
 
