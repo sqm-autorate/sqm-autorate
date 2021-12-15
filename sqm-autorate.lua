@@ -6,8 +6,9 @@ local time = require 'posix.time'
 local vstruct = require 'vstruct'
 
 ---------------------------- Begin User-Configurable Local Variables ----------------------------
-local debug = true
-local enable_verbose_output = false -- enable (true) or disable (false) output monitoring lines showing bandwidth changes
+local debug = false
+local enable_verbose_output = true -- enable (true) or disable (false) output monitoring lines showing bandwidth changes
+local enable_verbose_baseline_output = false
 
 local ul_if = "eth0" -- upload interface
 local dl_if = "ifb4eth0" -- download interface
@@ -346,8 +347,6 @@ local function ratecontrol(baseline, recent)
 
             local speedsneedchange = true -- for now, let's just always change... sometimes the process will cause us to stay the same
             if speedsneedchange then
-                print("SPEED CHANGE PARTY!")
-
                 -- Calculate the next rate for dl and ul
                 -- Determine whether to increase or decrease the rate in dependence on load
                 -- High load, so we would like to increase the rate
@@ -406,18 +405,16 @@ local function ratecontrol(baseline, recent)
                 cur_dl_rate = next_dl_rate
                 cur_ul_rate = next_ul_rate
 
-                print("rx_load: " .. rx_load .. " | tx_load: " .. tx_load)
-                print("mindown: " .. mindown .. " | minup: " .. minup)
-                print("cur_dl_rate: " .. cur_dl_rate .. " | cur_ul_rate: " .. cur_ul_rate)
-
                 if enable_verbose_output then
-                    logger(loglevel.INFO, rx_load .. tx_load .. mindown .. minup .. cur_dl_rate .. cur_ul_rate)
+                    logger(loglevel.INFO,
+                        string.format("%d,%d,%f,%f,%f,%f,%f,%f\n", lastchg_s, lastchg_ns, rx_load, tx_load, mindown,
+                            minup, cur_dl_rate, cur_ul_rate))
                 end
 
                 lastchg_s, lastchg_ns = get_current_time()
 
                 -- output to log file before doing delta on the time
-                stats_file:write(string.format("%d,%d,%f,%f,%f,%f,%f,%f\n", lastchg_s, lastchg_ns, rx_load, tx_load,
+                csv_fd:write(string.format("%d,%d,%f,%f,%f,%f,%f,%f\n", lastchg_s, lastchg_ns, rx_load, tx_load,
                     mindown, minup, cur_dl_rate, cur_ul_rate))
 
                 lastchg_s = lastchg_s - start_s
@@ -488,7 +485,7 @@ local function conductor()
 
             coroutine.resume(regulator, OWDbaseline, OWDrecent)
 
-            if enable_verbose_output then
+            if enable_verbose_baseline_output then
                 for ref, val in pairs(OWDbaseline) do
                     local upewma = a_else_b(val.upewma, "?")
                     local downewma = a_else_b(val.downewma, "?")
