@@ -339,10 +339,7 @@ local function ratecontrol(baseline, recent)
             prev_rx_bytes = cur_rx_bytes
             prev_tx_bytes = cur_tx_bytes
 
-            if minup > max_delta_OWD or mindown > max_delta_OWD or tx_load > load_thresh or rx_load > load_thresh then -- we could add complexity to the decision here
-                speedsneedchange = true
-            end
-
+	    local speedsneedchange = true -- for now, let's just always change... sometimes the process will cause us to stay the same
             if speedsneedchange then
                 print("SPEED CHANGE PARTY!")
 
