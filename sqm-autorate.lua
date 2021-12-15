@@ -1,3 +1,7 @@
+-- Automatically adjust bandwidth for CAKE in dependence on detected load and OWD
+-- inspired by @moeller0 (OpenWrt forum)
+-- initial sh implementation by @Lynx (OpenWrt forum)
+-- initial Lua implementation by @Lochnair, @dlakelan, and @_FailSafe (OpenWrt forum)
 local bit = require 'bit32'
 local math = require 'math'
 local posix = require 'posix'
@@ -15,14 +19,8 @@ local dl_if = "ifb4eth0" -- download interface
 local base_ul_rate = 25750 -- steady state bandwidth for upload
 local base_dl_rate = 462500 -- steady state bandwidth for download
 
-local tick_rate = 0.5 -- Frequency in seconds
+local tick_duration = 0.5 -- Frequency in seconds
 local min_change_interval = 1.0 -- don't change speeds unless this many seconds has passed since last change
-
-local reflector_array_v4 = {'9.9.9.9', '9.9.9.10', '149.112.112.10', '149.112.112.11', '149.112.112.112'}
--- local reflector_array_v4 = {'46.227.200.54', '46.227.200.55', '194.242.2.2', '194.242.2.3', '149.112.112.10',
---                             '149.112.112.11', '149.112.112.112', '193.19.108.2', '193.19.108.3', '9.9.9.9', '9.9.9.10',
---                             '9.9.9.11'}
-local reflector_array_v6 = {'2620:fe::10', '2620:fe::fe:10'} -- TODO Implement IPv6 support?
 
 local alpha_OWD_increase = 0.001 -- how rapidly baseline OWD is allowed to increase
 local alpha_OWD_decrease = 0.9 -- how rapidly baseline OWD is allowed to decrease
@@ -33,7 +31,13 @@ local rate_adjust_load_low = 0.0025 -- how rapidly to return to base rate upon l
 
 local load_thresh = 0.5 -- % of currently set bandwidth for detecting high load
 
-local max_delta_OWD = 10 -- increase from baseline RTT for detection of bufferbloat
+local max_delta_OWD = 15 -- increase from baseline RTT for detection of bufferbloat
+
+local reflector_array_v4 = {'9.9.9.9', '9.9.9.10', '149.112.112.10', '149.112.112.11', '149.112.112.112'}
+-- local reflector_array_v4 = {'46.227.200.54', '46.227.200.55', '194.242.2.2', '194.242.2.3', '149.112.112.10',
+--                             '149.112.112.11', '149.112.112.112', '193.19.108.2', '193.19.108.3', '9.9.9.9', '9.9.9.10',
+--                             '9.9.9.11'}
+local reflector_array_v6 = {'2620:fe::10', '2620:fe::fe:10'} -- TODO Implement IPv6 support?
 
 ---------------------------- Begin Internal Local Variables ----------------------------
 
@@ -281,7 +285,7 @@ end
 
 local function read_stats_file(file_path)
     local file = io.open(file_path)
-    if not file then -- TODO Need to fail here because it means the interface stats file does not exist
+    if not file then
         logger(loglevel.FATAL, "Could not open stats file: " .. file_path)
         os.exit()
         return nil
@@ -331,7 +335,7 @@ local function ratecontrol(baseline, recent)
             -- change speeds here
             local cur_rx_bytes = read_stats_file(rx_bytes_path)
             local cur_tx_bytes = read_stats_file(tx_bytes_path)
-	    t_prev_bytes = t_cur_bytes
+            t_prev_bytes = t_cur_bytes
             t_cur_bytes = now_t
 
             local rx_load = (8 / 1000) * (cur_rx_bytes - prev_rx_bytes) / (t_cur_bytes - t_prev_bytes) / cur_dl_rate
@@ -339,7 +343,7 @@ local function ratecontrol(baseline, recent)
             prev_rx_bytes = cur_rx_bytes
             prev_tx_bytes = cur_tx_bytes
 
-	    local speedsneedchange = true -- for now, let's just always change... sometimes the process will cause us to stay the same
+            local speedsneedchange = true -- for now, let's just always change... sometimes the process will cause us to stay the same
             if speedsneedchange then
                 print("SPEED CHANGE PARTY!")
 
@@ -347,9 +351,9 @@ local function ratecontrol(baseline, recent)
                 -- Determine whether to increase or decrease the rate in dependence on load
                 -- High load, so we would like to increase the rate
                 local next_dl_rate
-		if mindown > max_delta_OWD then
-		   next_dl_rate = floor(cur_dl_rate * (1-rate_adjust_OWD_spike))
-		elseif rx_load > load_thresh then
+                if mindown > max_delta_OWD then
+                    next_dl_rate = floor(cur_dl_rate * (1 - rate_adjust_OWD_spike))
+                elseif rx_load > load_thresh then
                     next_dl_rate = floor(cur_dl_rate * (1 + rate_adjust_load_high))
                 else
                     -- Low load, so determine whether to decay down towards base rate, decay up towards base rate, or set as base rate
@@ -369,9 +373,9 @@ local function ratecontrol(baseline, recent)
                 end
 
                 local next_ul_rate
-		if minup > max_delta_OWD then
-		   next_ul_rate = floor(cur_ul_rate * (1-rate_adjust_OWD_spike))
-		elseif tx_load > load_thresh then
+                if minup > max_delta_OWD then
+                    next_ul_rate = floor(cur_ul_rate * (1 - rate_adjust_OWD_spike))
+                elseif tx_load > load_thresh then
                     next_ul_rate = floor(cur_ul_rate * (1 + rate_adjust_load_high))
                 else
                     -- Low load, so determine whether to decay down towards base rate, decay up towards base rate, or set as base rate
@@ -433,7 +437,7 @@ local function conductor()
     local fastfactor = .2
 
     while true do
-        local ok, refl, worked = coroutine.resume(pings, tick_rate / (#reflector_array_v4))
+        local ok, refl, worked = coroutine.resume(pings, tick_duration / (#reflector_array_v4))
         local sleeptimens = 500000.0
         local sleeptimes = 0.0
 
