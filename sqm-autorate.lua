@@ -296,7 +296,7 @@ local function read_stats_file(file_path)
     return bytes
 end
 
-local function ratecontrol(baseline, recent)
+local function ratecontrol(owd)
     local start_s, start_ns = get_current_time() -- first time we entered this loop, times will be relative to this seconds value to preserve precision
     local lastchg_s, lastchg_ns = get_current_time()
     local lastchg_t = lastchg_s - start_s + lastchg_ns / 1e9
@@ -317,16 +317,12 @@ local function ratecontrol(baseline, recent)
         if now_t - lastchg_t > min_change_interval then
             local speedsneedchange = nil
             -- logic here to decide if the stats indicate needing a change
-            local diffs = {}
             local minup = 1 / 0
             local mindown = 1 / 0
 
-            for k, val in pairs(baseline) do
-                diffs[k] = {}
-                diffs[k].up = recent[k].upewma - val.upewma
-                diffs[k].down = recent[k].downewma - val.downewma
-                minup = min(minup, diffs[k].up)
-                mindown = min(mindown, diffs[k].down)
+            for k, val in pairs(owd) do
+                minup = min(minup, val.r_upewma - val.bl_upewma)
+                mindown = min(mindown, val.r_downewma - val.bl_downewma)
 
                 if debug then
                     logger(loglevel.INFO, "minup: " .. minup .. "  mindown: " .. mindown)
@@ -436,9 +432,8 @@ local function conductor()
     local receiver = coroutine.create(receive_ts_ping)
     local regulator = coroutine.create(ratecontrol)
 
-    local OWDbaseline = {}
+    local OWD = {}
     local slowfactor = .9
-    local OWDrecent = {}
     local fastfactor = .2
 
     while true do
@@ -450,55 +445,50 @@ local function conductor()
         ok, timedata = coroutine.resume(receiver, packet_id)
 
         if ok and timedata then
-            if not OWDbaseline[timedata.reflector] then
-                OWDbaseline[timedata.reflector] = {}
-            end
-            if not OWDrecent[timedata.reflector] then
-                OWDrecent[timedata.reflector] = {}
-            end
-
-            if not OWDbaseline[timedata.reflector].upewma then
-                OWDbaseline[timedata.reflector].upewma = timedata.uplink_time
-            end
-            if not OWDrecent[timedata.reflector].upewma then
-                OWDrecent[timedata.reflector].upewma = timedata.uplink_time
-            end
-            if not OWDbaseline[timedata.reflector].downewma then
-                OWDbaseline[timedata.reflector].downewma = timedata.downlink_time
-            end
-            if not OWDrecent[timedata.reflector].downewma then
-                OWDrecent[timedata.reflector].downewma = timedata.downlink_time
+            if not OWD[timedata.reflector] then
+                OWD[timedata.reflector] = {}
+                OWD[timedata.reflector].bl_upewma = timedata.uplink_time
+                OWD[timedata.reflector].r_upewma = timedata.uplink_time
+                OWD[timedata.reflector].bl_downewma = timedata.downlink_time
+                OWD[timedata.reflector].r_downewma = timedata.downlink_time
             end
 
-            OWDbaseline[timedata.reflector].upewma = OWDbaseline[timedata.reflector].upewma * slowfactor +
-                                                         (1 - slowfactor) * timedata.uplink_time
-            OWDrecent[timedata.reflector].upewma =
-                OWDrecent[timedata.reflector].upewma * fastfactor + (1 - fastfactor) * timedata.uplink_time
-            OWDbaseline[timedata.reflector].downewma = OWDbaseline[timedata.reflector].downewma * slowfactor +
-                                                           (1 - slowfactor) * timedata.downlink_time
-            OWDrecent[timedata.reflector].downewma = OWDrecent[timedata.reflector].downewma * fastfactor +
-                                                         (1 - fastfactor) * timedata.downlink_time
+            OWD[timedata.reflector].bl_upewma =
+                OWD[timedata.reflector].bl_upewma * slowfactor +
+                (1 - slowfactor) * timedata.uplink_time
+
+            OWD[timedata.reflector].r_upewma =
+                OWD[timedata.reflector].r_upewma * fastfactor +
+                (1 - fastfactor) * timedata.uplink_time
+
+            OWD[timedata.reflector].bl_downewma =
+                OWD[timedata.reflector].bl_downewma * slowfactor +
+                (1 - slowfactor) * timedata.downlink_time
+
+            OWD[timedata.reflector].r_downewma =
+                OWD[timedata.reflector].r_downewma * fastfactor +
+                (1 - fastfactor) * timedata.downlink_time
 
             -- when baseline is above the recent, set equal to recent, so we track down more quickly
-            OWDbaseline[timedata.reflector].upewma = math.min(OWDbaseline[timedata.reflector].upewma,
-                OWDrecent[timedata.reflector].upewma)
-            OWDbaseline[timedata.reflector].downewma = math.min(OWDbaseline[timedata.reflector].downewma,
-                OWDrecent[timedata.reflector].downewma)
+            OWD[timedata.reflector].bl_upewma = math.min(
+                OWD[timedata.reflector].bl_upewma,
+                OWD[timedata.reflector].r_upewma)
+            OWD[timedata.reflector].bl_downewma = math.min(
+                OWD[timedata.reflector].bl_downewma,
+                OWD[timedata.reflector].r_downewma)
 
-            coroutine.resume(regulator, OWDbaseline, OWDrecent)
+            coroutine.resume(regulator, OWD)
 
             if enable_verbose_output then
-                for ref, val in pairs(OWDbaseline) do
+                for ref, val in pairs(OWD) do
+                    local upewma = a_else_b(val.bl_upewma, "?")
+                    local downewma = a_else_b(val.bl_downewma, "?")
+                    logger(loglevel.INFO,
+                        "Reflector " .. ref .. " up baseline = " .. upewma .. " down baseline = " .. downewma)
                     local upewma = a_else_b(val.upewma, "?")
                     local downewma = a_else_b(val.downewma, "?")
                     logger(loglevel.INFO,
-                        "Reflector " .. ref .. " up baseline = " .. upewma .. " down baseline = " .. downewma)
-                end
-                for ref, val in pairs(OWDrecent) do
-                    local upewma = a_else_b(val.upewma, "?")
-                    local downewma = a_else_b(val.downewma, "?")
-                    logger(loglevel.INFO,
-                        "Reflector " .. ref .. " up baseline = " .. upewma .. " down baseline = " .. downewma)
+                        "Reflector " .. ref .. " up recent = " .. upewma .. " down recent = " .. downewma)
                 end
             end
         end
