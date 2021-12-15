@@ -336,7 +336,7 @@ local function ratecontrol(baseline, recent)
             -- change speeds here
             local cur_rx_bytes = read_stats_file(rx_bytes_path)
             local cur_tx_bytes = read_stats_file(tx_bytes_path)
-	    t_prev_bytes = t_cur_bytes
+            t_prev_bytes = t_cur_bytes
             t_cur_bytes = now_t
 
             local rx_load = (8 / 1000) * (cur_rx_bytes - prev_rx_bytes) / (t_cur_bytes - t_prev_bytes) / cur_dl_rate
@@ -344,7 +344,7 @@ local function ratecontrol(baseline, recent)
             prev_rx_bytes = cur_rx_bytes
             prev_tx_bytes = cur_tx_bytes
 
-	    local speedsneedchange = true -- for now, let's just always change... sometimes the process will cause us to stay the same
+            local speedsneedchange = true -- for now, let's just always change... sometimes the process will cause us to stay the same
             if speedsneedchange then
                 print("SPEED CHANGE PARTY!")
 
@@ -352,9 +352,9 @@ local function ratecontrol(baseline, recent)
                 -- Determine whether to increase or decrease the rate in dependence on load
                 -- High load, so we would like to increase the rate
                 local next_dl_rate
-		if mindown > max_delta_OWD then
-		   next_dl_rate = floor(cur_dl_rate * (1-rate_adjust_OWD_spike))
-		elseif rx_load > load_thresh then
+                if mindown > max_delta_OWD then
+                    next_dl_rate = floor(cur_dl_rate * (1 - rate_adjust_OWD_spike))
+                elseif rx_load > load_thresh then
                     next_dl_rate = floor(cur_dl_rate * (1 + rate_adjust_load_high))
                 else
                     -- Low load, so determine whether to decay down towards base rate, decay up towards base rate, or set as base rate
@@ -374,9 +374,9 @@ local function ratecontrol(baseline, recent)
                 end
 
                 local next_ul_rate
-		if minup > max_delta_OWD then
-		   next_ul_rate = floor(cur_ul_rate * (1-rate_adjust_OWD_spike))
-		elseif tx_load > load_thresh then
+                if minup > max_delta_OWD then
+                    next_ul_rate = floor(cur_ul_rate * (1 - rate_adjust_OWD_spike))
+                elseif tx_load > load_thresh then
                     next_ul_rate = floor(cur_ul_rate * (1 + rate_adjust_load_high))
                 else
                     -- Low load, so determine whether to decay down towards base rate, decay up towards base rate, or set as base rate
@@ -416,10 +416,11 @@ local function ratecontrol(baseline, recent)
 
                 lastchg_s, lastchg_ns = get_current_time()
 
-		-- output to log file before doing delta on the time
-		stats_file:write(string.format("%d,%d,%f,%f,%f,%f,%f,%f\n",lastchg_s,lastchg_ns,rx_load,tx_load,mindown,minup,cur_dl_rate,cur_ul_rate))
+                -- output to log file before doing delta on the time
+                stats_file:write(string.format("%d,%d,%f,%f,%f,%f,%f,%f\n", lastchg_s, lastchg_ns, rx_load, tx_load,
+                    mindown, minup, cur_dl_rate, cur_ul_rate))
 
-		lastchg_s = lastchg_s - start_s
+                lastchg_s = lastchg_s - start_s
                 lastchg_t = lastchg_s + lastchg_ns / 1e9
             end
         end
