@@ -6,7 +6,7 @@ local time = require 'posix.time'
 local vstruct = require 'vstruct'
 
 ---------------------------- Begin User-Configurable Local Variables ----------------------------
-local debug = false
+local debug = true
 local enable_verbose_output = false -- enable (true) or disable (false) output monitoring lines showing bandwidth changes
 
 local ul_if = "eth0" -- upload interface
@@ -35,7 +35,12 @@ local load_thresh = 0.5 -- % of currently set bandwidth for detecting high load
 
 local max_delta_OWD = 10 -- increase from baseline RTT for detection of bufferbloat
 
+local stats_file = "/root/sqm-autorate.csv"
+
 ---------------------------- Begin Internal Local Variables ----------------------------
+
+local csv_fd = io.open(stats_file, "w")
+csv_fd:write("times,timens,rxload,txload,deltadelaydown,deltadelayup,dlrate,uprate\n")
 
 local cur_process_id = posix.getpid()
 if type(cur_process_id) == "table" then
@@ -410,7 +415,11 @@ local function ratecontrol(baseline, recent)
                 end
 
                 lastchg_s, lastchg_ns = get_current_time()
-                lastchg_s = lastchg_s - start_s
+
+		-- output to log file before doing delta on the time
+		stats_file:write(string.format("%d,%d,%f,%f,%f,%f,%f,%f\n",lastchg_s,lastchg_ns,rx_load,tx_load,mindown,minup,cur_dl_rate,cur_ul_rate))
+
+		lastchg_s = lastchg_s - start_s
                 lastchg_t = lastchg_s + lastchg_ns / 1e9
             end
         end
