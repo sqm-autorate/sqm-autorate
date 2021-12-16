@@ -245,7 +245,7 @@ end
 
 ---------------------------- Begin Conductor Loop ----------------------------
 
--- verify these are correct using "cat /sys/class/..."
+-- Verify these are correct using "cat /sys/class/..."
 if dl_if:find("^veth.+") then
     rx_bytes_path = "/sys/class/net/" .. dl_if .. "/statistics/tx_bytes"
 elseif dl_if:find("^ifb.+") then
@@ -261,6 +261,21 @@ elseif ul_if:find("^ifb.+") then
 else
     tx_bytes_path = "/sys/class/net/" .. ul_if .. "/statistics/tx_bytes"
 end
+
+-- Test for existent stats files
+local test_file = io.open(rx_bytes_path)
+if not test_file then
+    logger(loglevel.FATAL, "Could not open stats file: " .. rx_bytes_path)
+    os.exit()
+end
+test_file:close()
+
+test_file = io.open(tx_bytes_path)
+if not test_file then
+    logger(loglevel.FATAL, "Could not open stats file: " .. tx_bytes_path)
+    os.exit()
+end
+test_file:close()
 
 if debug then
     logger(loglevel.DEBUG, "rx_bytes_path: " .. rx_bytes_path)
@@ -329,16 +344,12 @@ local function ratecontrol(baseline, recent)
         if now_t - lastchg_t > min_change_interval then
             local is_speed_change_needed = nil
             -- logic here to decide if the stats indicate needing a change
-            local diffs = {}
             local min_up = 1 / 0
             local min_down = 1 / 0
 
             for k, val in pairs(baseline) do
-                diffs[k] = {}
-                diffs[k].up = recent[k].up_ewma - val.up_ewma
-                diffs[k].down = recent[k].down_ewma - val.down_ewma
-                min_up = min(min_up, diffs[k].up)
-                min_down = min(min_down, diffs[k].down)
+                min_up = min(min_up, recent[k].up_ewma - val.up_ewma)
+                min_down = min(min_down, recent[k].down_ewma - val.down_ewma)
 
                 if debug then
                     logger(loglevel.INFO, "min_up: " .. min_up .. "  min_down: " .. min_down)
