@@ -25,7 +25,7 @@ local min_ul_rate = 500 -- don't go below this many kbps
 local min_dl_rate = 1500 -- don't go below this many kbps
 
 local tick_duration = 0.5 -- Frequency in seconds
-local min_change_interval = 1.0 -- don't change speeds unless this many seconds has passed since last change
+local min_change_interval = 0.5 -- don't change speeds unless this many seconds has passed since last change
 
 local reflector_array_v4 = {"9.9.9.9", "9.9.9.10", "149.112.112.10", "149.112.112.11", "149.112.112.112"}
 -- local reflector_array_v4 = {"46.227.200.54", "46.227.200.55", "194.242.2.2", "194.242.2.3", "149.112.112.10",
@@ -33,8 +33,8 @@ local reflector_array_v4 = {"9.9.9.9", "9.9.9.10", "149.112.112.10", "149.112.11
 --                             "9.9.9.11"}
 local reflector_array_v6 = {"2620:fe::10", "2620:fe::fe:10"} -- TODO Implement IPv6 support?
 
-local alpha_OWD_increase = 0.001 -- how rapidly baseline OWD is allowed to increase
-local alpha_OWD_decrease = 0.9 -- how rapidly baseline OWD is allowed to decrease
+local alpha_owd_increase = 0.001 -- how rapidly baseline OWD is allowed to increase
+local alpha_owd_decrease = 0.9 -- how rapidly baseline OWD is allowed to decrease
 
 local rate_adjust_OWD_spike = 0.010 -- how rapidly to reduce bandwidth upon detection of bufferbloat
 local rate_adjust_load_high = 0.005 -- how rapidly to increase bandwidth upon high load detected
@@ -42,7 +42,7 @@ local rate_adjust_load_low = 0.0025 -- how rapidly to return to base rate upon l
 
 local load_thresh = 0.5 -- % of currently set bandwidth for detecting high load
 
-local max_delta_OWD = 15 -- increase from baseline RTT for detection of bufferbloat
+local max_delta_owd = 15 -- increase from baseline RTT for detection of bufferbloat
 
 local stats_file = "/root/sqm-autorate.csv"
 
@@ -324,7 +324,7 @@ local function read_stats_file(file_path)
     return bytes
 end
 
-local function ratecontrol(baseline, recent)
+local function ratecontrol(baseline)
     local start_s, start_ns = get_current_time() -- first time we entered this loop, times will be relative to this seconds value to preserve precision
     local lastchg_s, lastchg_ns = get_current_time()
     local lastchg_t = lastchg_s - start_s + lastchg_ns / 1e9
@@ -367,6 +367,7 @@ local function ratecontrol(baseline, recent)
                     logger(loglevel.INFO, "min_up_del: " .. min_up_del .. "  min_down_del: " .. min_down_del)
                 end
             end
+
             -- if it's been long enough, and the stats indicate needing to change speeds
             -- change speeds here
             local cur_rx_bytes = read_stats_file(rx_bytes_path)
@@ -452,73 +453,84 @@ local function conductor()
     local receiver = coroutine.create(receive_ts_ping)
     local regulator = coroutine.create(ratecontrol)
 
-    local owd_baseline = {}
-    local slow_factor = .9
-    local owd_recent = {}
-    local fast_factor = .2
+    local baseline_cur = {}
+    local baseline_prev = {}
 
     while true do
         local ok, refl, worked = coroutine.resume(pings, tick_duration / (#reflector_array_v4))
         local sleep_time_ns = 500000.0
         local sleep_time_s = 0.0
 
-        local time_data = nil
         ok, time_data = coroutine.resume(receiver, packet_id)
 
         if ok and time_data then
-            if not owd_baseline[time_data.reflector] then
-                owd_baseline[time_data.reflector] = {}
+            if not baseline_cur[time_data.reflector] then
+                baseline_cur[time_data.reflector] = {}
             end
-            if not owd_recent[time_data.reflector] then
-                owd_recent[time_data.reflector] = {}
-            end
-
-            if not owd_baseline[time_data.reflector].up_ewma then
-                owd_baseline[time_data.reflector].up_ewma = time_data.uplink_time
-            end
-            if not owd_recent[time_data.reflector].up_ewma then
-                owd_recent[time_data.reflector].up_ewma = time_data.uplink_time
-            end
-            if not owd_baseline[time_data.reflector].down_ewma then
-                owd_baseline[time_data.reflector].down_ewma = time_data.downlink_time
-            end
-            if not owd_recent[time_data.reflector].down_ewma then
-                owd_recent[time_data.reflector].down_ewma = time_data.downlink_time
+            if not baseline_prev[time_data.reflector] then
+                baseline_prev[time_data.reflector] = {}
             end
 
-            owd_baseline[time_data.reflector].up_ewma = owd_baseline[time_data.reflector].up_ewma * slow_factor +
-                                                            (1 - slow_factor) * time_data.uplink_time
-            owd_recent[time_data.reflector].up_ewma = owd_recent[time_data.reflector].up_ewma * fast_factor +
-                                                          (1 - fast_factor) * time_data.uplink_time
-            owd_baseline[time_data.reflector].down_ewma = owd_baseline[time_data.reflector].down_ewma * slow_factor +
-                                                              (1 - slow_factor) * time_data.downlink_time
-            owd_recent[time_data.reflector].down_ewma = owd_recent[time_data.reflector].down_ewma * fast_factor +
-                                                            (1 - fast_factor) * time_data.downlink_time
+            if not baseline_prev[time_data.reflector].uplink then
+                baseline_prev[time_data.reflector].uplink = 0
+            end
+            if not baseline_prev[time_data.reflector].downlink then
+                baseline_prev[time_data.reflector].downlink = 0
+            end
 
-            -- when baseline is above the recent, set equal to recent, so we track down more quickly
-            owd_baseline[time_data.reflector].up_ewma = math.min(owd_baseline[time_data.reflector].up_ewma,
-                owd_recent[time_data.reflector].up_ewma)
-            owd_baseline[time_data.reflector].down_ewma = math.min(owd_baseline[time_data.reflector].down_ewma,
-                owd_recent[time_data.reflector].down_ewma)
+            baseline_cur[time_data.reflector].uplink = time_data.uplink_time
+            baseline_cur[time_data.reflector].downlink = time_data.downlink_time
 
-            coroutine.resume(regulator, owd_baseline, owd_recent)
+            local delta_uplink_owd = baseline_cur[time_data.reflector].uplink -
+                                         baseline_prev[time_data.reflector].uplink
+            local delta_downlink_owd = baseline_cur[time_data.reflector].downlink -
+                                           baseline_prev[time_data.reflector].downlink
+
+            local cur_uplink_baseline
+            if delta_uplink_owd >= 0 then
+                cur_uplink_baseline = (1 - alpha_owd_increase) * baseline_prev[time_data.reflector].uplink +
+                                          alpha_owd_increase * baseline_cur[time_data.reflector].uplink
+            else
+                cur_uplink_baseline = (1 - alpha_owd_decrease) * baseline_prev[time_data.reflector].uplink +
+                                          alpha_owd_decrease * baseline_cur[time_data.reflector].uplink
+            end
+
+            local cur_downlink_baseline
+            if delta_downlink_owd >= 0 then
+                cur_downlink_baseline = (1 - alpha_owd_increase) * baseline_prev[time_data.reflector].downlink +
+                                            alpha_owd_increase * baseline_cur[time_data.reflector].downlink
+            else
+                cur_downlink_baseline = (1 - alpha_owd_decrease) * baseline_prev[time_data.reflector].downlink +
+                                            alpha_owd_decrease * baseline_cur[time_data.reflector].downlink
+            end
+
+            baseline_cur[time_data.reflector].delta_uplink = delta_uplink_owd
+            baseline_cur[time_data.reflector].delta_downlink = delta_downlink_owd
+
+            baseline_prev[time_data.reflector].uplink = cur_uplink_baseline
+            baseline_prev[time_data.reflector].downlink = cur_downlink_baseline
+
+            coroutine.resume(regulator, baseline_cur)
 
             if enable_verbose_baseline_output then
-                for ref, val in pairs(owd_baseline) do
-                    local up_ewma = a_else_b(val.up_ewma, "?")
-                    local down_ewma = a_else_b(val.down_ewma, "?")
+                for ref, val in pairs(baseline_cur) do
+                    local uplink = a_else_b(val.uplink, "?")
+                    local downlink = a_else_b(val.downlink, "?")
                     logger(loglevel.INFO,
-                        "Reflector " .. ref .. " up baseline = " .. up_ewma .. " down baseline = " .. down_ewma)
+                        "Reflector " .. ref .. " up baseline = " .. uplink .. " down baseline = " .. downlink)
                 end
 
-                for ref, val in pairs(owd_recent) do
-                    local up_ewma = a_else_b(val.up_ewma, "?")
-                    local down_ewma = a_else_b(val.down_ewma, "?")
+                for ref, val in pairs(baseline_prev) do
+                    local uplink = a_else_b(val.uplink, "?")
+                    local downlink = a_else_b(val.downlink, "?")
                     logger(loglevel.INFO,
-                        "Reflector " .. ref .. " up baseline = " .. up_ewma .. " down baseline = " .. down_ewma)
+                        "Reflector " .. ref .. " up baseline = " .. uplink .. " down baseline = " .. downlink)
                 end
             end
         end
+
+        local sleep_time_ns = 500000.0
+        local sleep_time_s = 0.0
 
         time.nanosleep({
             tv_sec = sleep_time_s,
