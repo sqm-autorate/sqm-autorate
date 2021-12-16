@@ -329,16 +329,12 @@ local function ratecontrol(baseline, recent)
         if now_t - lastchg_t > min_change_interval then
             local is_speed_change_needed = nil
             -- logic here to decide if the stats indicate needing a change
-            local diffs = {}
             local min_up = 1 / 0
             local min_down = 1 / 0
 
             for k, val in pairs(baseline) do
-                diffs[k] = {}
-                diffs[k].up = recent[k].up_ewma - val.up_ewma
-                diffs[k].down = recent[k].down_ewma - val.down_ewma
-                min_up = min(min_up, diffs[k].up)
-                min_down = min(min_down, diffs[k].down)
+                min_up = min(min_up, recent[k].up_ewma - val.up_ewma)
+                min_down = min(min_down, recent[k].down_ewma - val.down_ewma)
 
                 if debug then
                     logger(loglevel.INFO, "min_up: " .. min_up .. "  min_down: " .. min_down)
@@ -424,10 +420,9 @@ local function ratecontrol(baseline, recent)
 
                 lastchg_s, lastchg_ns = get_current_time()
 
-
-		-- output to log file before doing delta on the time
-stats_file:write(string.format("%d,%d,%f,%f,%f,%f,%d,%d\n", lastchg_s, lastchg_ns, rx_load, tx_load,
-			       mindown, minup, cur_dl_rate, cur_ul_rate))
+                -- output to log file before doing delta on the time
+                stats_file:write(string.format("%d,%d,%f,%f,%f,%f,%d,%d\n", lastchg_s, lastchg_ns, rx_load, tx_load,
+                    min_down, min_up, cur_dl_rate, cur_ul_rate))
 
                 lastchg_s = lastchg_s - start_s
                 lastchg_t = lastchg_s + lastchg_ns / 1e9
