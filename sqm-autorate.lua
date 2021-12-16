@@ -41,12 +41,6 @@ local load_thresh = 0.5 -- % of currently set bandwidth for detecting high load
 
 local max_delta_OWD = 15 -- increase from baseline RTT for detection of bufferbloat
 
-local reflector_array_v4 = {'9.9.9.9', '9.9.9.10', '149.112.112.10', '149.112.112.11', '149.112.112.112'}
--- local reflector_array_v4 = {'46.227.200.54', '46.227.200.55', '194.242.2.2', '194.242.2.3', '149.112.112.10',
---                             '149.112.112.11', '149.112.112.112', '193.19.108.2', '193.19.108.3', '9.9.9.9', '9.9.9.10',
---                             '9.9.9.11'}
-local reflector_array_v6 = {'2620:fe::10', '2620:fe::fe:10'} -- TODO Implement IPv6 support?
-
 local stats_file = "/root/sqm-autorate.csv"
 
 ---------------------------- Begin Internal Local Variables ----------------------------
