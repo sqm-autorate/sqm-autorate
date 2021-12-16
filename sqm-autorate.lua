@@ -24,11 +24,11 @@ local base_dl_rate = 462500 -- steady state bandwidth for download
 local tick_rate = 0.5 -- Frequency in seconds
 local min_change_interval = 1.0 -- don't change speeds unless this many seconds has passed since last change
 
-local reflector_array_v4 = {'9.9.9.9', '9.9.9.10', '149.112.112.10', '149.112.112.11', '149.112.112.112'}
--- local reflector_array_v4 = {'46.227.200.54', '46.227.200.55', '194.242.2.2', '194.242.2.3', '149.112.112.10',
---                             '149.112.112.11', '149.112.112.112', '193.19.108.2', '193.19.108.3', '9.9.9.9', '9.9.9.10',
---                             '9.9.9.11'}
-local reflector_array_v6 = {'2620:fe::10', '2620:fe::fe:10'} -- TODO Implement IPv6 support?
+local reflector_array_v4 = {"9.9.9.9", "9.9.9.10", "149.112.112.10", "149.112.112.11", "149.112.112.112"}
+-- local reflector_array_v4 = {"46.227.200.54", "46.227.200.55", "194.242.2.2", "194.242.2.3", "149.112.112.10",
+--                             "149.112.112.11", "149.112.112.112", "193.19.108.2", "193.19.108.3", "9.9.9.9", "9.9.9.10",
+--                             "9.9.9.11"}
+local reflector_array_v6 = {"2620:fe::10", "2620:fe::fe:10"} -- TODO Implement IPv6 support?
 
 local alpha_OWD_increase = 0.001 -- how rapidly baseline OWD is allowed to increase
 local alpha_OWD_decrease = 0.9 -- how rapidly baseline OWD is allowed to decrease
@@ -163,7 +163,7 @@ local function receive_ts_ping(pkt_id)
             local ip_start = string.byte(data, 1)
             local ip_ver = bit.rshift(ip_start, 4)
             local hdr_len = (ip_start - ip_ver * 16) * 4
-            local ts_resp = vstruct.read('> 2*u1 3*u2 3*u4', string.sub(data, hdr_len + 1, #data))
+            local ts_resp = vstruct.read("> 2*u1 3*u2 3*u4", string.sub(data, hdr_len + 1, #data))
             local time_after_midnight_ms = get_time_after_midnight_ms()
             local src_pkt_id = ts_resp[4]
             local pos = get_table_position(reflector_array_v4, sa.addr)
@@ -182,9 +182,9 @@ local function receive_ts_ping(pkt_id)
 
                 if debug then
                     logger(loglevel.DEBUG,
-                        'Reflector IP: ' .. stats.reflector .. '  |  Current time: ' .. time_after_midnight_ms ..
-                            '  |  TX at: ' .. stats.original_ts .. '  |  RTT: ' .. stats.rtt .. '  |  UL time: ' ..
-                            stats.uplink_time .. '  |  DL time: ' .. stats.downlink_time)
+                        "Reflector IP: " .. stats.reflector .. "  |  Current time: " .. time_after_midnight_ms ..
+                            "  |  TX at: " .. stats.original_ts .. "  |  RTT: " .. stats.rtt .. "  |  UL time: " ..
+                            stats.uplink_time .. "  |  DL time: " .. stats.downlink_time)
                     logger(loglevel.DEBUG, "Exiting receive_ts_ping() with stats return")
                 end
 
@@ -217,8 +217,8 @@ local function send_ts_ping(reflector, pkt_id)
 
     -- Create a raw ICMP timestamp request message
     local time_after_midnight_ms = get_time_after_midnight_ms()
-    local ts_req = vstruct.write('> 2*u1 3*u2 3*u4', {13, 0, 0, pkt_id, 0, time_after_midnight_ms, 0, 0})
-    local ts_req = vstruct.write('> 2*u1 3*u2 3*u4',
+    local ts_req = vstruct.write("> 2*u1 3*u2 3*u4", {13, 0, 0, pkt_id, 0, time_after_midnight_ms, 0, 0})
+    local ts_req = vstruct.write("> 2*u1 3*u2 3*u4",
         {13, 0, calculate_checksum(ts_req), pkt_id, 0, time_after_midnight_ms, 0, 0})
 
     -- Send ICMP TS request
@@ -239,7 +239,7 @@ end
 
 ---------------------------- Begin Conductor Loop ----------------------------
 
--- verify these are correct using 'cat /sys/class/...'
+-- verify these are correct using "cat /sys/class/..."
 if dl_if:find("^veth.+") then
     rx_bytes_path = "/sys/class/net/" .. dl_if .. "/statistics/tx_bytes"
 elseif dl_if:find("^ifb.+") then
