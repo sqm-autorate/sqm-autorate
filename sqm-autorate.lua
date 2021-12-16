@@ -242,7 +242,7 @@ end
 
 ---------------------------- Begin Conductor Loop ----------------------------
 
--- verify these are correct using "cat /sys/class/..."
+-- Verify these are correct using "cat /sys/class/..."
 if dl_if:find("^veth.+") then
     rx_bytes_path = "/sys/class/net/" .. dl_if .. "/statistics/tx_bytes"
 elseif dl_if:find("^ifb.+") then
@@ -258,6 +258,21 @@ elseif ul_if:find("^ifb.+") then
 else
     tx_bytes_path = "/sys/class/net/" .. ul_if .. "/statistics/tx_bytes"
 end
+
+-- Test for existent stats files
+local test_file = io.open(rx_bytes_path)
+if not test_file then
+    logger(loglevel.FATAL, "Could not open stats file: " .. rx_bytes_path)
+    os.exit()
+end
+test_file:close()
+
+test_file = io.open(tx_bytes_path)
+if not test_file then
+    logger(loglevel.FATAL, "Could not open stats file: " .. tx_bytes_path)
+    os.exit()
+end
+test_file:close()
 
 if debug then
     logger(loglevel.DEBUG, "rx_bytes_path: " .. rx_bytes_path)
