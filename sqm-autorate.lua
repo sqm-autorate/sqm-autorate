@@ -1,9 +1,14 @@
-local bit = require 'bit32'
-local math = require 'math'
-local posix = require 'posix'
-local socket = require 'posix.sys.socket'
-local time = require 'posix.time'
-local vstruct = require 'vstruct'
+-- Automatically adjust bandwidth for CAKE in dependence on detected load and OWD
+-- Inspired by @moeller0 (OpenWrt forum)
+-- Initial sh implementation by @Lynx (OpenWrt forum)
+-- Initial Lua port by @Lochnair, @dlakelan, and @_FailSafe (OpenWrt forum)
+-- Recommended style guide: https://github.com/luarocks/lua-style-guide
+local bit = require("bit32")
+local math = require("math")
+local posix = require("posix")
+local socket = require("posix.sys.socket")
+local time = require("posix.time")
+local vstruct = require("vstruct")
 
 ---------------------------- Begin User-Configurable Local Variables ----------------------------
 local debug = false
