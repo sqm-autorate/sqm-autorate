@@ -327,21 +327,21 @@ local function ratecontrol(baseline, recent)
         now_s = now_s - start_s
         local now_t = now_s + now_ns / 1e9
         if now_t - lastchg_t > min_change_interval then
-            local speedsneedchange = nil
+            local is_speed_change_needed = nil
             -- logic here to decide if the stats indicate needing a change
             local diffs = {}
-            local minup = 1 / 0
-            local mindown = 1 / 0
+            local min_up = 1 / 0
+            local min_down = 1 / 0
 
             for k, val in pairs(baseline) do
                 diffs[k] = {}
                 diffs[k].up = recent[k].up_ewma - val.up_ewma
                 diffs[k].down = recent[k].down_ewma - val.down_ewma
-                minup = min(minup, diffs[k].up)
-                mindown = min(mindown, diffs[k].down)
+                min_up = min(min_up, diffs[k].up)
+                min_down = min(min_down, diffs[k].down)
 
                 if debug then
-                    logger(loglevel.INFO, "minup: " .. minup .. "  mindown: " .. mindown)
+                    logger(loglevel.INFO, "min_up: " .. min_up .. "  min_down: " .. min_down)
                 end
             end
             -- if it's been long enough, and the stats indicate needing to change speeds
@@ -356,13 +356,13 @@ local function ratecontrol(baseline, recent)
             prev_rx_bytes = cur_rx_bytes
             prev_tx_bytes = cur_tx_bytes
 
-            local speedsneedchange = true -- for now, let's just always change... sometimes the process will cause us to stay the same
-            if speedsneedchange then
+            local is_speed_change_needed = true -- for now, let's just always change... sometimes the process will cause us to stay the same
+            if is_speed_change_needed then
                 -- Calculate the next rate for dl and ul
                 -- Determine whether to increase or decrease the rate in dependence on load
                 -- High load, so we would like to increase the rate
                 local next_dl_rate
-                if mindown > max_delta_OWD then
+                if min_down > max_delta_OWD then
                     next_dl_rate = floor(cur_dl_rate * (1 - rate_adjust_OWD_spike))
                 elseif rx_load > load_thresh then
                     next_dl_rate = floor(cur_dl_rate * (1 + rate_adjust_load_high))
@@ -384,7 +384,7 @@ local function ratecontrol(baseline, recent)
                 end
 
                 local next_ul_rate
-                if minup > max_delta_OWD then
+                if min_up > max_delta_OWD then
                     next_ul_rate = floor(cur_ul_rate * (1 - rate_adjust_OWD_spike))
                 elseif tx_load > load_thresh then
                     next_ul_rate = floor(cur_ul_rate * (1 + rate_adjust_load_high))
@@ -418,15 +418,15 @@ local function ratecontrol(baseline, recent)
 
                 if enable_verbose_output then
                     logger(loglevel.INFO,
-                        string.format("%d,%d,%f,%f,%f,%f,%f,%f\n", lastchg_s, lastchg_ns, rx_load, tx_load, mindown,
-                            minup, cur_dl_rate, cur_ul_rate))
+                        string.format("%d,%d,%f,%f,%f,%f,%f,%f\n", lastchg_s, lastchg_ns, rx_load, tx_load, min_down,
+                            min_up, cur_dl_rate, cur_ul_rate))
                 end
 
                 lastchg_s, lastchg_ns = get_current_time()
 
                 -- output to log file before doing delta on the time
                 csv_fd:write(string.format("%d,%d,%f,%f,%f,%f,%f,%f\n", lastchg_s, lastchg_ns, rx_load, tx_load,
-                    mindown, minup, cur_dl_rate, cur_ul_rate))
+                    min_down, min_up, cur_dl_rate, cur_ul_rate))
 
                 lastchg_s = lastchg_s - start_s
                 lastchg_t = lastchg_s + lastchg_ns / 1e9
