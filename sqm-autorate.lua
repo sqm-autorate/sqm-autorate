@@ -408,14 +408,14 @@ local function ratecontrol(baseline, recent)
 
                 if enable_verbose_output then
                     logger(loglevel.INFO,
-                        string.format("%d,%d,%f,%f,%f,%f,%f,%f\n", lastchg_s, lastchg_ns, rx_load, tx_load, min_down,
+                        string.format("%d,%d,%f,%f,%f,%f,%d,%d\n", lastchg_s, lastchg_ns, rx_load, tx_load, min_down,
                             min_up, cur_dl_rate, cur_ul_rate))
                 end
 
                 lastchg_s, lastchg_ns = get_current_time()
 
                 -- output to log file before doing delta on the time
-                stats_file:write(string.format("%d,%d,%f,%f,%f,%f,%d,%d\n", lastchg_s, lastchg_ns, rx_load, tx_load,
+                csv_fd:write(string.format("%d,%d,%f,%f,%f,%f,%d,%d\n", lastchg_s, lastchg_ns, rx_load, tx_load,
                     min_down, min_up, cur_dl_rate, cur_ul_rate))
 
                 lastchg_s = lastchg_s - start_s
@@ -442,7 +442,7 @@ local function conductor()
     local fast_factor = .2
 
     while true do
-        local ok, refl, worked = coroutine.resume(pings, tick_rate / (#reflector_array_v4))
+        local ok, refl, worked = coroutine.resume(pings, tick_duration / (#reflector_array_v4))
         local sleep_time_ns = 500000.0
         local sleep_time_s = 0.0
 
