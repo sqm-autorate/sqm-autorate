@@ -2,12 +2,12 @@
 -- inspired by @moeller0 (OpenWrt forum)
 -- initial sh implementation by @Lynx (OpenWrt forum)
 -- initial Lua implementation by @Lochnair, @dlakelan, and @_FailSafe (OpenWrt forum)
-local bit = require 'bit32'
-local math = require 'math'
-local posix = require 'posix'
-local socket = require 'posix.sys.socket'
-local time = require 'posix.time'
-local vstruct = require 'vstruct'
+local bit = require("bit32")
+local math = require("math")
+local posix = require("posix")
+local socket = require("posix.sys.socket")
+local time = require("posix.time")
+local vstruct = require("vstruct")
 
 ---------------------------- Begin User-Configurable Local Variables ----------------------------
 local debug = false
