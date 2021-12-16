@@ -417,7 +417,7 @@ local function ratecontrol(baseline, recent)
                 lastchg_s, lastchg_ns = get_current_time()
 
 		-- output to log file before doing delta on the time
-		stats_file:write(string.format("%d,%d,%f,%f,%f,%f,%f,%f\n",lastchg_s,lastchg_ns,rx_load,tx_load,mindown,minup,cur_dl_rate,cur_ul_rate))
+		stats_file:write(string.format("%d,%d,%f,%f,%f,%f,%d,%d\n",lastchg_s,lastchg_ns,rx_load,tx_load,mindown,minup,cur_dl_rate,cur_ul_rate))
 
 		lastchg_s = lastchg_s - start_s
                 lastchg_t = lastchg_s + lastchg_ns / 1e9
