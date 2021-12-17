@@ -69,7 +69,7 @@ local rx_bytes_path = nil
 local tx_bytes_path = nil
 
 -- Create raw socket
-local sock = assert(socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP), "Failed to create socket")
+local sock = assert(socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP), "Failed to create socket")
 socket.setsockopt(sock, socket.SOL_SOCKET, socket.SO_RCVTIMEO, 0, 500)
 socket.setsockopt(sock, socket.SOL_SOCKET, socket.SO_SNDTIMEO, 0, 500)
 
@@ -77,12 +77,6 @@ socket.setsockopt(sock, socket.SOL_SOCKET, socket.SO_SNDTIMEO, 0, 500)
 local flags = posix.fcntl(sock, posix.F_GETFL)
 assert(posix.fcntl(sock, posix.F_SETFL, bit.bor(flags, posix.O_NONBLOCK)), "Failed to set non-blocking flag")
 ---------------------------- End Local Variables ----------------------------
-
--- Bail out early if we don't have RAW socket permission
-if not socket.SOCK_RAW then
-    error("Houston, we have a problem. RAW socket permission is a must " ..
-              "and you do NOT have it (are you root/sudo?).")
-end
 
 ---------------------------- Begin Local Functions ----------------------------
 
@@ -163,24 +157,26 @@ local function receive_ts_ping(pkt_id)
         local data, sa = socket.recvfrom(sock, 100) -- An IPv4 ICMP reply should be ~56bytes. This value may need tweaking.
 
         if data then
-            local ip_start = string.byte(data, 1)
-            local ip_ver = bit.rshift(ip_start, 4)
-            local hdr_len = (ip_start - ip_ver * 16) * 4
-            local ts_resp = vstruct.read("> 2*u1 3*u2 3*u4", string.sub(data, hdr_len + 1, #data))
+            local ts_resp = vstruct.read("> 2*u1 3*u2 6*u4", data)
+
             local time_after_midnight_ms = get_time_after_midnight_ms()
             local src_pkt_id = ts_resp[4]
             local pos = get_table_position(reflector_array_v4, sa.addr)
 
             -- A pos > 0 indicates the current sa.addr is a known member of the reflector array
             if (pos > 0 and src_pkt_id == pkt_id) then
+                local originate_ts = (ts_resp[6] % 86400 * 1000) + (math.floor(ts_resp[7] / 1000000))
+                local receive_ts = (ts_resp[8] % 86400 * 1000) + (math.floor(ts_resp[9] / 1000000))
+                local transmit_ts = (ts_resp[10] % 86400 * 1000) + (math.floor(ts_resp[11] / 1000000))
+
                 local stats = {
                     reflector = sa.addr,
-                    original_ts = ts_resp[6],
-                    receive_ts = ts_resp[7],
-                    transmit_ts = ts_resp[8],
-                    rtt = time_after_midnight_ms - ts_resp[6],
-                    uplink_time = ts_resp[7] - ts_resp[6],
-                    downlink_time = time_after_midnight_ms - ts_resp[8]
+                    original_ts = originate_ts,
+                    receive_ts = receive_ts,
+                    transmit_ts = transmit_ts,
+                    rtt = time_after_midnight_ms - originate_ts,
+                    uplink_time = receive_ts - originate_ts,
+                    downlink_time = time_after_midnight_ms - transmit_ts
                 }
 
                 if debug then
@@ -204,31 +200,34 @@ local function receive_ts_ping(pkt_id)
 end
 
 local function send_ts_ping(reflector, pkt_id)
-    -- ICMP timestamp header
+    -- Custom timestamp header
     -- Type - 1 byte
     -- Code - 1 byte:
     -- Checksum - 2 bytes
     -- Identifier - 2 bytes
     -- Sequence number - 2 bytes
     -- Original timestamp - 4 bytes
+    -- Original timestamp (nanoseconds) - 4 bytes
     -- Received timestamp - 4 bytes
+    -- Received timestamp (nanoseconds) - 4 bytes
     -- Transmit timestamp - 4 bytes
+    -- Transmit timestamp (nanoseconds) - 4 bytes
 
     if debug then
         logger(loglevel.DEBUG, "Entered send_ts_ping() with values: " .. reflector .. " | " .. pkt_id)
     end
 
     -- Create a raw ICMP timestamp request message
-    local time_after_midnight_ms = get_time_after_midnight_ms()
-    local ts_req = vstruct.write("> 2*u1 3*u2 3*u4", {13, 0, 0, pkt_id, 0, time_after_midnight_ms, 0, 0})
-    local ts_req = vstruct.write("> 2*u1 3*u2 3*u4",
-        {13, 0, calculate_checksum(ts_req), pkt_id, 0, time_after_midnight_ms, 0, 0})
+    local time, time_ns = get_current_time()
+    local ts_req = vstruct.write("> 2*u1 3*u2 6*u4", {13, 0, 0, pkt_id, 0, time, time_ns, 0, 0, 0, 0})
+    local ts_req = vstruct.write("> 2*u1 3*u2 6*u4",
+        {13, 0, calculate_checksum(ts_req), pkt_id, 0, time, time_ns, 0, 0, 0, 0})
 
     -- Send ICMP TS request
     local ok = socket.sendto(sock, ts_req, {
         family = socket.AF_INET,
         addr = reflector,
-        port = 0
+        port = 62222
     })
 
     if debug then
