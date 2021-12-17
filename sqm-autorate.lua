@@ -68,6 +68,9 @@ local loglevel = {
 local rx_bytes_path = nil
 local tx_bytes_path = nil
 
+-- Random seed
+math.randomseed(os.time())
+
 -- Create raw socket
 local sock = assert(socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP), "Failed to create socket")
 socket.setsockopt(sock, socket.SOL_SOCKET, socket.SO_RCVTIMEO, 0, 500)
