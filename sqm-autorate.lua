@@ -12,8 +12,9 @@ local vstruct = require("vstruct")
 
 ---------------------------- Begin User-Configurable Local Variables ----------------------------
 local debug = false
-local enable_verbose_output = true -- enable (true) or disable (false) output monitoring lines showing bandwidth changes
+local enable_verbose_output = false
 local enable_verbose_baseline_output = false
+local enable_lynx_graph_output = true
 
 local ul_if = "eth0" -- upload interface
 local dl_if = "ifb4eth0" -- download interface
@@ -27,16 +28,15 @@ local min_dl_rate = 1500 -- don't go below this many kbps
 local tick_duration = 0.5 -- Frequency in seconds
 local min_change_interval = 0.5 -- don't change speeds unless this many seconds has passed since last change
 
-local reflector_array_v4 = {"9.9.9.9", "9.9.9.10", "149.112.112.10", "149.112.112.11", "149.112.112.112"}
--- local reflector_array_v4 = {"46.227.200.54", "46.227.200.55", "194.242.2.2", "194.242.2.3", "149.112.112.10",
---                             "149.112.112.11", "149.112.112.112", "193.19.108.2", "193.19.108.3", "9.9.9.9", "9.9.9.10",
---                             "9.9.9.11"}
-local reflector_array_v6 = {"2620:fe::10", "2620:fe::fe:10"} -- TODO Implement IPv6 support?
+-- local reflector_array_v4 = {"9.9.9.9", "9.9.9.10", "149.112.112.10", "149.112.112.11", "149.112.112.112"}
+local reflector_array_v4 = {"46.227.200.54", "46.227.200.55", "194.242.2.2", "194.242.2.3", "149.112.112.10",
+                            "149.112.112.11", "149.112.112.112", "193.19.108.2", "193.19.108.3", "9.9.9.9", "9.9.9.10",
+                            "9.9.9.11"}
 
 local alpha_owd_increase = 0.001 -- how rapidly baseline OWD is allowed to increase
 local alpha_owd_decrease = 0.9 -- how rapidly baseline OWD is allowed to decrease
 
-local rate_adjust_OWD_spike = 0.010 -- how rapidly to reduce bandwidth upon detection of bufferbloat
+local rate_adjust_owd_spike = 0.010 -- how rapidly to reduce bandwidth upon detection of bufferbloat
 local rate_adjust_load_high = 0.005 -- how rapidly to increase bandwidth upon high load detected
 local rate_adjust_load_low = 0.0025 -- how rapidly to return to base rate upon low load detected
 
@@ -273,6 +273,11 @@ if not test_file then
     os.exit()
 end
 test_file:close()
+
+if enable_lynx_graph_output then
+    print(string.format("%10s%20s;%20s;%20s;%20s;%20s;%20s;%20s;", " ", "log_time", "rx_load", "tx_load",
+        "min_downlink_delta", "min_uplink_delta", "cur_dl_rate", "cur_ul_rate"))
+end
 
 if debug then
     logger(loglevel.DEBUG, "rx_bytes_path: " .. rx_bytes_path)
