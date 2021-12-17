@@ -12,8 +12,9 @@ local vstruct = require("vstruct")
 
 ---------------------------- Begin User-Configurable Local Variables ----------------------------
 local debug = false
-local enable_verbose_output = true -- enable (true) or disable (false) output monitoring lines showing bandwidth changes
+local enable_verbose_output = false
 local enable_verbose_baseline_output = false
+local enable_lynx_graph_output = true
 
 local ul_if = "eth0" -- upload interface
 local dl_if = "ifb4eth0" -- download interface
@@ -24,16 +25,15 @@ local base_dl_rate = 462500 -- steady state bandwidth for download
 local tick_duration = 0.5 -- Frequency in seconds
 local min_change_interval = 0.5 -- don't change speeds unless this many seconds has passed since last change
 
-local reflector_array_v4 = {"9.9.9.9", "9.9.9.10", "149.112.112.10", "149.112.112.11", "149.112.112.112"}
--- local reflector_array_v4 = {"46.227.200.54", "46.227.200.55", "194.242.2.2", "194.242.2.3", "149.112.112.10",
---                             "149.112.112.11", "149.112.112.112", "193.19.108.2", "193.19.108.3", "9.9.9.9", "9.9.9.10",
---                             "9.9.9.11"}
-local reflector_array_v6 = {"2620:fe::10", "2620:fe::fe:10"} -- TODO Implement IPv6 support?
+-- local reflector_array_v4 = {"9.9.9.9", "9.9.9.10", "149.112.112.10", "149.112.112.11", "149.112.112.112"}
+local reflector_array_v4 = {"46.227.200.54", "46.227.200.55", "194.242.2.2", "194.242.2.3", "149.112.112.10",
+                            "149.112.112.11", "149.112.112.112", "193.19.108.2", "193.19.108.3", "9.9.9.9", "9.9.9.10",
+                            "9.9.9.11"}
 
 local alpha_owd_increase = 0.001 -- how rapidly baseline OWD is allowed to increase
 local alpha_owd_decrease = 0.9 -- how rapidly baseline OWD is allowed to decrease
 
-local rate_adjust_OWD_spike = 0.010 -- how rapidly to reduce bandwidth upon detection of bufferbloat
+local rate_adjust_owd_spike = 0.010 -- how rapidly to reduce bandwidth upon detection of bufferbloat
 local rate_adjust_load_high = 0.005 -- how rapidly to increase bandwidth upon high load detected
 local rate_adjust_load_low = 0.0025 -- how rapidly to return to base rate upon low load detected
 
@@ -271,6 +271,11 @@ if not test_file then
 end
 test_file:close()
 
+if enable_lynx_graph_output then
+    print(string.format("%10s%20s;%20s;%20s;%20s;%20s;%20s;%20s;", " ", "log_time", "rx_load", "tx_load",
+        "min_downlink_delta", "min_uplink_delta", "cur_dl_rate", "cur_ul_rate"))
+end
+
 if debug then
     logger(loglevel.DEBUG, "rx_bytes_path: " .. rx_bytes_path)
     logger(loglevel.DEBUG, "tx_bytes_path: " .. tx_bytes_path)
@@ -368,9 +373,9 @@ local function ratecontrol(baseline)
                 -- Determine whether to increase or decrease the rate in dependence on load
                 -- High load, so we would like to increase the rate
                 local next_dl_rate
-                if min_downlink_delta > max_delta_owd then
-                    next_dl_rate = floor(cur_dl_rate * (1 - rate_adjust_OWD_spike))
-                elseif rx_load > load_thresh then
+                if min_downlink_delta >= max_delta_owd then
+                    next_dl_rate = floor(cur_dl_rate * (1 - rate_adjust_owd_spike))
+                elseif rx_load >= load_thresh then
                     next_dl_rate = floor(cur_dl_rate * (1 + rate_adjust_load_high))
                 else
                     -- Low load, so determine whether to decay down towards base rate, decay up towards base rate, or set as base rate
@@ -378,10 +383,10 @@ local function ratecontrol(baseline)
                     local cur_rate_decayed_up = floor(cur_dl_rate * (1 + rate_adjust_load_low))
 
                     -- Gently decrease to steady state rate
-                    if cur_rate_decayed_down < base_dl_rate then
+                    if cur_rate_decayed_down > base_dl_rate then
                         next_dl_rate = cur_rate_decayed_down
                         -- Gently increase to steady state rate
-                    elseif cur_rate_decayed_up > base_dl_rate then
+                    elseif cur_rate_decayed_up < base_dl_rate then
                         next_dl_rate = cur_rate_decayed_up
                         -- Steady state has been reached
                     else
@@ -390,9 +395,9 @@ local function ratecontrol(baseline)
                 end
 
                 local next_ul_rate
-                if min_uplink_delta > max_delta_owd then
-                    next_ul_rate = floor(cur_ul_rate * (1 - rate_adjust_OWD_spike))
-                elseif tx_load > load_thresh then
+                if min_uplink_delta >= max_delta_owd then
+                    next_ul_rate = floor(cur_ul_rate * (1 - rate_adjust_owd_spike))
+                elseif tx_load >= load_thresh then
                     next_ul_rate = floor(cur_ul_rate * (1 + rate_adjust_load_high))
                 else
                     -- Low load, so determine whether to decay down towards base rate, decay up towards base rate, or set as base rate
@@ -400,10 +405,10 @@ local function ratecontrol(baseline)
                     local cur_rate_decayed_up = floor(cur_ul_rate * (1 + rate_adjust_load_low))
 
                     -- Gently decrease to steady state rate
-                    if cur_rate_decayed_down < base_ul_rate then
+                    if cur_rate_decayed_down > base_ul_rate then
                         next_ul_rate = cur_rate_decayed_down
                         -- Gently increase to steady state rate
-                    elseif cur_rate_decayed_up > base_ul_rate then
+                    elseif cur_rate_decayed_up < base_ul_rate then
                         next_ul_rate = cur_rate_decayed_up
                         -- Steady state has been reached
                     else
@@ -422,10 +427,10 @@ local function ratecontrol(baseline)
                 cur_dl_rate = next_dl_rate
                 cur_ul_rate = next_ul_rate
 
-                if enable_verbose_output then
-                    logger(loglevel.INFO,
-                        string.format("%d,%d,%f,%f,%f,%f,%d,%d\n", lastchg_s, lastchg_ns, rx_load, tx_load,
-                            min_downlink_delta, min_uplink_delta, cur_dl_rate, cur_ul_rate))
+                if enable_lynx_graph_output then
+                    local out_time = string.format("%i.%.0f", lastchg_s, lastchg_ns / 1e6)
+                    print(string.format("%10s%20s;%20.2f;%20.2f;%20.2f;%20.2f;%20d;%20d;", " ", out_time, rx_load,
+                        tx_load, min_downlink_delta, min_uplink_delta, cur_dl_rate, cur_ul_rate))
                 end
 
                 lastchg_s, lastchg_ns = get_current_time()
