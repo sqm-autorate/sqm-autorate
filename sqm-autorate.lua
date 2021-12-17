@@ -322,14 +322,14 @@ local function ratecontrol(baseline, recent)
 
     local safe_dl_rates = {}
     local safe_ul_rates = {}
-    for i=0,1,999 do
-       safe_dl_rates[i] = math.random()*base_dl_rate
-       safe_ul_rates[i] = math.random()*base_ul_rate
+    for i = 0, 1, 999 do
+        safe_dl_rates[i] = math.random() * base_dl_rate
+        safe_ul_rates[i] = math.random() * base_ul_rate
     end
-    
+
     local nrate_up = 0
     local nrate_down = 0
-    
+
     while true do
         local now_s, now_ns = get_current_time()
         now_s = now_s - start_s
@@ -359,59 +359,65 @@ local function ratecontrol(baseline, recent)
             local tx_load = (8 / 1000) * (cur_tx_bytes - prev_tx_bytes) / (t_cur_bytes - t_prev_bytes) / cur_ul_rate
             prev_rx_bytes = cur_rx_bytes
             prev_tx_bytes = cur_tx_bytes
-	    local next_ul_rate = cur_ul_rate
-	    local next_dl_rate = cur_dl_rate
+            local next_ul_rate = cur_ul_rate
+            local next_dl_rate = cur_dl_rate
 
-	    if min_up_del < max_delta_OWD and tx_load > .8 then
-	       safe_ul_rates[nrate_up] = floor(cur_ul_rate*tx_load)
-	       next_ul_rate = cur_ul_rate*1.1
-	       nrate_up = nrate_up + 1
-	       nrate_up = nrate_up % 1000
-	    end	    
-	    if min_down_del < max_delta_OWD and rx_load > .8 then
-	       safe_dl_rates[#safe_dl_rates] = floor(cur_dl_rate*rx_load)
-	       next_dl_rate = cur_dl_rate*1.1
-	       nrate_down = nrate_down + 1
-	       nrate_down = nrate_down % 1000
-	    end
-	    
-	    if min_up_del > max_delta_OWD then
-	       next_ul_rate = min(0.9*cur_ul_rate*tx_load, safe_ul_rates[rand(#safe_ul_rates)-1])
-	    end
-	    if min_down_del > max_delta_OWD then
-	       next_dl_rate = min(0.9*cur_dl_rate*rx_load, safe_dl_rates[rand(#safe_dl_rates)-1])
-	    end
-
-	    
-	    next_ul_rate = floor(max(min_ul_rate,next_ul_rate))
-	    next_dl_rate = floor(max(min_dl_rate,next_dl_rate))
-	    
-                -- TC modification
-                if next_dl_rate ~= cur_dl_rate then
-                    os.execute(string.format("tc qdisc change root dev %s cake bandwidth %sKbit", dl_if, next_dl_rate))
-                end
-                if next_ul_rate ~= cur_ul_rate then
-                    os.execute(string.format("tc qdisc change root dev %s cake bandwidth %sKbit", ul_if, next_ul_rate))
-                end
-
-                cur_dl_rate = next_dl_rate
-                cur_ul_rate = next_ul_rate
-
-                if enable_verbose_output then
-                    logger(loglevel.INFO,
-                        string.format("%d,%d,%f,%f,%f,%f,%d,%d\n", lastchg_s, lastchg_ns, rx_load, tx_load, min_down_del,
-                            min_up_del, cur_dl_rate, cur_ul_rate))
-                end
-
-                lastchg_s, lastchg_ns = get_current_time()
-
-                -- output to log file before doing delta on the time
-                csv_fd:write(string.format("%d,%d,%f,%f,%f,%f,%d,%d\n", lastchg_s, lastchg_ns, rx_load, tx_load,
-                    min_down_del, min_up_del, cur_dl_rate, cur_ul_rate))
-
-                lastchg_s = lastchg_s - start_s
-                lastchg_t = lastchg_s + lastchg_ns / 1e9
+            if min_up_del < max_delta_OWD and tx_load > .8 then
+                safe_ul_rates[nrate_up] = floor(cur_ul_rate * tx_load)
+                next_ul_rate = cur_ul_rate * 1.1
+                nrate_up = nrate_up + 1
+                nrate_up = nrate_up % 1000
             end
+            if min_down_del < max_delta_OWD and rx_load > .8 then
+                safe_dl_rates[#safe_dl_rates] = floor(cur_dl_rate * rx_load)
+                next_dl_rate = cur_dl_rate * 1.1
+                nrate_down = nrate_down + 1
+                nrate_down = nrate_down % 1000
+            end
+
+            if min_up_del > max_delta_OWD then
+                if #safe_ul_rates > 0 then
+                    next_ul_rate = min(0.9 * cur_ul_rate * tx_load, safe_ul_rates[math.random(#safe_ul_rates) - 1])
+                else
+                    next_ul_rate = 0.9 * cur_ul_rate * tx_load
+                end
+            end
+            if min_down_del > max_delta_OWD then
+                if #safe_dl_rates > 0 then
+                    next_dl_rate = min(0.9 * cur_dl_rate * rx_load, safe_dl_rates[math.random(#safe_dl_rates) - 1])
+                else
+                    next_dl_rate = 0.9 * cur_dl_rate * rx_load
+                end
+            end
+
+            next_ul_rate = floor(max(min_ul_rate, next_ul_rate))
+            next_dl_rate = floor(max(min_dl_rate, next_dl_rate))
+
+            -- TC modification
+            if next_dl_rate ~= cur_dl_rate then
+                os.execute(string.format("tc qdisc change root dev %s cake bandwidth %sKbit", dl_if, next_dl_rate))
+            end
+            if next_ul_rate ~= cur_ul_rate then
+                os.execute(string.format("tc qdisc change root dev %s cake bandwidth %sKbit", ul_if, next_ul_rate))
+            end
+
+            cur_dl_rate = next_dl_rate
+            cur_ul_rate = next_ul_rate
+
+            if enable_verbose_output then
+                logger(loglevel.INFO,
+                    string.format("%d,%d,%f,%f,%f,%f,%d,%d\n", lastchg_s, lastchg_ns, rx_load, tx_load, min_down_del,
+                        min_up_del, cur_dl_rate, cur_ul_rate))
+            end
+
+            lastchg_s, lastchg_ns = get_current_time()
+
+            -- output to log file before doing delta on the time
+            csv_fd:write(string.format("%d,%d,%f,%f,%f,%f,%d,%d\n", lastchg_s, lastchg_ns, rx_load, tx_load,
+                min_down_del, min_up_del, cur_dl_rate, cur_ul_rate))
+
+            lastchg_s = lastchg_s - start_s
+            lastchg_t = lastchg_s + lastchg_ns / 1e9
         end
         coroutine.yield(nil)
     end
