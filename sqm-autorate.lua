@@ -376,10 +376,10 @@ local function ratecontrol(baseline, recent)
 	    end
 	    
 	    if min_up_del > max_delta_OWD then
-	       next_ul_rate = min(0.9*cur_ul_rate,safe_ul_rates[rand(#safe_ul_rates)-1])
+	       next_ul_rate = min(0.9*cur_ul_rate*tx_load, safe_ul_rates[rand(#safe_ul_rates)-1])
 	    end
 	    if min_down_del > max_delta_OWD then
-	       next_dl_rate = min(0.9*cur_dl_rate,safe_dl_rates[rand(#safe_dl_rates)-1])
+	       next_dl_rate = min(0.9*cur_dl_rate*rx_load, safe_dl_rates[rand(#safe_dl_rates)-1])
 	    end
 
 	    
