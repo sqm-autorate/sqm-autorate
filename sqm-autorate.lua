@@ -21,6 +21,9 @@ local dl_if = "ifb4eth0" -- download interface
 local base_ul_rate = 25750 -- steady state bandwidth for upload
 local base_dl_rate = 462500 -- steady state bandwidth for download
 
+local min_ul_rate = 500 -- don't go below this many kbps
+local min_dl_rate = 1500 -- don't go below this many kbps
+
 local tick_duration = 0.5 -- Frequency in seconds
 local min_change_interval = 1.0 -- don't change speeds unless this many seconds has passed since last change
 
@@ -307,6 +310,7 @@ local function ratecontrol(baseline, recent)
     local lastchg_s, lastchg_ns = get_current_time()
     local lastchg_t = lastchg_s - start_s + lastchg_ns / 1e9
     local min = math.min
+    local max = math.max
     local floor = math.floor
 
     local cur_dl_rate = base_dl_rate
@@ -316,6 +320,16 @@ local function ratecontrol(baseline, recent)
     local t_prev_bytes = lastchg_t
     local t_cur_bytes = lastchg_t
 
+    local safe_dl_rates = {}
+    local safe_ul_rates = {}
+    for i=0,1,999 do
+       safe_dl_rates[i] = math.random()*base_dl_rate
+       safe_ul_rates[i] = math.random()*base_ul_rate
+    end
+    
+    local nrate_up = 0
+    local nrate_down = 0
+    
     while true do
         local now_s, now_ns = get_current_time()
         now_s = now_s - start_s
@@ -323,15 +337,15 @@ local function ratecontrol(baseline, recent)
         if now_t - lastchg_t > min_change_interval then
             local is_speed_change_needed = nil
             -- logic here to decide if the stats indicate needing a change
-            local min_up = 1 / 0
-            local min_down = 1 / 0
+            local min_up_del = 1 / 0
+            local min_down_del = 1 / 0
 
             for k, val in pairs(baseline) do
-                min_up = min(min_up, recent[k].up_ewma - val.up_ewma)
-                min_down = min(min_down, recent[k].down_ewma - val.down_ewma)
+                min_up_del = min(min_up_del, recent[k].up_ewma - val.up_ewma)
+                min_down_del = min(min_down_del, recent[k].down_ewma - val.down_ewma)
 
                 if debug then
-                    logger(loglevel.INFO, "min_up: " .. min_up .. "  min_down: " .. min_down)
+                    logger(loglevel.INFO, "min_up_del: " .. min_up_del .. "  min_down_del: " .. min_down_del)
                 end
             end
             -- if it's been long enough, and the stats indicate needing to change speeds
@@ -345,56 +359,33 @@ local function ratecontrol(baseline, recent)
             local tx_load = (8 / 1000) * (cur_tx_bytes - prev_tx_bytes) / (t_cur_bytes - t_prev_bytes) / cur_ul_rate
             prev_rx_bytes = cur_rx_bytes
             prev_tx_bytes = cur_tx_bytes
+	    local next_ul_rate = cur_ul_rate
+	    local next_dl_rate = cur_dl_rate
 
-            local is_speed_change_needed = true -- for now, let's just always change... sometimes the process will cause us to stay the same
-            if is_speed_change_needed then
-                -- Calculate the next rate for dl and ul
-                -- Determine whether to increase or decrease the rate in dependence on load
-                -- High load, so we would like to increase the rate
-                local next_dl_rate
-                if min_down > max_delta_OWD then
-                    next_dl_rate = floor(cur_dl_rate * (1 - rate_adjust_OWD_spike))
-                elseif rx_load > load_thresh then
-                    next_dl_rate = floor(cur_dl_rate * (1 + rate_adjust_load_high))
-                else
-                    -- Low load, so determine whether to decay down towards base rate, decay up towards base rate, or set as base rate
-                    local cur_rate_decayed_down = floor(cur_dl_rate * (1 - rate_adjust_load_low))
-                    local cur_rate_decayed_up = floor(cur_dl_rate * (1 + rate_adjust_load_low))
+	    if min_up_del < max_delta_OWD and tx_load > .8 then
+	       safe_ul_rates[nrate_up] = floor(cur_ul_rate*tx_load)
+	       next_ul_rate = cur_ul_rate*1.1
+	       nrate_up = nrate_up + 1
+	       nrate_up = nrate_up % 1000
+	    end	    
+	    if min_down_del < max_delta_OWD and rx_load > .8 then
+	       safe_dl_rates[#safe_dl_rates] = floor(cur_dl_rate*rx_load)
+	       next_dl_rate = cur_dl_rate*1.1
+	       nrate_down = nrate_down + 1
+	       nrate_down = nrate_down % 1000
+	    end
+	    
+	    if min_up_del > max_delta_OWD then
+	       next_ul_rate = min(0.9*cur_ul_rate,safe_ul_rates[rand(#safe_ul_rates)-1])
+	    end
+	    if min_down_del > max_delta_OWD then
+	       next_dl_rate = min(0.9*cur_dl_rate,safe_dl_rates[rand(#safe_dl_rates)-1])
+	    end
 
-                    -- Gently decrease to steady state rate
-                    if cur_rate_decayed_down < base_dl_rate then
-                        next_dl_rate = cur_rate_decayed_down
-                        -- Gently increase to steady state rate
-                    elseif cur_rate_decayed_up > base_dl_rate then
-                        next_dl_rate = cur_rate_decayed_up
-                        -- Steady state has been reached
-                    else
-                        next_dl_rate = base_dl_rate
-                    end
-                end
-
-                local next_ul_rate
-                if min_up > max_delta_OWD then
-                    next_ul_rate = floor(cur_ul_rate * (1 - rate_adjust_OWD_spike))
-                elseif tx_load > load_thresh then
-                    next_ul_rate = floor(cur_ul_rate * (1 + rate_adjust_load_high))
-                else
-                    -- Low load, so determine whether to decay down towards base rate, decay up towards base rate, or set as base rate
-                    local cur_rate_decayed_down = floor(cur_ul_rate * (1 - rate_adjust_load_low))
-                    local cur_rate_decayed_up = floor(cur_ul_rate * (1 + rate_adjust_load_low))
-
-                    -- Gently decrease to steady state rate
-                    if cur_rate_decayed_down < base_ul_rate then
-                        next_ul_rate = cur_rate_decayed_down
-                        -- Gently increase to steady state rate
-                    elseif cur_rate_decayed_up > base_ul_rate then
-                        next_ul_rate = cur_rate_decayed_up
-                        -- Steady state has been reached
-                    else
-                        next_ul_rate = base_ul_rate
-                    end
-                end
-
+	    
+	    next_ul_rate = floor(max(min_ul_rate,next_ul_rate))
+	    next_dl_rate = floor(max(min_dl_rate,next_dl_rate))
+	    
                 -- TC modification
                 if next_dl_rate ~= cur_dl_rate then
                     os.execute(string.format("tc qdisc change root dev %s cake bandwidth %sKbit", dl_if, next_dl_rate))
@@ -408,15 +399,15 @@ local function ratecontrol(baseline, recent)
 
                 if enable_verbose_output then
                     logger(loglevel.INFO,
-                        string.format("%d,%d,%f,%f,%f,%f,%d,%d\n", lastchg_s, lastchg_ns, rx_load, tx_load, min_down,
-                            min_up, cur_dl_rate, cur_ul_rate))
+                        string.format("%d,%d,%f,%f,%f,%f,%d,%d\n", lastchg_s, lastchg_ns, rx_load, tx_load, min_down_del,
+                            min_up_del, cur_dl_rate, cur_ul_rate))
                 end
 
                 lastchg_s, lastchg_ns = get_current_time()
 
                 -- output to log file before doing delta on the time
                 csv_fd:write(string.format("%d,%d,%f,%f,%f,%f,%d,%d\n", lastchg_s, lastchg_ns, rx_load, tx_load,
-                    min_down, min_up, cur_dl_rate, cur_ul_rate))
+                    min_down_del, min_up_del, cur_dl_rate, cur_ul_rate))
 
                 lastchg_s = lastchg_s - start_s
                 lastchg_t = lastchg_s + lastchg_ns / 1e9
