@@ -48,6 +48,7 @@ local stats_file = "/root/sqm-autorate.csv"
 
 ---------------------------- Begin Internal Local Variables ----------------------------
 
+
 local csv_fd = io.open(stats_file, "w")
 csv_fd:write("times,timens,rxload,txload,deltadelaydown,deltadelayup,dlrate,uprate\n")
 
@@ -69,7 +70,8 @@ local rx_bytes_path = nil
 local tx_bytes_path = nil
 
 -- Random seed
-math.randomseed(os.time())
+local nows,nowns = get_current_time()
+math.randomseed(nowns)
 
 -- Create raw socket
 local sock = assert(socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP), "Failed to create socket")
