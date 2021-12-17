@@ -327,7 +327,7 @@ local function ratecontrol(baseline, recent)
 
     local safe_dl_rates = {}
     local safe_ul_rates = {}
-    for i = 0, 1, 999 do
+    for i = 0,999,1 do
         safe_dl_rates[i] = math.random() * base_dl_rate
         safe_ul_rates[i] = math.random() * base_ul_rate
     end
