@@ -37,6 +37,8 @@ local max_delta_owd = 15 -- increase from baseline RTT for detection of bufferbl
 local stats_file = "/root/sqm-autorate.csv"
 local speedhist_file = "/root/sqm-speedhist.csv"
 
+local histsize = 100
+
 ---------------------------- Begin Internal Local Variables ----------------------------
 
 local csv_fd = io.open(stats_file, "w")
@@ -339,7 +341,7 @@ local function ratecontrol(baseline, recent)
 
     local safe_dl_rates = {}
     local safe_ul_rates = {}
-    for i = 0, 999, 1 do
+    for i = 0, histsize-1, 1 do
        safe_dl_rates[i] = (math.random() + math.random() + math.random() + math.random() + 1)/5 * (base_dl_rate)
        safe_ul_rates[i] = (math.random() + math.random() + math.random() + math.random() + 1)/5 * (base_ul_rate)
     end
@@ -383,13 +385,13 @@ local function ratecontrol(baseline, recent)
                 safe_ul_rates[nrate_up] = floor(cur_ul_rate * tx_load)
                 next_ul_rate = cur_ul_rate * 1.1
                 nrate_up = nrate_up + 1
-                nrate_up = nrate_up % 1000
+                nrate_up = nrate_up % histsize
             end
             if min_down_del < max_delta_owd and rx_load > .8 then
                 safe_dl_rates[nrate_down] = floor(cur_dl_rate * rx_load)
                 next_dl_rate = cur_dl_rate * 1.1
                 nrate_down = nrate_down + 1
-                nrate_down = nrate_down % 1000
+                nrate_down = nrate_down % histsize
             end
 
             if min_up_del > max_delta_owd then
@@ -438,7 +440,7 @@ local function ratecontrol(baseline, recent)
         end
 
         if now_t - lastdump_t > 300 then
-            for i = 0, 999 do
+            for i = 0, histsize-1 do
                 speeddump_fd:write(string.format("%f,%d,%f,%f\n", now_t, i, safe_ul_rates[i], safe_dl_rates[i]))
             end
             lastdump_t = now_t
