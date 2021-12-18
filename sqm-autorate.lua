@@ -33,6 +33,8 @@ local min_change_interval = 0.5 -- don't change speeds unless this many seconds 
 --                            "149.112.112.11", "149.112.112.112", "193.19.108.2", "193.19.108.3", "9.9.9.9", "9.9.9.10",
 --                            "9.9.9.11"}
 local reflector_array_v4 = {"65.21.108.153", "5.161.66.148", "216.128.149.82", "108.61.220.16"}
+local reflector_array_v6 = {"2620:fe::10", "2620:fe::fe:10"} -- TODO Implement IPv6 support?
+
 
 local alpha_owd_increase = 0.001 -- how rapidly baseline OWD is allowed to increase
 local alpha_owd_decrease = 0.9 -- how rapidly baseline OWD is allowed to decrease
