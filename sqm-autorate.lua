@@ -338,7 +338,7 @@ local function ratecontrol(baseline)
     local start_s, start_ns = get_current_time() -- first time we entered this loop, times will be relative to this seconds value to preserve precision
     local lastchg_s, lastchg_ns = get_current_time()
     local lastchg_t = lastchg_s - start_s + lastchg_ns / 1e9
-    local lastdump_t = lastchg_t
+    local lastdump_t = lastchg_t - 310
     local min = math.min
     local max = math.max
     local floor = math.floor
@@ -452,8 +452,8 @@ local function ratecontrol(baseline)
         end
 
         if now_t - lastdump_t > 300 then
-            for i, s in pairs(safe_dl_rates) do
-                speeddump_fd:write(string.format("%f,%d,%f,%f\n", now_t, i, safe_ul_rates[i], s))
+            for i = 0,999 do
+	       speeddump_fd:write(string.format("%f,%d,%f,%f\n", now_t, i, safe_ul_rates[i], safe_dl_rates[i]))
             end
             lastdump_t = now_t
         end
