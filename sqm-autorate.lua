@@ -341,9 +341,9 @@ local function ratecontrol(baseline, recent)
 
     local safe_dl_rates = {}
     local safe_ul_rates = {}
-    for i = 0, histsize-1, 1 do
-       safe_dl_rates[i] = (math.random() + math.random() + math.random() + math.random() + 1)/5 * (base_dl_rate)
-       safe_ul_rates[i] = (math.random() + math.random() + math.random() + math.random() + 1)/5 * (base_ul_rate)
+    for i = 0, histsize - 1, 1 do
+        safe_dl_rates[i] = (math.random() + math.random() + math.random() + math.random() + 1) / 5 * (base_dl_rate)
+        safe_ul_rates[i] = (math.random() + math.random() + math.random() + math.random() + 1) / 5 * (base_ul_rate)
     end
 
     local nrate_up = 0
@@ -440,7 +440,7 @@ local function ratecontrol(baseline, recent)
         end
 
         if now_t - lastdump_t > 300 then
-            for i = 0, histsize-1 do
+            for i = 0, histsize - 1 do
                 speeddump_fd:write(string.format("%f,%d,%f,%f\n", now_t, i, safe_ul_rates[i], safe_dl_rates[i]))
             end
             lastdump_t = now_t
