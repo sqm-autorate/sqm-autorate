@@ -27,10 +27,11 @@ local min_dl_rate = 1500 -- don't go below this many kbps
 local tick_duration = 0.5 -- Frequency in seconds
 local min_change_interval = 1.0 -- don't change speeds unless this many seconds has passed since last change
 
-local reflector_array_v4 = {"9.9.9.9", "9.9.9.10", "149.112.112.10", "149.112.112.11", "149.112.112.112"}
--- local reflector_array_v4 = {"46.227.200.54", "46.227.200.55", "194.242.2.2", "194.242.2.3", "149.112.112.10",
---                             "149.112.112.11", "149.112.112.112", "193.19.108.2", "193.19.108.3", "9.9.9.9", "9.9.9.10",
---                             "9.9.9.11"}
+-- local reflector_array_v4 = {"9.9.9.9", "9.9.9.10", "149.112.112.10", "149.112.112.11", "149.112.112.112"}
+--local reflector_array_v4 = {"46.227.200.54", "46.227.200.55", "194.242.2.2", "194.242.2.3", "149.112.112.10",
+--                            "149.112.112.11", "149.112.112.112", "193.19.108.2", "193.19.108.3", "9.9.9.9", "9.9.9.10",
+--                            "9.9.9.11"}
+local reflector_array_v4 = {"65.21.108.153", "5.161.66.148", "216.128.149.82", "108.61.220.16"}
 local reflector_array_v6 = {"2620:fe::10", "2620:fe::fe:10"} -- TODO Implement IPv6 support?
 
 local alpha_OWD_increase = 0.001 -- how rapidly baseline OWD is allowed to increase
