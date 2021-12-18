@@ -340,8 +340,8 @@ local function ratecontrol(baseline, recent)
     local safe_dl_rates = {}
     local safe_ul_rates = {}
     for i = 0, 999, 1 do
-        safe_dl_rates[i] = math.random() * base_dl_rate
-        safe_ul_rates[i] = math.random() * base_ul_rate
+       safe_dl_rates[i] = (math.random() + math.random() + math.random() + math.random() + 1)/5 * (base_dl_rate)
+       safe_ul_rates[i] = (math.random() + math.random() + math.random() + math.random() + 1)/5 * (base_ul_rate)
     end
 
     local nrate_up = 0
@@ -352,8 +352,9 @@ local function ratecontrol(baseline, recent)
         now_s = now_s - start_s
         local now_t = now_s + now_ns / 1e9
         if now_t - lastchg_t > min_change_interval then
-            local is_speed_change_needed = nil
-            -- logic here to decide if the stats indicate needing a change
+            -- if it's been long enough, and the stats indicate needing to change speeds
+            -- change speeds here
+
             local min_up_del = 1 / 0
             local min_down_del = 1 / 0
 
@@ -366,8 +367,6 @@ local function ratecontrol(baseline, recent)
                 end
             end
 
-            -- if it's been long enough, and the stats indicate needing to change speeds
-            -- change speeds here
             local cur_rx_bytes = read_stats_file(rx_bytes_path)
             local cur_tx_bytes = read_stats_file(tx_bytes_path)
             t_prev_bytes = t_cur_bytes
@@ -387,7 +386,7 @@ local function ratecontrol(baseline, recent)
                 nrate_up = nrate_up % 1000
             end
             if min_down_del < max_delta_owd and rx_load > .8 then
-                safe_dl_rates[#safe_dl_rates] = floor(cur_dl_rate * rx_load)
+                safe_dl_rates[nrate_down] = floor(cur_dl_rate * rx_load)
                 next_dl_rate = cur_dl_rate * 1.1
                 nrate_down = nrate_down + 1
                 nrate_down = nrate_down % 1000
