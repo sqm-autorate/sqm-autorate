@@ -48,11 +48,14 @@ local load_thresh = 0.5 -- % of currently set bandwidth for detecting high load
 local max_delta_owd = 15 -- increase from baseline RTT for detection of bufferbloat
 
 local stats_file = "/root/sqm-autorate.csv"
+local speedhist_file = "/root/sqm-speedhist.csv"
 
 ---------------------------- Begin Internal Local Variables ----------------------------
 
 local csv_fd = io.open(stats_file, "w")
+local speeddump_fd = io.open(speedhist_file,"w")
 csv_fd:write("times,timens,rxload,txload,deltadelaydown,deltadelayup,dlrate,uprate\n")
+speeddump_fd:write("time,counter,upspeed,downspeed\n")
 
 local cur_process_id = posix.getpid()
 if type(cur_process_id) == "table" then
@@ -335,6 +338,7 @@ local function ratecontrol(baseline)
     local start_s, start_ns = get_current_time() -- first time we entered this loop, times will be relative to this seconds value to preserve precision
     local lastchg_s, lastchg_ns = get_current_time()
     local lastchg_t = lastchg_s - start_s + lastchg_ns / 1e9
+    local lastdump_t = lastchg_t
     local min = math.min
     local max = math.max
     local floor = math.floor
@@ -446,7 +450,15 @@ local function ratecontrol(baseline)
             lastchg_s = lastchg_s - start_s
             lastchg_t = lastchg_s + lastchg_ns / 1e9
         end
-        coroutine.yield(nil)
+
+	if now_t - lastdump_t > 300 then
+	   for i,s in pairs(safe_dl_rates) do
+	      speeddump_fd:write(string.format("%f,%d,%f,%f\n",now_t,i,safe_ul_rates[i],s))
+	   end
+	   lastdump_t = now_t
+	end
+
+	coroutine.yield(nil)
     end
 end
 
