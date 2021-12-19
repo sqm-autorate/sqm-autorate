@@ -1,5 +1,49 @@
 # CAKE with Adaptive Bandwidth - "autorate"
 
+## Lua Native Port
+
+**sqm-autorate.lua** is a Lua native port of the original sqm-autorate.sh
+script. Functionality should be virtually identical to the shell version, so refer to [Original Shell Version](#original-shell-version) for details as to the goal and theory.
+
+### Lua Port Prerequisites and Setup
+
+Run the following:
+
+```bash
+opkg update && opkg install luarocks lua-bit32 luaposix && luarocks install vstruct
+```
+Add the following as exports to your shell environment:
+
+```bash
+LUA_CPATH="/root/.luarocks/lib/lua/5.1/?.so;/usr/lib/lua/5.1/?.so;./?.so;/usr/lib/lua/?.so;/usr/lib/lua/loadall.so"
+
+LUA_PATH="/root/.luarocks/share/lua/5.1/?.lua;/root/.luarocks/share/lua/
+```
+
+### Execution
+
+The Lua port can be invoked directly or operate via the sqm-autorate service script in this branch.
+
+#### Direct Execution (for Testing and Tuning)
+
+```bash
+lua ./sqm-autorate.lua
+```
+
+#### Service Execution
+
+```bash
+cp ./sqm-autorate /etc/init.d/sqm-autorate
+
+chmod a+x /etc/init.d/sqm-autorate
+
+service sqm-autorate enable && service sqm-autorate start
+```
+
+## Original Shell Version
+
+### Purpose
+
 **autorate.sh** is a script that automatically adapts
 [CAKE Smart Queue Management (SQM)](https://www.bufferbloat.net/projects/codel/wiki/Cake/)
 bandwidth settings by measuring traffic load and RTT times.
@@ -15,7 +59,7 @@ and improving the responsiveness of a network.
 The CAKE algorithm always uses fixed upload and download
 bandwidth settings to manage its queues.
 Variable bandwidth connections present a challenge
-because the actual bandwidth at any given moment is not known. 
+because the actual bandwidth at any given moment is not known.
 
 People generally pick a compromise bandwidth setting,
 but typically this means lost bandwidth in exchange
@@ -33,7 +77,7 @@ The **autorate.sh** script periodically measures the load
 and Round-Trip-Time (RTT) to adjust the upload and
 download values for the CAKE algorithm.
 
-## Theory of Operation
+### Theory of Operation
 
 The `autorate.sh` script runs regularly and
 adjusts the bandwidth settings of the CAKE SQM algorithm
@@ -48,7 +92,9 @@ toward a minimum configured value
 until an RTT spike is detected or until the setting reaches the maximum configured value
 - Upon detecting an RTT spike, the bandwidth setting is decreased
 
-**Setting the minimum value:** 
+### Parameters
+
+**Setting the minimum value:**
 Set the minimum value at, or slightly below,
 the lowest speed observed from the ISP during your testing.
 This setting will, in general, never result in
@@ -56,7 +102,7 @@ bufferbloat even under the worst conditions.
 Under no load, the routine will adjust the bandwidth
 downwards towards that minimum.
 
-**Setting the maximum value:** 
+**Setting the maximum value:**
 The maximum bandwidth should be set to the lower
 of the maximum bandwidth that the ISP can provide
 or the maximum bandwidth required by the user.
@@ -87,13 +133,13 @@ to that lower bandwidth as explained above.
 There is a detailed and fun discussion with plenty of sketches relating to the development of the script and alternatives on the
 [OpenWrt Forum - CAKE /w Adaptive Bandwidth.](https://forum.openwrt.org/t/cake-w-adaptive-bandwidth/108848/312)
 
-## Required packages
+### Required packages
 
 - **iputils-ping** for more advanced ping with sub 1s ping frequency
 - **coreutils-date** for accurate time keeping
 - **coreutils-sleep** for accurate sleeping
 
-## Installation on OpenWrt
+### Installation on OpenWrt
 
 - Install SQM (`luci-app-sqm`) and enable CAKE on the interface(s)
 as described in the
@@ -126,8 +172,8 @@ to the minimum bandwidth you expect.
   - Set maximum bandwidth (`max_ul_rate` and `max_dl_rate`)
 to the maximum bandwidth you expect your connection could obtain from your ISP.
   - Save the changes and exit the editor
-  
-## Manual testing
+
+### Manual testing
 
 - Run the modified `autorate.sh` script:
 
@@ -141,7 +187,7 @@ and upload rates as you use the connection.
 Set it to '0' if you no longer want the verbose logging.)
 - Press ^C to halt the process.
 
-## Install as a service
+### Install as a service
 
 You can install this as a service that starts up the
 autorate process whenever the router reboots.
@@ -153,7 +199,7 @@ and start/enable it:
 
    ```bash
    cd /etc/init.d
-   wget https://raw.githubusercontent.com/lynxthecat/sqm-autorate/main/sqm-autorate 
+   wget https://raw.githubusercontent.com/lynxthecat/sqm-autorate/main/sqm-autorate
    service sqm-autorate start
    service sqm-autorate enable
    ```
@@ -161,11 +207,11 @@ and start/enable it:
 When running as a service, the `autorate.sh` script outputs
 to `/tmp/sqm-autorate.log` when `enable_verbose_output` is set to '1'.
 
-Disabling logging when not required is a good idea given the rate of logging. 
+Disabling logging when not required is a good idea given the rate of logging.
 
 ## A Request to Testers
 
 If you use this script I have just one ask.
 Please post your experience on this
 [OpenWrt Forum thread.](https://forum.openwrt.org/t/cake-w-adaptive-bandwidth/108848/312)
-Your feedback will help improve the script for the benefit of others.  
+Your feedback will help improve the script for the benefit of others.

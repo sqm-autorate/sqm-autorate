@@ -4,15 +4,15 @@
 export PATH=/usr/sbin:/usr/bin:/sbin:/bin
 export HOME=/root
 
-exec &> /tmp/sqm-autorate.log
+exec &>/tmp/sqm-autorate.log
 
 START=97
 STOP=4
 
 start() {
-        /root/sqm-autorate.sh&
+        lua /root/sqm-autorate.lua &
 }
 
 stop() {
-        ps | grep sqm-autorate.sh | grep -v grep | awk '{print $1}' | xargs kill
+        ps | grep sqm-autorate.lua | grep -v grep | awk '{print $1}' | xargs kill
 }
