@@ -7,7 +7,15 @@ script. Functionality should be virtually identical to the shell version, so ref
 
 ### Lua Port Prerequisites and Setup
 
-Run the following:
+Retrieve the Lua script and the startup script:
+
+```bash
+cd /root
+wget https://raw.githubusercontent.com/Fail-Safe/sqm-autorate/port-from-shell/sqm-autorate.lua
+wget https://raw.githubusercontent.com/Fail-Safe/sqm-autorate/port-from-shell/sqm-autorate
+```
+
+Install prerequisite packages via the following:
 
 ```bash
 opkg update && opkg install luarocks lua-bit32 luaposix && luarocks install vstruct
@@ -27,13 +35,14 @@ The Lua port can be invoked directly or operate via the sqm-autorate service scr
 #### Direct Execution (for Testing and Tuning)
 
 ```bash
+cd /root
 lua ./sqm-autorate.lua
 ```
 
 #### Service Execution
 
 ```bash
-cp ./sqm-autorate /etc/init.d/sqm-autorate
+cp /root/sqm-autorate /etc/init.d/sqm-autorate
 
 chmod a+x /etc/init.d/sqm-autorate
 
