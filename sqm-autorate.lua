@@ -39,7 +39,7 @@ if settings then
     local sqm_enabled = tonumber(settings:get("sqm", "@queue[0]", "enabled"), 10)
     if sqm_enabled == 0 then
         print("SQM is not enabled on this OpenWrt system. Please enable it before starting sqm-autorate.")
-        os.exit(false, true)
+        os.exit(1, true)
     end
 end
 
@@ -300,14 +300,14 @@ end
 local test_file = io.open(rx_bytes_path)
 if not test_file then
     logger(loglevel.FATAL, "Could not open stats file: " .. rx_bytes_path)
-    os.exit(false, true)
+    os.exit(1, true)
 end
 test_file:close()
 
 test_file = io.open(tx_bytes_path)
 if not test_file then
     logger(loglevel.FATAL, "Could not open stats file: " .. tx_bytes_path)
-    os.exit(false, true)
+    os.exit(1, true)
 end
 test_file:close()
 
@@ -358,7 +358,7 @@ local function read_stats_file(file_path)
     local file = io.open(file_path)
     if not file then
         logger(loglevel.FATAL, "Could not open stats file: " .. file_path)
-        os.exit(false, true)
+        os.exit(1, true)
         return nil
     end
     local bytes = file:read()
