@@ -9,29 +9,56 @@ local posix = require("posix")
 local socket = require("posix.sys.socket")
 local time = require("posix.time")
 local vstruct = require("vstruct")
-local uci_lib = require("luci.model.uci")
-local settings = uci_lib.cursor()
+
+-- Figure out if we are running on OpenWrt here...
+-- Found this clever function here: https://stackoverflow.com/a/15434737
+local function is_module_available(name)
+    if package.loaded[name] then
+        return true
+    else
+        for _, searcher in ipairs(package.searchers or package.loaders) do
+            local loader = searcher(name)
+            if type(loader) == 'function' then
+                package.preload[name] = loader
+                return true
+            end
+        end
+        return false
+    end
+end
+
+local uci_lib = nil
+local settings = nil
+if is_module_available("luci.model.uci") then
+    uci_lib = require("luci.model.uci")
+    settings = uci_lib.cursor()
+end
 
 ---------------------------- Begin Local Variables - External Settings ----------------------------
-local ul_if = settings:get("sqm-autorate", "@network[0]", "transmit_interface") -- upload interface
-local dl_if = settings:get("sqm-autorate", "@network[0]", "receive_interface") -- download interface
+local ul_if = settings and settings:get("sqm-autorate", "@network[0]", "transmit_interface") or
+                  "<UPLOAD INTERFACE NAME>" -- upload interface
+local dl_if = settings and settings:get("sqm-autorate", "@network[0]", "receive_interface") or
+                  "<DOWNLOAD INTERFACE NAME>" -- download interface
 
-local base_ul_rate = tonumber(settings:get("sqm-autorate", "@network[0]", "transmit_kbits_base"), 10) -- steady state bandwidth for upload
-local base_dl_rate = tonumber(settings:get("sqm-autorate", "@network[0]", "receive_kbits_base"), 10) -- steady state bandwidth for download
+local base_ul_rate = settings and tonumber(settings:get("sqm-autorate", "@network[0]", "transmit_kbits_base"), 10) or
+                         "<STEADY STATE UPLOAD>" -- steady state bandwidth for upload
+local base_dl_rate = settings and tonumber(settings:get("sqm-autorate", "@network[0]", "receive_kbits_base"), 10) or
+                         "<STEADY STATE DOWNLOAD>" -- steady state bandwidth for download
 
-local min_ul_rate = tonumber(settings:get("sqm-autorate", "@network[0]", "transmit_kbits_min"), 10) -- don't go below this many kbps
-local min_dl_rate = tonumber(settings:get("sqm-autorate", "@network[0]", "receive_kbits_min"), 10) -- don't go below this many kbps
+local min_ul_rate = settings and tonumber(settings:get("sqm-autorate", "@network[0]", "transmit_kbits_min"), 10) or
+                        "<MIN UPLOAD RATE>" -- don't go below this many kbps
+local min_dl_rate = settings and tonumber(settings:get("sqm-autorate", "@network[0]", "receive_kbits_min"), 10) or
+                        "<MIN DOWNLOAD RATE>" -- don't go below this many kbps
 
-local stats_file = settings:get("sqm-autorate", "@output[0]", "stats_file")
-local speedhist_file = settings:get("sqm-autorate", "@output[0]", "speed_hist_file")
+local stats_file = settings and settings:get("sqm-autorate", "@output[0]", "stats_file") or "<STATS FILE NAME/PATH>"
+local speedhist_file = settings and settings:get("sqm-autorate", "@output[0]", "speed_hist_file") or
+                           "<HIST FILE NAME/PATH>"
 
-local histsize = tonumber(settings:get("sqm-autorate", "@output[0]", "hist_size"), 10)
+local histsize = settings and tonumber(settings:get("sqm-autorate", "@output[0]", "hist_size"), 10) or "<HISTORY SIZE>"
 
-local enable_verbose_output = string.lower(settings:get("sqm-autorate", "@output[0]", "verbose"))
-enable_verbose_output =
-    'true' == enable_verbose_output or
-    '1' == enable_verbose_output or
-    'on' == enable_verbose_output
+local enable_verbose_output = settings and string.lower(settings:get("sqm-autorate", "@output[0]", "verbose")) or
+                                  "<ENABLE VERBOSE OUTPUT>"
+enable_verbose_output = 'true' == enable_verbose_output or '1' == enable_verbose_output or 'on' == enable_verbose_output
 
 ---------------------------- Begin Advanced User-Configurable Local Variables ----------------------------
 local debug = false

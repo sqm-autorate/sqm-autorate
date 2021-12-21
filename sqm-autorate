@@ -2,17 +2,31 @@
 # Copyright (C) 2007 OpenWrt.org
 
 export PATH=/usr/sbin:/usr/bin:/sbin:/bin
-export HOME=/root
+export LUA_CPATH="/usr/lib/lua/5.1/?.so;./?.so;/usr/lib/lua/?.so;/usr/lib/lua/loadall.so"
+export LUA_PATH="/usr/share/lua/5.1/?.lua;/usr/share/lua/5.1/?/init.lua;./?.lua;/usr/share/lua/?.lua;/usr/share/lua/?/init.lua;/usr/lib/lua/?.lua;/usr/lib/lua/?/init.lua"
 
-exec &> /tmp/sqm-autorate.log
+exec &>/tmp/sqm-autorate.log
 
 START=97
 STOP=4
 
-start() {
-        /root/sqm-autorate.sh&
+service_triggers() {
+    procd_add_reload_trigger "sqm-autorate"
 }
 
-stop() {
-        ps | grep sqm-autorate.sh | grep -v grep | awk '{print $1}' | xargs kill
+reload_service() {
+    stop "$@"
+    start "$@"
+}
+
+start_service() {
+    lua /usr/lib/sqm-autorate/sqm-autorate.lua &
+}
+
+stop_service() {
+    ps | grep sqm-autorate.lua | grep -v grep | awk '{print $1}' | xargs kill
+}
+
+boot() {
+    start "$@"
 }
