@@ -28,5 +28,6 @@ mv ./"$lua_file" "$autorate_root"/"$lua_file"
 
 echo "Putting service file into place..."
 mv ./"$service_file" /etc/init.d/"$service_file"
+chmod a+x /etc/init.d/"$service_file"
 
 echo "All done! You can enable and start the service by executing 'service sqm-autorate enable && service sqm-autorate start'."
