@@ -1,0 +1,40 @@
+#!/bin/sh /etc/rc.common
+# Copyright (C) 2007 OpenWrt.org
+
+export PATH=/usr/sbin:/usr/bin:/sbin:/bin
+export LUA_CPATH="/usr/lib/lua/5.1/?.so;./?.so;/usr/lib/lua/?.so;/usr/lib/lua/loadall.so"
+export LUA_PATH="/usr/share/lua/5.1/?.lua;/usr/share/lua/5.1/?/init.lua;./?.lua;/usr/share/lua/?.lua;/usr/share/lua/?/init.lua;/usr/lib/lua/?.lua;/usr/lib/lua/?/init.lua"
+
+START=97
+STOP=4
+
+PID_FILE=/tmp/run/sqm-autorate.pid
+
+exec &>/tmp/sqm-autorate.log
+
+service_triggers() {
+    procd_add_reload_trigger "sqm-autorate"
+}
+
+reload() {
+    stop
+    start
+}
+
+start() {
+    # sqm-autorate should be a "singleton". Let's try to enforce that by checking to see if a PID file exists first...
+    if [ ! -f $PID_FILE ]; then
+        lua /usr/lib/sqm-autorate/sqm-autorate.lua &
+        echo $! >/tmp/run/sqm-autorate.pid
+    fi
+}
+
+stop() {
+    if [ -f $PID_FILE ]; then
+        kill -9 $(cat $PID_FILE) && rm -f $PID_FILE
+    fi
+}
+
+boot() {
+    start
+}
