@@ -34,15 +34,23 @@ if is_module_available("luci.model.uci") then
     settings = uci_lib.cursor()
 end
 
+-- If we have luci-app-sqm installed, but it is disabled, this whole thing is moot. Let's bail early in that case.
+if settings then
+    local sqm_enabled = tonumber(settings:get("sqm", "@queue[0]", "enabled"), 10)
+    if sqm_enabled == 0 then
+        print("SQM is not enabled on this OpenWrt system. Please enable it before starting sqm-autorate.")
+        os.exit(false, true)
+    end
+end
+
 ---------------------------- Begin Local Variables - External Settings ----------------------------
 local ul_if = settings and settings:get("sqm-autorate", "@network[0]", "transmit_interface") or
                   "<UPLOAD INTERFACE NAME>" -- upload interface
 local dl_if = settings and settings:get("sqm-autorate", "@network[0]", "receive_interface") or
                   "<DOWNLOAD INTERFACE NAME>" -- download interface
 
-local base_ul_rate = settings and tonumber(settings:get("sqm-autorate", "@network[0]", "transmit_kbits_base"), 10) or
-                         "<STEADY STATE UPLOAD>" -- steady state bandwidth for upload
-local base_dl_rate = settings and tonumber(settings:get("sqm-autorate", "@network[0]", "receive_kbits_base"), 10) or
+local base_ul_rate = settings and tonumber(settings:get("sqm", "@queue[0]", "upload"), 10) or "<STEADY STATE UPLOAD>" -- steady state bandwidth for upload
+local base_dl_rate = settings and tonumber(settings:get("sqm", "@queue[0]", "download"), 10) or
                          "<STEADY STATE DOWNLOAD>" -- steady state bandwidth for download
 
 local min_ul_rate = settings and tonumber(settings:get("sqm-autorate", "@network[0]", "transmit_kbits_min"), 10) or
@@ -292,14 +300,14 @@ end
 local test_file = io.open(rx_bytes_path)
 if not test_file then
     logger(loglevel.FATAL, "Could not open stats file: " .. rx_bytes_path)
-    os.exit()
+    os.exit(false, true)
 end
 test_file:close()
 
 test_file = io.open(tx_bytes_path)
 if not test_file then
     logger(loglevel.FATAL, "Could not open stats file: " .. tx_bytes_path)
-    os.exit()
+    os.exit(false, true)
 end
 test_file:close()
 
@@ -350,7 +358,7 @@ local function read_stats_file(file_path)
     local file = io.open(file_path)
     if not file then
         logger(loglevel.FATAL, "Could not open stats file: " .. file_path)
-        os.exit()
+        os.exit(false, true)
         return nil
     end
     local bytes = file:read()
