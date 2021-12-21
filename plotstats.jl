@@ -1,6 +1,6 @@
 using Pkg
 Pkg.activate(".")
-using CSV, StatsPlots, DataFrames, Printf
+using CSV, StatsPlots, DataFrames, Printf, StatsBase
 
 ratefile = "sqm-autorate.csv"
 histfile = "sqm-speedhist.csv"
@@ -37,3 +37,11 @@ anim = @animate for t in unique(hists.time)
     density(hists[hists.time .== t,"downspeed"],xlim=(0,600e3),title=@sprintf("Down speed t=%.2fhrs",t/3600))
 end
 gif(anim,"downhist.gif",fps=3)
+
+
+@df dat plot(ecdf(:deltadelaydown),label=false,ylim=(.99,1),xlim=(0,50),
+             title="Fraction of Down delay less than x",xlab="delay (ms)",ylab="Fraction")
+savefig("delaydownecdf.png")
+@df dat plot(ecdf(:deltadelayup),label=false,ylim=(.99,1),xlim=(0,50),
+             title="Fraction of Up delay less than x",xlab="delay (ms)",ylab="Fraction")
+savefig("delayupecdf.png")
