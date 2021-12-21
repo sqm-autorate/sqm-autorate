@@ -46,7 +46,12 @@ if [ -f "$owrt_release_file" ]; then
     is_openwrt=$(grep "$owrt_release_file" -e '^NAME=' | awk 'BEGIN { FS = "=" } { gsub(/"/, "", $2); print $2 }')
     if [ "$is_openwrt" = "OpenWrt" ]; then
         echo ">> This is an OpenWrt system."
+        opkg update -V0
         check_for_sqm
+
+        # Install the sqm-autorate prereqs...
+        echo ">>> Installing prerequisite packages via opkg..."
+        opkg install -V0 luarocks lua-bit32 luaposix && luarocks install vstruct
 
         echo ">>> Putting config file into place..."
         if [ -f "/etc/config/sqm-autorate" ]; then
@@ -65,10 +70,6 @@ if [ -f "$owrt_release_file" ]; then
         fi
     fi
 fi
-
-# Install the sqm-autorate prereqs...
-echo ">>> Installing prerequisite packages via opkg..."
-opkg update -V0 && opkg install -V0 luarocks lua-bit32 luaposix && luarocks install vstruct
 
 echo ">>> Putting sqm-autorate Lua file into place..."
 mkdir -p "$autorate_root"
