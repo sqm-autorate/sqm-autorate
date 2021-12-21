@@ -13,11 +13,11 @@ if [ -f "$owrt_release_file" ]; then
     is_openwrt=$(grep "$owrt_release_file" -e '^NAME=' | awk 'BEGIN { FS = "=" } { gsub(/"/, "", $2); print $2 }')
     if [ "$is_openwrt" = "OpenWrt" ]; then
         echo "This is an OpenWrt system. Putting config file into place..."
-        if [ -f "/etc/config/$config_file" ]; then
-            echo "  Warning: An sqm-autorate config file already exists. This new config file will be created as $config_file-NEW. Please review and merge any updates into your existing $config_file file."
-            mv ./"$config_file" /etc/config/"$config_file"-NEW
+        if [ -f "/etc/config/sqm-autorate" ]; then
+            echo "  Warning: An sqm-autorate config file already exists. This new config file will be created as sqm-autorate-NEW. Please review and merge any updates into your existing sqm-autorate file."
+            mv ./"$config_file" /etc/config/sqm-autorate-NEW
         else
-            mv ./"$config_file" /etc/config/"$config_file"
+            mv ./"$config_file" /etc/config/sqm-autorate
         fi
     fi
 fi
