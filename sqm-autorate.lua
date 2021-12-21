@@ -9,21 +9,34 @@ local posix = require("posix")
 local socket = require("posix.sys.socket")
 local time = require("posix.time")
 local vstruct = require("vstruct")
+local uci_lib = require("luci.model.uci")
+local settings = uci_lib.cursor()
 
----------------------------- Begin User-Configurable Local Variables ----------------------------
+---------------------------- Begin Local Variables - External Settings ----------------------------
+local ul_if = settings:get("sqm-autorate", "@network[0]", "transmit_interface") -- upload interface
+local dl_if = settings:get("sqm-autorate", "@network[0]", "receive_interface") -- download interface
+
+local base_ul_rate = tonumber(settings:get("sqm-autorate", "@network[0]", "transmit_kbits_base"), 10) -- steady state bandwidth for upload
+local base_dl_rate = tonumber(settings:get("sqm-autorate", "@network[0]", "receive_kbits_base"), 10) -- steady state bandwidth for download
+
+local min_ul_rate = tonumber(settings:get("sqm-autorate", "@network[0]", "transmit_kbits_min"), 10) -- don't go below this many kbps
+local min_dl_rate = tonumber(settings:get("sqm-autorate", "@network[0]", "receive_kbits_min"), 10) -- don't go below this many kbps
+
+local stats_file = settings:get("sqm-autorate", "@output[0]", "stats_file")
+local speedhist_file = settings:get("sqm-autorate", "@output[0]", "speed_hist_file")
+
+local histsize = tonumber(settings:get("sqm-autorate", "@output[0]", "hist_size"), 10)
+
+local enable_verbose_output = string.lower(settings:get("sqm-autorate", "@output[0]", "verbose"))
+enable_verbose_output =
+    'true' == enable_verbose_output or
+    '1' == enable_verbose_output or
+    'on' == enable_verbose_output
+
+---------------------------- Begin Advanced User-Configurable Local Variables ----------------------------
 local debug = false
-local enable_verbose_output = true
 local enable_verbose_baseline_output = false
 local enable_lynx_graph_output = false
-
-local ul_if = "eth0" -- upload interface
-local dl_if = "ifb4eth0" -- download interface
-
-local base_ul_rate = 25750 -- steady state bandwidth for upload
-local base_dl_rate = 462500 -- steady state bandwidth for download
-
-local min_ul_rate = 500 -- don't go below this many kbps
-local min_dl_rate = 1500 -- don't go below this many kbps
 
 local tick_duration = 0.5 -- Frequency in seconds
 local min_change_interval = 0.5 -- don't change speeds unless this many seconds has passed since last change
@@ -33,11 +46,6 @@ local reflector_array_v6 = {"2a01:4f9:c010:5469::1", "2a01:4ff:f0:2194::1", "200
                             "2001:19f0:6001:3de9:5400:03ff:febe:3f8e"}
 
 local max_delta_owd = 15 -- increase from baseline RTT for detection of bufferbloat
-
-local stats_file = "/root/sqm-autorate.csv"
-local speedhist_file = "/root/sqm-speedhist.csv"
-
-local histsize = 100
 
 ---------------------------- Begin Internal Local Variables ----------------------------
 
