@@ -34,6 +34,6 @@ end
 gif(anim,"uphist.gif",fps=3)
 
 anim = @animate for t in unique(hists.time)
-    density(hists[hists.time .== t,"downspeed"],xlim=(0,600e3),title="Down speed t=$t")
+    density(hists[hists.time .== t,"downspeed"],xlim=(0,600e3),title=@sprintf("Down speed t=%.2fhrs",t/3600))
 end
 gif(anim,"downhist.gif",fps=3)
