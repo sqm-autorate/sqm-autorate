@@ -11,7 +11,7 @@ Functionality should be virtually identical to the shell version, so refer to [O
 Run the following setup script to download the required operational files and prequisites:
 
 ```bash
-sh -c "$(curl -sL https://raw.githubusercontent.com/Fail-Safe/sqm-autorate/dansbranch/sqm-autorate-setup.sh)"
+sh -c "$(curl -sL https://raw.githubusercontent.com/Fail-Safe/sqm-autorate/experimental/sqm-autorate-setup.sh)"
 ```
 
 Finally, edit the script at `/root/sqm-autorate.lua` for your interface and link speeds.
