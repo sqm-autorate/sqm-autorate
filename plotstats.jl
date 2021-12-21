@@ -1,6 +1,6 @@
 using Pkg
 Pkg.activate(".")
-using CSV, StatsPlots, DataFrames
+using CSV, StatsPlots, DataFrames, Printf
 
 ratefile = "sqm-autorate.csv"
 histfile = "sqm-speedhist.csv"
@@ -29,7 +29,7 @@ plot(p1,p2,layout=(2,1),size=(1000,1500))
 savefig("timeseries.png")
 
 anim = @animate for t in unique(hists.time)
-    density(hists[hists.time .== t, "upspeed"],xlim=(0,60e3),title="Up speed t=$t")
+    density(hists[hists.time .== t, "upspeed"],xlim=(0,60e3),title=@sprintf("Up speed t=%.2fhrs",t/3600))
 end
 gif(anim,"uphist.gif",fps=3)
 
