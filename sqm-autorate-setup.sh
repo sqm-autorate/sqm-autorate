@@ -17,9 +17,12 @@ opkg update && opkg install luarocks lua-bit32 luaposix && luarocks install vstr
 
 if [ "$is_git_proj" = false ]; then
     # Need to curl some stuff down...
+    echo "Pulling down sqm-autorate operational files..."
     curl -o "$config_file" "$repo_root"/"$config_file"
     curl -o "$service_file" "$repo_root"/"$service_file"
     curl -o "$lua_file" "$repo_root"/"$lua_file"
+else
+    echo "Since this is a Git project, local files will be used and will be COPIED into place instead of MOVED..."
 fi
 
 if [ -f "$owrt_release_file" ]; then
