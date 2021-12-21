@@ -2,8 +2,9 @@
 
 ## Lua Native Port
 
-**sqm-autorate.lua** is a Lua native port of the original sqm-autorate.sh
-script. Functionality should be virtually identical to the shell version, so refer to [Original Shell Version](#original-shell-version) for details as to the goal and theory.
+**sqm-autorate.lua** is a Lua native port of the original 
+[sqm-autorate.sh shell script.](https://github.com/lynxthecat/sqm-autorate)
+Functionality should be virtually identical to the shell version, so refer to [Original Shell Version](#original-shell-version) (below) for details as to the goal and theory.
 
 ### Lua Port Prerequisites and Setup
 
@@ -15,11 +16,12 @@ wget https://raw.githubusercontent.com/Fail-Safe/sqm-autorate/port-from-shell/sq
 wget https://raw.githubusercontent.com/Fail-Safe/sqm-autorate/port-from-shell/sqm-autorate
 ```
 
-Install prerequisite packages via the following:
+Install required packages via the following:
 
 ```bash
 opkg update && opkg install luarocks lua-bit32 luaposix && luarocks install vstruct
 ```
+
 Add the following as exports to your shell environment:
 
 ```bash
@@ -27,18 +29,45 @@ export LUA_CPATH="/root/.luarocks/lib/lua/5.1/?.so;/usr/lib/lua/5.1/?.so;./?.so;
 export LUA_PATH="/root/.luarocks/share/lua/5.1/?.lua;/root/.luarocks/share/lua/5.1/?/init.lua;/usr/share/lua/5.1/?.lua;/usr/share/lua/5.1/?/init.lua;./?.lua;/usr/share/lua/?.lua;/usr/share/lua/?/init.lua;/usr/lib/lua/?.lua;/usr/lib/lua/?/init.lua"
 ```
 
+Finally, edit the script at `/root/sqm-autorate.lua` for your interface and link speeds.
+To do this:
+
+- Install the **SQM QoS** package ("luci-app-sqm") and
+[configure it](https://openwrt.org/docs/guide-user/network/traffic-shaping/sqm)
+for your WAN link and ISP link speeds
+- Examine the file `/etc/config/sqm` then edit the `/root/sqm-autorate.lua` script as follows:
+   - Set `dl_if` to the name shown in the _option interface 'XXX'_ line (often "wan")
+   - Set `ul_if` to "ifb4XXX" where XXX is the value above (often "ifb4wan") 
+   - Set `base_dl_rate` to the number (no comma's) shown in the _option download '#####'_ line
+   - Set `base_ul_rate` to the number (no comma's) shown in the _option upload '#####'_ line
+
 ### Execution
 
 The Lua port can be invoked directly or operate via the sqm-autorate service script in this branch.
 
 #### Direct Execution (for Testing and Tuning)
 
+For testing, invoke the `sqm-autorate.lua` script from the command line.
+
 ```bash
 cd /root
 lua ./sqm-autorate.lua
 ```
 
+The script outputs statistics about various internal variables to the terminal.
+When you run a speed test, you should see the `current_dl_rate` and 
+`current_ul_rate` values change to match the current conditions.
+They should then drift back to the configured download and update rates
+when the link is idle.
+
+To disable the output, set `enable_lynx_graph_output` to "false" in the script.
+The script also writes the similar information to `/root/sqm-autorate.csv`.
+There is currently no way to turn off output to that file.
+
 #### Service Execution
+
+You can also install the `sqm-autorate.lua` script as a service,
+so that it starts up automatically when you reboot the router.
 
 ```bash
 cp /root/sqm-autorate /etc/init.d/sqm-autorate
@@ -48,9 +77,25 @@ chmod a+x /etc/init.d/sqm-autorate
 service sqm-autorate enable && service sqm-autorate start
 ```
 
+There is a detailed and fun discussion with plenty of sketches relating to the development of the script and alternatives on the
+[OpenWrt Forum - CAKE /w Adaptive Bandwidth.](https://forum.openwrt.org/t/cake-w-adaptive-bandwidth/108848/312)
+
+### A Request to Testers
+
+If you use this script I have just one ask.
+Please post your experience on this
+[OpenWrt Forum thread.](https://forum.openwrt.org/t/cake-w-adaptive-bandwidth/108848/312)
+Your feedback will help improve the script for the benefit of others.
+
 ## Original Shell Version
 
 ### Purpose
+
+_The remainder of this document needs to be revised in view of the
+new implementation (both the shell script and Lua code)
+that use "setpoint" for single download and upload settings.
+This algorithm continually samples the delay and RTT to
+move the setpoint to maximize throughput and minimize latency._
 
 **autorate.sh** is a script that automatically adapts
 [CAKE Smart Queue Management (SQM)](https://www.bufferbloat.net/projects/codel/wiki/Cake/)
@@ -100,6 +145,8 @@ toward a minimum configured value
 until an RTT spike is detected or until the setting reaches the maximum configured value
 - Upon detecting an RTT spike, the bandwidth setting is decreased
 
+_**The remainder of this document has been deprecated - read the Setup section above**_
+
 ### Parameters
 
 **Setting the minimum value:**
@@ -138,8 +185,6 @@ Or, if a lower maximum bandwidth is required
 by the user, the maximum bandwidth is set
 to that lower bandwidth as explained above.
 
-There is a detailed and fun discussion with plenty of sketches relating to the development of the script and alternatives on the
-[OpenWrt Forum - CAKE /w Adaptive Bandwidth.](https://forum.openwrt.org/t/cake-w-adaptive-bandwidth/108848/312)
 
 ### Required packages
 
@@ -217,9 +262,3 @@ to `/tmp/sqm-autorate.log` when `enable_verbose_output` is set to '1'.
 
 Disabling logging when not required is a good idea given the rate of logging.
 
-## A Request to Testers
-
-If you use this script I have just one ask.
-Please post your experience on this
-[OpenWrt Forum thread.](https://forum.openwrt.org/t/cake-w-adaptive-bandwidth/108848/312)
-Your feedback will help improve the script for the benefit of others.
