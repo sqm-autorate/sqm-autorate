@@ -76,9 +76,16 @@ local enable_lynx_graph_output = false
 local tick_duration = 0.5 -- Frequency in seconds
 local min_change_interval = 0.5 -- don't change speeds unless this many seconds has passed since last change
 
-local reflector_array_v4 = {"65.21.108.153", "5.161.66.148", "216.128.149.82", "108.61.220.16"}
-local reflector_array_v6 = {"2a01:4f9:c010:5469::1", "2a01:4ff:f0:2194::1", "2001:19f0:5c01:1bb6:5400:03ff:febe:3fae",
-                            "2001:19f0:6001:3de9:5400:03ff:febe:3f8e"}
+if settings and settings:get("sqm-autorate", "@network[0]", "reflector_type") == "icmp" then
+    local reflector_array_v4 = {"46.227.200.54", "46.227.200.55", "194.242.2.2", "194.242.2.3", "149.112.112.10",
+                                "149.112.112.11", "149.112.112.112", "193.19.108.2", "193.19.108.3", "9.9.9.9",
+                                "9.9.9.10", "9.9.9.11"}
+    local reflector_array_v6 = {}
+else
+    local reflector_array_v4 = {"65.21.108.153", "5.161.66.148", "216.128.149.82", "108.61.220.16"}
+    local reflector_array_v6 = {"2a01:4f9:c010:5469::1", "2a01:4ff:f0:2194::1",
+                                "2001:19f0:5c01:1bb6:5400:03ff:febe:3fae", "2001:19f0:6001:3de9:5400:03ff:febe:3f8e"}
+end
 
 local max_delta_owd = 15 -- increase from baseline RTT for detection of bufferbloat
 
