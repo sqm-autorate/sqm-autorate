@@ -24,6 +24,8 @@ check_for_sqm() {
             echo "You must install SQM (luci-app-sqm) before using sqm-autorate. Cannot continue. Exiting."
             exit 1
         fi
+    else
+        echo "Congratulations! You already have SQM (luci-app-sqm) installed. We can proceed with the sqm-autorate setup now..."
     fi
 }
 
