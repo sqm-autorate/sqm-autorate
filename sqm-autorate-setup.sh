@@ -15,19 +15,19 @@ if [ -f "$owrt_release_file" ]; then
         echo "This is an OpenWrt system. Putting config file into place..."
         if [ -f "/etc/config/sqm-autorate" ]; then
             echo "  Warning: An sqm-autorate config file already exists. This new config file will be created as sqm-autorate-NEW. Please review and merge any updates into your existing sqm-autorate file."
-            mv ./"$config_file" /etc/config/sqm-autorate-NEW
+            cp ./"$config_file" /etc/config/sqm-autorate-NEW
         else
-            mv ./"$config_file" /etc/config/sqm-autorate
+            cp ./"$config_file" /etc/config/sqm-autorate
         fi
     fi
 fi
 
 echo "Putting sqm-autorate Lua file into place..."
 mkdir -p "$autorate_root"
-mv ./"$lua_file" "$autorate_root"/"$lua_file"
+cp ./"$lua_file" "$autorate_root"/"$lua_file"
 
 echo "Putting service file into place..."
-mv ./"$service_file" /etc/init.d/"$service_file"
+cp ./"$service_file" /etc/init.d/"$service_file"
 chmod a+x /etc/init.d/"$service_file"
 
 echo "All done! You can enable and start the service by executing 'service sqm-autorate enable && service sqm-autorate start'."
