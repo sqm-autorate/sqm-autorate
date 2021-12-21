@@ -10,7 +10,24 @@ autorate_root="/usr/lib/sqm-autorate"
 
 repo_root="https://raw.githubusercontent.com/Fail-Safe/sqm-autorate/dansbranch"
 
-# Install the prereqs...
+check_for_sqm() {
+    # Check first to see if SQM is installed and if not, offer to install it...
+    if [ "$(opkg list-installed luci-app-sqm | wc -l)" = "0" ]; then
+        # SQM is missing, let's prompt to install it...
+        echo "!!! SQM (luci-app-sqm) is missing from your system and is required for sqm-autorate to function."
+        read -p ">>> Would you like to install SQM (luci-app-sqm) now? (y/n) " install_sqm
+        install_sqm=$(echo "$install_sqm" | awk '{ print tolower($0) }')
+        if [ "$install_sqm" = "y" || "$install_sqm" = "yes" ]; then
+            opkg install luci-app-sqm
+        else
+            # We have to bail out if we don't have luci-app-sqm on OpenWrt...
+            echo "You must install SQM (luci-app-sqm) before using sqm-autorate. Cannot continue. Exiting."
+            exit 1
+        fi
+    fi
+}
+
+# Install the sqm-autorate prereqs...
 opkg update && opkg install luarocks lua-bit32 luaposix && luarocks install vstruct
 
 [ -d "./.git" ] && is_git_proj=true || is_git_proj=false
@@ -28,7 +45,10 @@ fi
 if [ -f "$owrt_release_file" ]; then
     is_openwrt=$(grep "$owrt_release_file" -e '^NAME=' | awk 'BEGIN { FS = "=" } { gsub(/"/, "", $2); print $2 }')
     if [ "$is_openwrt" = "OpenWrt" ]; then
-        echo "This is an OpenWrt system. Putting config file into place..."
+        echo "This is an OpenWrt system."
+        check_for_sqm
+
+        echo "Putting config file into place..."
         if [ -f "/etc/config/sqm-autorate" ]; then
             echo "  Warning: An sqm-autorate config file already exists. This new config file will be created as $name-NEW. Please review and merge any updates into your existing $name file."
             if [ "$is_git_proj" = true ]; then
