@@ -39,9 +39,12 @@ end
 gif(anim,"downhist.gif",fps=3)
 
 
+relthr = 1.0-1.0/3600
 @df dat plot(ecdf(:deltadelaydown),label=false,ylim=(.99,1),xlim=(0,50),
              title="Fraction of Down delay less than x",xlab="delay (ms)",ylab="Fraction")
+plot!([0.0,50.0],[relthr,relthr],label="1 second per hour",legend=:bottomright)
 savefig("delaydownecdf.png")
 @df dat plot(ecdf(:deltadelayup),label=false,ylim=(.99,1),xlim=(0,50),
              title="Fraction of Up delay less than x",xlab="delay (ms)",ylab="Fraction")
+plot!([0.0,50.0],[relthr,relthr],label="1 second per hour",legend=:bottomright)
 savefig("delayupecdf.png")
