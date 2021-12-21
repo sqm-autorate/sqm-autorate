@@ -46,6 +46,7 @@ if [ -f "$owrt_release_file" ]; then
     is_openwrt=$(grep "$owrt_release_file" -e '^NAME=' | awk 'BEGIN { FS = "=" } { gsub(/"/, "", $2); print $2 }')
     if [ "$is_openwrt" = "OpenWrt" ]; then
         echo ">> This is an OpenWrt system."
+        echo ">>> Refreshing package cache. This may take a few moments..."
         opkg update -V0
         check_for_sqm
 
