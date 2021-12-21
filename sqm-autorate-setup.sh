@@ -17,8 +17,9 @@ check_for_sqm() {
         echo "!!! SQM (luci-app-sqm) is missing from your system and is required for sqm-autorate to function."
         read -p ">> Would you like to install SQM (luci-app-sqm) now? (y/n) " install_sqm
         install_sqm=$(echo "$install_sqm" | awk '{ print tolower($0) }')
-        if [ "$install_sqm" = "y" || "$install_sqm" = "yes" ]; then
-            opkg install luci-app-sqm
+        if [ "$install_sqm" = "y" ] || [ "$install_sqm" = "yes" ]; then
+            opkg install luci-app-sqm || echo "!!! An error occurred while trying to install luci-app-sqm. Please try again."
+            exit 1
         else
             # We have to bail out if we don't have luci-app-sqm on OpenWrt...
             echo "> You must install SQM (luci-app-sqm) before using sqm-autorate. Cannot continue. Exiting."
