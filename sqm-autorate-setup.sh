@@ -44,7 +44,7 @@ fi
 if [ -f "$owrt_release_file" ]; then
     is_openwrt=$(grep "$owrt_release_file" -e '^NAME=' | awk 'BEGIN { FS = "=" } { gsub(/"/, "", $2); print $2 }')
     if [ "$is_openwrt" = "OpenWrt" ]; then
-        echo "> This is an OpenWrt system."
+        echo ">> This is an OpenWrt system."
         check_for_sqm
 
         echo ">>> Putting config file into place..."
