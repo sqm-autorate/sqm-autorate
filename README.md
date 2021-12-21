@@ -6,28 +6,12 @@
 [sqm-autorate.sh shell script.](https://github.com/lynxthecat/sqm-autorate)
 Functionality should be virtually identical to the shell version, so refer to [Original Shell Version](#original-shell-version) (below) for details as to the goal and theory.
 
-### Lua Port Prerequisites and Setup
+### Lua Port Setup
 
-Retrieve the Lua script, OpenWrt config file, and the startup script:
-
-```bash
-cd /root
-wget https://raw.githubusercontent.com/Fail-Safe/sqm-autorate/dansbranch/sqm-autorate.lua
-wget https://raw.githubusercontent.com/Fail-Safe/sqm-autorate/dansbranch/sqm-autorate
-wget https://raw.githubusercontent.com/Fail-Safe/sqm-autorate/dansbranch/sqm-autorate.config
-```
-
-Install required packages via the following:
+Run the following setup script to download the required operational files and prequisites:
 
 ```bash
-opkg update && opkg install luarocks lua-bit32 luaposix && luarocks install vstruct
-```
-
-Add the following as exports to your shell environment:
-
-```bash
-export LUA_CPATH="/root/.luarocks/lib/lua/5.1/?.so;/usr/lib/lua/5.1/?.so;./?.so;/usr/lib/lua/?.so;/usr/lib/lua/loadall.so"
-export LUA_PATH="/root/.luarocks/share/lua/5.1/?.lua;/root/.luarocks/share/lua/5.1/?/init.lua;/usr/share/lua/5.1/?.lua;/usr/share/lua/5.1/?/init.lua;./?.lua;/usr/share/lua/?.lua;/usr/share/lua/?/init.lua;/usr/lib/lua/?.lua;/usr/lib/lua/?/init.lua"
+sh -c "$(curl -sL https://raw.githubusercontent.com/Fail-Safe/sqm-autorate/dansbranch/sqm-autorate-setup.sh)"
 ```
 
 Finally, edit the script at `/root/sqm-autorate.lua` for your interface and link speeds.
