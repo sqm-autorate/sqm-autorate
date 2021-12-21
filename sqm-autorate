@@ -5,7 +5,7 @@ export PATH=/usr/sbin:/usr/bin:/sbin:/bin
 export LUA_CPATH="/usr/lib/lua/5.1/?.so;./?.so;/usr/lib/lua/?.so;/usr/lib/lua/loadall.so"
 export LUA_PATH="/usr/share/lua/5.1/?.lua;/usr/share/lua/5.1/?/init.lua;./?.lua;/usr/share/lua/?.lua;/usr/share/lua/?/init.lua;/usr/lib/lua/?.lua;/usr/lib/lua/?/init.lua"
 
-exec &>/tmp/sqm-autorate.log
+# exec &>/tmp/sqm-autorate.log
 
 START=97
 STOP=4

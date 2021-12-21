@@ -6,6 +6,9 @@ service_file="sqm-autorate"
 lua_file="sqm-autorate.lua"
 autorate_root="/usr/lib/sqm-autorate"
 
+# Install the prereqs...
+opkg update && opkg install luarocks lua-bit32 luaposix && luarocks install vstruct
+
 if [ -f "$owrt_release_file" ]; then
     is_openwrt=$(grep "$owrt_release_file" -e '^NAME=' | awk 'BEGIN { FS = "=" } { gsub(/"/, "", $2); print $2 }')
     if [ "$is_openwrt" = "OpenWrt" ]; then
