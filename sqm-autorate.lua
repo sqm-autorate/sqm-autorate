@@ -124,7 +124,7 @@ end
 local rx_bytes_path = nil
 local tx_bytes_path = nil
 
--- Create raw socket
+-- Create a socket
 local sock
 if reflector_type == "icmp" then
     sock = assert(socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP), "Failed to create socket")
@@ -461,6 +461,11 @@ else
     tx_bytes_path = "/sys/class/net/" .. ul_if .. "/statistics/tx_bytes"
 end
 
+if debug then
+    logger(loglevel.DEBUG, "rx_bytes_path: " .. rx_bytes_path)
+    logger(loglevel.DEBUG, "tx_bytes_path: " .. tx_bytes_path)
+end
+
 -- Test for existent stats files
 local test_file = io.open(rx_bytes_path)
 if not test_file then
@@ -481,17 +486,16 @@ if enable_lynx_graph_output then
         "min_downlink_delta", "min_uplink_delta", "cur_dl_rate", "cur_ul_rate"))
 end
 
-if debug then
-    logger(loglevel.DEBUG, "rx_bytes_path: " .. rx_bytes_path)
-    logger(loglevel.DEBUG, "tx_bytes_path: " .. tx_bytes_path)
-end
-
 -- Random seed
 local nows, nowns = get_current_time()
 math.randomseed(nowns)
 
 -- Set a packet ID
 local packet_id = cur_process_id + 32768
+
+-- Set initial TC values
+os.execute(string.format("tc qdisc change root dev %s cake bandwidth %sKbit", dl_if, base_dl_rate))
+os.execute(string.format("tc qdisc change root dev %s cake bandwidth %sKbit", ul_if, base_ul_rate))
 
 -- Constructor Gadget...
 local function pinger(freq)
@@ -633,7 +637,7 @@ local function ratecontrol(baseline, recent)
 
             if enable_verbose_output then
                 logger(loglevel.INFO,
-                    string.format("%d,%d,%f,%f,%f,%f,%d,%d", lastchg_s, lastchg_ns, rx_load, tx_load, min_down_del,
+                    string.format("%d,%d,%f,%f,%f,%f,%d,%d\n", lastchg_s, lastchg_ns, rx_load, tx_load, min_down_del,
                         min_up_del, cur_dl_rate, cur_ul_rate))
             end
 
