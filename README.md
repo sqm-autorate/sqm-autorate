@@ -14,17 +14,11 @@ Run the following setup script to download the required operational files and pr
 sh -c "$(curl -sL https://raw.githubusercontent.com/Fail-Safe/sqm-autorate/experimental/sqm-autorate-setup.sh)"
 ```
 
-Finally, edit the script at `/root/sqm-autorate.lua` for your interface and link speeds.
-To do this:
+### Configuration
 
-- Install the **SQM QoS** package ("luci-app-sqm") and
-[configure it](https://openwrt.org/docs/guide-user/network/traffic-shaping/sqm)
-for your WAN link and ISP link speeds
-- Examine the file `/etc/config/sqm` then edit the `/root/sqm-autorate.lua` script as follows:
-   - Set `dl_if` to the name shown in the _option interface 'XXX'_ line (often "wan")
-   - Set `ul_if` to "ifb4XXX" where XXX is the value above (often "ifb4wan")
-   - Set `base_dl_rate` to the number (no comma's) shown in the _option download '#####'_ line
-   - Set `base_ul_rate` to the number (no comma's) shown in the _option upload '#####'_ line
+Generally, configuration should be performed via the `/etc/config/sqm-autorate` file.
+
+Advanced users may override values (following comments) directly in `/usr/lib/sqm-autorate/sqm-autorate.lua` as comfort level allows.
 
 ### Execution
 
@@ -32,11 +26,10 @@ The Lua port can be invoked directly or operate via the sqm-autorate service scr
 
 #### Direct Execution (for Testing and Tuning)
 
-For testing, invoke the `sqm-autorate.lua` script from the command line.
+For testing/tuning, invoke the `sqm-autorate.lua` script from the command line:
 
 ```bash
-cd /root
-lua ./sqm-autorate.lua
+lua /usr/lib/sqm-autorate/sqm-autorate.lua
 ```
 
 The script outputs statistics about various internal variables to the terminal.
@@ -46,8 +39,8 @@ They should then drift back to the configured download and update rates
 when the link is idle.
 
 To disable the output, set `enable_lynx_graph_output` to "false" in the script.
-The script also writes the similar information to `/root/sqm-autorate.csv`.
-There is currently no way to turn off output to that file.
+The script also writes the similar information to `/tmp/sqm-autorate.csv` and speed history data to `/tmp/sqm-speedhist.csv`.
+There is currently no way to turn off output to these files, though the file location can be modified via `/etc/config/sqm-autorate`.
 
 #### Service Execution
 
@@ -55,15 +48,10 @@ You can also install the `sqm-autorate.lua` script as a service,
 so that it starts up automatically when you reboot the router.
 
 ```bash
-cp /root/sqm-autorate /etc/init.d/sqm-autorate
-
-chmod a+x /etc/init.d/sqm-autorate
-
 service sqm-autorate enable && service sqm-autorate start
 ```
 
-There is a detailed and fun discussion with plenty of sketches relating to the development of the script and alternatives on the
-[OpenWrt Forum - CAKE /w Adaptive Bandwidth.](https://forum.openwrt.org/t/cake-w-adaptive-bandwidth/108848/312)
+There is a detailed and fun discussion with plenty of sketches relating to the development of the script and alternatives on the [OpenWrt Forum - CAKE /w Adaptive Bandwidth.](https://forum.openwrt.org/t/cake-w-adaptive-bandwidth/108848/312)
 
 ### A Request to Testers
 
