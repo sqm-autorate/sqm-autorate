@@ -420,6 +420,7 @@ local function send_ts_ping(reflector, pkt_type, pkt_id)
 end
 
 local function maximum(table)
+   local max = math.max
    local m = -1/0
    for _,v in pairs(table) do
       m = max(v,m)
