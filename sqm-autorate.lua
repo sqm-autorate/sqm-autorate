@@ -595,14 +595,16 @@ local function ratecontrol(baseline, recent)
             local next_dl_rate = cur_dl_rate
 
             if min_up_del < max_delta_owd and tx_load > .8 then
-                safe_ul_rates[nrate_up] = floor(cur_ul_rate * tx_load)
-                next_ul_rate = cur_ul_rate * 1.1
+	       safe_ul_rates[nrate_up] = floor(cur_ul_rate * tx_load)
+	       maxul = max(safe_ul_rates)
+	       next_ul_rate = cur_ul_rate * (1 + .1 * (1 - cur_ul_rate/maxul))+500
                 nrate_up = nrate_up + 1
                 nrate_up = nrate_up % histsize
             end
             if min_down_del < max_delta_owd and rx_load > .8 then
-                safe_dl_rates[nrate_down] = floor(cur_dl_rate * rx_load)
-                next_dl_rate = cur_dl_rate * 1.1
+	       safe_dl_rates[nrate_down] = floor(cur_dl_rate * rx_load)
+	       maxdl = max(safe_dl_rates)
+	       next_dl_rate = cur_dl_rate * (1 + .1*(1-cur_ul_rate/maxul))+500
                 nrate_down = nrate_down + 1
                 nrate_down = nrate_down % histsize
             end
