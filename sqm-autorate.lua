@@ -10,34 +10,103 @@ local socket = require("posix.sys.socket")
 local time = require("posix.time")
 local vstruct = require("vstruct")
 
----------------------------- Begin User-Configurable Local Variables ----------------------------
+local loglevel = {
+    DEBUG = "DEBUG",
+    INFO = "INFO",
+    WARN = "WARN",
+    ERROR = "ERROR",
+    FATAL = "FATAL"
+}
+
+-- Basic homegrown logger to keep us from having to import yet another module
+local function logger(loglevel, message)
+    local cur_date = os.date("%Y%m%dT%H:%M:%S")
+    -- local cur_date = os.date("%c")
+    local out_str = string.format("[%s - %s]: %s", loglevel, cur_date, message)
+    print(out_str)
+end
+
+-- Figure out if we are running on OpenWrt here...
+-- Found this clever function here: https://stackoverflow.com/a/15434737
+local function is_module_available(name)
+    if package.loaded[name] then
+        return true
+    else
+        for _, searcher in ipairs(package.searchers or package.loaders) do
+            local loader = searcher(name)
+            if type(loader) == 'function' then
+                package.preload[name] = loader
+                return true
+            end
+        end
+        return false
+    end
+end
+
+local uci_lib = nil
+local settings = nil
+if is_module_available("luci.model.uci") then
+    uci_lib = require("luci.model.uci")
+    settings = uci_lib.cursor()
+end
+
+-- If we have luci-app-sqm installed, but it is disabled, this whole thing is moot. Let's bail early in that case.
+if settings then
+    local sqm_enabled = tonumber(settings:get("sqm", "@queue[0]", "enabled"), 10)
+    if sqm_enabled == 0 then
+        logger(loglevel.FATAL,
+            "SQM is not enabled on this OpenWrt system. Please enable it before starting sqm-autorate.")
+        os.exit(1, true)
+    end
+end
+
+---------------------------- Begin Local Variables - External Settings ----------------------------
+local base_ul_rate = settings and tonumber(settings:get("sqm", "@queue[0]", "upload"), 10) or "<STEADY STATE UPLOAD>" -- steady state bandwidth for upload
+local base_dl_rate = settings and tonumber(settings:get("sqm", "@queue[0]", "download"), 10) or
+                         "<STEADY STATE DOWNLOAD>" -- steady state bandwidth for download
+
+local min_ul_rate = settings and tonumber(settings:get("sqm-autorate", "@network[0]", "transmit_kbits_min"), 10) or
+                        "<MIN UPLOAD RATE>" -- don't go below this many kbps
+local min_dl_rate = settings and tonumber(settings:get("sqm-autorate", "@network[0]", "receive_kbits_min"), 10) or
+                        "<MIN DOWNLOAD RATE>" -- don't go below this many kbps
+
+local stats_file = settings and settings:get("sqm-autorate", "@output[0]", "stats_file") or "<STATS FILE NAME/PATH>"
+local speedhist_file = settings and settings:get("sqm-autorate", "@output[0]", "speed_hist_file") or
+                           "<HIST FILE NAME/PATH>"
+
+local histsize = settings and tonumber(settings:get("sqm-autorate", "@output[0]", "hist_size"), 10) or "<HISTORY SIZE>"
+
+local enable_verbose_output = settings and string.lower(settings:get("sqm-autorate", "@output[0]", "verbose")) or
+                                  "<ENABLE VERBOSE OUTPUT>"
+enable_verbose_output = 'true' == enable_verbose_output or '1' == enable_verbose_output or 'on' == enable_verbose_output
+
+---------------------------- Begin Advanced User-Configurable Local Variables ----------------------------
 local debug = false
-local enable_verbose_output = true
 local enable_verbose_baseline_output = false
 local enable_lynx_graph_output = false
-
-local ul_if = "eth0" -- upload interface
-local dl_if = "ifb4eth0" -- download interface
-
-local base_ul_rate = 25750 -- steady state bandwidth for upload
-local base_dl_rate = 462500 -- steady state bandwidth for download
-
-local min_ul_rate = 500 -- don't go below this many kbps
-local min_dl_rate = 1500 -- don't go below this many kbps
 
 local tick_duration = 0.5 -- Frequency in seconds
 local min_change_interval = 0.5 -- don't change speeds unless this many seconds has passed since last change
 
-local reflector_array_v4 = {"65.21.108.153", "5.161.66.148", "216.128.149.82", "108.61.220.16"}
-local reflector_array_v6 = {"2a01:4f9:c010:5469::1", "2a01:4ff:f0:2194::1", "2001:19f0:5c01:1bb6:5400:03ff:febe:3fae",
-                            "2001:19f0:6001:3de9:5400:03ff:febe:3f8e"}
+-- Interface names: leave empty to use values from SQM config or place values here to override SQM config
+local ul_if = "" -- upload interface
+local dl_if = "" -- download interface
+
+local reflector_type = settings and settings:get("sqm-autorate", "@network[0]", "reflector_type") or nil
+local reflector_array_v4 = {}
+local reflector_array_v6 = {}
+
+if reflector_type == "icmp" then
+    reflector_array_v4 = {"46.227.200.54", "46.227.200.55", "194.242.2.2", "194.242.2.3", "149.112.112.10",
+                          "149.112.112.11", "149.112.112.112", "193.19.108.2", "193.19.108.3", "9.9.9.9", "9.9.9.10",
+                          "9.9.9.11"}
+else
+    reflector_array_v4 = {"65.21.108.153", "5.161.66.148", "216.128.149.82", "108.61.220.16"}
+    reflector_array_v6 = {"2a01:4f9:c010:5469::1", "2a01:4ff:f0:2194::1", "2001:19f0:5c01:1bb6:5400:03ff:febe:3fae",
+                          "2001:19f0:6001:3de9:5400:03ff:febe:3f8e"}
+end
 
 local max_delta_owd = 15 -- increase from baseline RTT for detection of bufferbloat
-
-local stats_file = "/root/sqm-autorate.csv"
-local speedhist_file = "/root/sqm-speedhist.csv"
-
-local histsize = 100
 
 ---------------------------- Begin Internal Local Variables ----------------------------
 
@@ -51,20 +120,21 @@ if type(cur_process_id) == "table" then
     cur_process_id = cur_process_id["pid"]
 end
 
-local loglevel = {
-    DEBUG = "DEBUG",
-    INFO = "INFO",
-    WARN = "WARN",
-    ERROR = "ERROR",
-    FATAL = "FATAL"
-}
-
 -- Bandwidth file paths
 local rx_bytes_path = nil
 local tx_bytes_path = nil
 
--- Create raw socket
-local sock = assert(socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP), "Failed to create socket")
+-- Create a socket
+local sock
+if reflector_type == "icmp" then
+    sock = assert(socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP), "Failed to create socket")
+elseif reflector_type == "udp" then
+    sock = assert(socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP), "Failed to create socket")
+else
+    logger(loglevel.FATAL, "Unknown reflector type specified. Cannot continue.")
+    os.exit(1, true)
+end
+
 socket.setsockopt(sock, socket.SOL_SOCKET, socket.SO_RCVTIMEO, 0, 500)
 socket.setsockopt(sock, socket.SOL_SOCKET, socket.SO_SNDTIMEO, 0, 500)
 
@@ -74,13 +144,6 @@ assert(posix.fcntl(sock, posix.F_SETFL, bit.bor(flags, posix.O_NONBLOCK)), "Fail
 ---------------------------- End Local Variables ----------------------------
 
 ---------------------------- Begin Local Functions ----------------------------
-
-local function logger(loglevel, message)
-    local cur_date = os.date("%Y%m%dT%H:%M:%S")
-    -- local cur_date = os.date("%c")
-    local out_str = string.format("[%s - %s]: %s", loglevel, cur_date, message)
-    print(out_str)
-end
 
 local function a_else_b(a, b)
     if a then
@@ -142,12 +205,62 @@ local function get_table_len(tbl)
     return count
 end
 
-local function receive_ts_ping(pkt_id)
+local function receive_icmp_pkt(pkt_id)
     if debug then
-        logger(loglevel.DEBUG, "Entered receive_ts_ping() with value: " .. pkt_id)
+        logger(loglevel.DEBUG, "Entered receive_icmp_pkt() with value: " .. pkt_id)
     end
 
     -- Read ICMP TS reply
+    while true do
+        local data, sa = socket.recvfrom(sock, 100) -- An IPv4 ICMP reply should be ~56bytes. This value may need tweaking.
+
+        if data then
+            local ip_start = string.byte(data, 1)
+            local ip_ver = bit.rshift(ip_start, 4)
+            local hdr_len = (ip_start - ip_ver * 16) * 4
+            local ts_resp = vstruct.read("> 2*u1 3*u2 3*u4", string.sub(data, hdr_len + 1, #data))
+            local time_after_midnight_ms = get_time_after_midnight_ms()
+            local src_pkt_id = ts_resp[4]
+            local pos = get_table_position(reflector_array_v4, sa.addr)
+
+            -- A pos > 0 indicates the current sa.addr is a known member of the reflector array
+            if (pos > 0 and src_pkt_id == pkt_id) then
+                local stats = {
+                    reflector = sa.addr,
+                    original_ts = ts_resp[6],
+                    receive_ts = ts_resp[7],
+                    transmit_ts = ts_resp[8],
+                    rtt = time_after_midnight_ms - ts_resp[6],
+                    uplink_time = ts_resp[7] - ts_resp[6],
+                    downlink_time = time_after_midnight_ms - ts_resp[8]
+                }
+
+                if debug then
+                    logger(loglevel.DEBUG,
+                        "Reflector IP: " .. stats.reflector .. "  |  Current time: " .. time_after_midnight_ms ..
+                            "  |  TX at: " .. stats.original_ts .. "  |  RTT: " .. stats.rtt .. "  |  UL time: " ..
+                            stats.uplink_time .. "  |  DL time: " .. stats.downlink_time)
+                    logger(loglevel.DEBUG, "Exiting receive_icmp_pkt() with stats return")
+                end
+
+                coroutine.yield(stats)
+            end
+        else
+            if debug then
+                logger(loglevel.DEBUG, "Exiting receive_icmp_pkt() with nil return")
+            end
+
+            coroutine.yield(nil)
+        end
+    end
+end
+
+local function receive_udp_pkt(pkt_id)
+    if debug then
+        logger(loglevel.DEBUG, "Entered receive_udp_pkt() with value: " .. pkt_id)
+    end
+
+    -- Read UDP TS reply
     while true do
         local data, sa = socket.recvfrom(sock, 100) -- An IPv4 ICMP reply should be ~56bytes. This value may need tweaking.
 
@@ -179,14 +292,14 @@ local function receive_ts_ping(pkt_id)
                         "Reflector IP: " .. stats.reflector .. "  |  Current time: " .. time_after_midnight_ms ..
                             "  |  TX at: " .. stats.original_ts .. "  |  RTT: " .. stats.rtt .. "  |  UL time: " ..
                             stats.uplink_time .. "  |  DL time: " .. stats.downlink_time)
-                    logger(loglevel.DEBUG, "Exiting receive_ts_ping() with stats return")
+                    logger(loglevel.DEBUG, "Exiting receive_udp_pkt() with stats return")
                 end
 
                 coroutine.yield(stats)
             end
         else
             if debug then
-                logger(loglevel.DEBUG, "Exiting receive_ts_ping() with nil return")
+                logger(loglevel.DEBUG, "Exiting receive_udp_pkt() with nil return")
             end
 
             coroutine.yield(nil)
@@ -194,8 +307,57 @@ local function receive_ts_ping(pkt_id)
     end
 end
 
-local function send_ts_ping(reflector, pkt_id)
-    -- Custom timestamp header
+local function receive_ts_ping(pkt_id, pkt_type)
+    if debug then
+        logger(loglevel.DEBUG, "Entered receive_ts_ping() with value: " .. pkt_id)
+    end
+
+    if pkt_type == 'icmp' then
+        receive_icmp_pkt(pkt_id)
+    elseif pkt_type == 'udp' then
+        receive_udp_pkt(pkt_id)
+    else
+        logger(loglevel.ERROR, "Unknown packet type specified.")
+    end
+end
+
+local function send_icmp_pkt(reflector, pkt_id)
+    -- ICMP timestamp header
+    -- Type - 1 byte
+    -- Code - 1 byte:
+    -- Checksum - 2 bytes
+    -- Identifier - 2 bytes
+    -- Sequence number - 2 bytes
+    -- Original timestamp - 4 bytes
+    -- Received timestamp - 4 bytes
+    -- Transmit timestamp - 4 bytes
+
+    if debug then
+        logger(loglevel.DEBUG, "Entered send_icmp_pkt() with values: " .. reflector .. " | " .. pkt_id)
+    end
+
+    -- Create a raw ICMP timestamp request message
+    local time_after_midnight_ms = get_time_after_midnight_ms()
+    local ts_req = vstruct.write("> 2*u1 3*u2 3*u4", {13, 0, 0, pkt_id, 0, time_after_midnight_ms, 0, 0})
+    local ts_req = vstruct.write("> 2*u1 3*u2 3*u4",
+        {13, 0, calculate_checksum(ts_req), pkt_id, 0, time_after_midnight_ms, 0, 0})
+
+    -- Send ICMP TS request
+    local ok = socket.sendto(sock, ts_req, {
+        family = socket.AF_INET,
+        addr = reflector,
+        port = 0
+    })
+
+    if debug then
+        logger(loglevel.DEBUG, "Exiting send_icmp_pkt()")
+    end
+
+    return ok
+end
+
+local function send_udp_pkt(reflector, pkt_id)
+    -- Custom UDP timestamp header
     -- Type - 1 byte
     -- Code - 1 byte:
     -- Checksum - 2 bytes
@@ -209,7 +371,7 @@ local function send_ts_ping(reflector, pkt_id)
     -- Transmit timestamp (nanoseconds) - 4 bytes
 
     if debug then
-        logger(loglevel.DEBUG, "Entered send_ts_ping() with values: " .. reflector .. " | " .. pkt_id)
+        logger(loglevel.DEBUG, "Entered send_udp_pkt() with values: " .. reflector .. " | " .. pkt_id)
     end
 
     -- Create a raw ICMP timestamp request message
@@ -226,45 +388,96 @@ local function send_ts_ping(reflector, pkt_id)
     })
 
     if debug then
-        logger(loglevel.DEBUG, "Exiting send_ts_ping()")
+        logger(loglevel.DEBUG, "Exiting send_udp_pkt()")
     end
 
     return ok
+end
+
+local function send_ts_ping(reflector, pkt_type, pkt_id)
+    if debug then
+        logger(loglevel.DEBUG,
+            "Entered send_ts_ping() with values: " .. reflector .. " | " .. pkt_type .. " | " .. pkt_id)
+    end
+
+    local result = nil
+    if pkt_type == 'icmp' then
+        result = send_icmp_pkt(reflector, pkt_id)
+    elseif pkt_type == 'udp' then
+        result = send_udp_pkt(reflector, pkt_id)
+    else
+        logger(loglevel.ERROR, "Unknown packet type specified.")
+    end
+
+    if debug then
+        logger(loglevel.DEBUG, "Exiting send_ts_ping()")
+    end
+
+    return result
 end
 
 ---------------------------- End Local Functions ----------------------------
 
 ---------------------------- Begin Conductor Loop ----------------------------
 
+-- Figure out the interfaces in play here
+if ul_if == "" then
+    ul_if = settings and settings:get("sqm", "@queue[0]", "interface")
+    if not ul_if then
+        logger(loglevel.FATAL, "Upload interface not found in SQM config and was not overriden. Cannot continue.")
+        os.exit(1, true)
+    end
+end
+
+if dl_if == "" then
+    local fh = io.popen(string.format("tc -p filter show parent ffff: dev %s", ul_if))
+    local tc_filter = fh:read("*a")
+    fh:close()
+
+    local ifb_name = string.match(tc_filter, "ifb[%a%d]+")
+    if not ifb_name then
+        local ifb_name = string.match(tc_filter, "veth[%a%d]+")
+    end
+    if not ifb_name then
+        logger(loglevel.FATAL, string.format(
+            "Download interface not found for upload interface %s and was not overriden. Cannot continue.", ul_if))
+        os.exit(1, true)
+    end
+
+    dl_if = ifb_name
+end
+print(ul_if, dl_if)
+
 -- Verify these are correct using "cat /sys/class/..."
-if dl_if:find("^veth.+") then
-    rx_bytes_path = "/sys/class/net/" .. dl_if .. "/statistics/tx_bytes"
-elseif dl_if:find("^ifb.+") then
+if dl_if:find("^ifb.+") or dl_if:find("^veth.+") then
     rx_bytes_path = "/sys/class/net/" .. dl_if .. "/statistics/tx_bytes"
 else
     rx_bytes_path = "/sys/class/net/" .. dl_if .. "/statistics/rx_bytes"
 end
 
-if ul_if:find("^veth.+") then
-    tx_bytes_path = "/sys/class/net/" .. ul_if .. "/statistics/rx_bytes"
-elseif ul_if:find("^ifb.+") then
+if ul_if:find("^ifb.+") or ul_if:find("^veth.+") then
     tx_bytes_path = "/sys/class/net/" .. ul_if .. "/statistics/rx_bytes"
 else
     tx_bytes_path = "/sys/class/net/" .. ul_if .. "/statistics/tx_bytes"
+end
+
+if debug then
+    logger(loglevel.DEBUG, "rx_bytes_path: " .. rx_bytes_path)
+    logger(loglevel.DEBUG, "tx_bytes_path: " .. tx_bytes_path)
 end
 
 -- Test for existent stats files
 local test_file = io.open(rx_bytes_path)
 if not test_file then
     logger(loglevel.FATAL, "Could not open stats file: " .. rx_bytes_path)
-    os.exit()
+    os.exit(1, true)
 end
 test_file:close()
 
 test_file = io.open(tx_bytes_path)
 if not test_file then
     logger(loglevel.FATAL, "Could not open stats file: " .. tx_bytes_path)
-    os.exit()
+    os.exit(1, true)
 end
 test_file:close()
 
@@ -273,17 +486,16 @@ if enable_lynx_graph_output then
         "min_downlink_delta", "min_uplink_delta", "cur_dl_rate", "cur_ul_rate"))
 end
 
-if debug then
-    logger(loglevel.DEBUG, "rx_bytes_path: " .. rx_bytes_path)
-    logger(loglevel.DEBUG, "tx_bytes_path: " .. tx_bytes_path)
-end
-
 -- Random seed
 local nows, nowns = get_current_time()
 math.randomseed(nowns)
 
 -- Set a packet ID
 local packet_id = cur_process_id + 32768
+
+-- Set initial TC values
+os.execute(string.format("tc qdisc change root dev %s cake bandwidth %sKbit", dl_if, base_dl_rate))
+os.execute(string.format("tc qdisc change root dev %s cake bandwidth %sKbit", ul_if, base_ul_rate))
 
 -- Constructor Gadget...
 local function pinger(freq)
@@ -299,7 +511,7 @@ local function pinger(freq)
                 curtime_s, curtime_ns = get_current_time()
             end
 
-            local result = send_ts_ping(reflector, packet_id)
+            local result = send_ts_ping(reflector, reflector_type, packet_id)
 
             if debug then
                 logger(loglevel.DEBUG, "Result from send_ts_ping(): " .. result)
@@ -315,7 +527,7 @@ local function read_stats_file(file_path)
     local file = io.open(file_path)
     if not file then
         logger(loglevel.FATAL, "Could not open stats file: " .. file_path)
-        os.exit()
+        os.exit(1, true)
         return nil
     end
     local bytes = file:read()
@@ -471,7 +683,7 @@ local function conductor()
         local sleep_time_s = 0.0
 
         local time_data = nil
-        ok, time_data = coroutine.resume(receiver, packet_id)
+        ok, time_data = coroutine.resume(receiver, packet_id, reflector_type)
 
         if ok and time_data then
             if not owd_baseline[time_data.reflector] then
