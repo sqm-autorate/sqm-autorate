@@ -9,6 +9,7 @@ local posix = require("posix")
 local socket = require("posix.sys.socket")
 local time = require("posix.time")
 local vstruct = require("vstruct")
+local stats = require("lib.stats")
 
 local loglevel = {
     DEBUG = "DEBUG",
