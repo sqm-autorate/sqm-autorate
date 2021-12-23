@@ -18,6 +18,18 @@ struct icmp_timestamp_hdr
 	uint16_t identifier;
 	uint16_t sequence;
 	uint32_t originateTime;
+	uint32_t receiveTime;
+	uint32_t transmitTime;
+};
+
+struct udp_timestamp_hdr
+{
+	uint8_t type;
+	uint8_t code;
+	uint16_t checksum;
+	uint16_t identifier;
+	uint16_t sequence;
+	uint32_t originateTime;
 	uint32_t originateTimeNs;
 	uint32_t receiveTime;
 	uint32_t receiveTimeNs;
@@ -27,16 +39,94 @@ struct icmp_timestamp_hdr
 
 typedef struct
 {
-	int sock_fd;
+	int icmp_sock_fd;
+	int udp_sock_fd;
 	struct sockaddr_in *reflectors;
 	int reflectorsLength;
 } thread_data;
+
+void hexDump (
+    const char * desc,
+    const void * addr,
+    const int len,
+    int perLine
+) {
+    // Silently ignore silly per-line values.
+
+    if (perLine < 4 || perLine > 64) perLine = 16;
+
+    int i;
+    unsigned char buff[perLine+1];
+    const unsigned char * pc = (const unsigned char *)addr;
+
+    // Output description if given.
+
+    if (desc != NULL) printf ("%s:\n", desc);
+
+    // Length checks.
+
+    if (len == 0) {
+        printf("  ZERO LENGTH\n");
+        return;
+    }
+    if (len < 0) {
+        printf("  NEGATIVE LENGTH: %d\n", len);
+        return;
+    }
+
+    // Process every byte in the data.
+
+    for (i = 0; i < len; i++) {
+        // Multiple of perLine means new or first line (with line offset).
+
+        if ((i % perLine) == 0) {
+            // Only print previous-line ASCII buffer for lines beyond first.
+
+            if (i != 0) printf ("  %s\n", buff);
+
+            // Output the offset of current line.
+
+            printf ("  %04x ", i);
+        }
+
+        // Now the hex code for the specific character.
+
+        printf (" %02x", pc[i]);
+
+        // And buffer a printable ASCII character for later.
+
+        if ((pc[i] < 0x20) || (pc[i] > 0x7e)) // isprint() may be better.
+            buff[i % perLine] = '.';
+        else
+            buff[i % perLine] = pc[i];
+        buff[(i % perLine) + 1] = '\0';
+    }
+
+    // Pad out last line if not exactly perLine characters.
+
+    while ((i % perLine) != 0) {
+        printf ("   ");
+        i++;
+    }
+
+    // And print the final ASCII buffer.
+
+    printf ("  %s\n", buff);
+}
 
 struct timespec get_time()
 {
 	struct timespec time;
 	clock_gettime(CLOCK_REALTIME, &time);
 	return time;
+}
+
+unsigned long get_time_since_midnight_ms()
+{
+    struct timespec time;
+    clock_gettime(CLOCK_REALTIME, &time);
+
+    return (time.tv_sec % 86400 * 1000) + (time.tv_nsec / 1000000);
 }
 
 unsigned short calculateChecksum(void *b, int len)
@@ -55,9 +145,33 @@ unsigned short calculateChecksum(void *b, int len)
 	return result;
 }
 
-int sendICMPTimestampRequest(int sock_fd, struct sockaddr_in *reflector)
+int sendICMPTimestampRequest(int sock_fd, struct sockaddr_in *reflector, int seq)
 {
 	struct icmp_timestamp_hdr hdr;
+
+	memset(&hdr, 0, sizeof(hdr));
+
+	hdr.type = ICMP_TIMESTAMP;
+	hdr.identifier = htons(0xFEED);
+	hdr.sequence = seq;
+	hdr.originateTime = htonl(get_time_since_midnight_ms());
+
+	hdr.checksum = calculateChecksum(&hdr, sizeof(hdr));
+
+	int t;
+
+	if ((t = sendto(sock_fd, &hdr, sizeof(hdr), 0, (const struct sockaddr *)reflector, sizeof(*reflector))) == -1)
+	{
+		printf("something wrong: %d\n", t);
+		return 1;
+	}
+
+	return 0;
+}
+
+int sendUDPTimestampRequest(int sock_fd, struct sockaddr_in *reflector, int seq)
+{
+	struct udp_timestamp_hdr hdr;
 
 	memset(&hdr, 0, sizeof(hdr));
 
@@ -65,6 +179,7 @@ int sendICMPTimestampRequest(int sock_fd, struct sockaddr_in *reflector)
 
 	hdr.type = ICMP_TIMESTAMP;
 	hdr.identifier = htons(0xFEED);
+	hdr.sequence = seq;
 	hdr.originateTime = htonl(now.tv_sec);
 	hdr.originateTimeNs = htonl(now.tv_nsec);
 
@@ -81,14 +196,50 @@ int sendICMPTimestampRequest(int sock_fd, struct sockaddr_in *reflector)
 	return 0;
 }
 
-void *receiver_loop(void *data)
+void *icmp_receiver_loop(void *data)
 {
 	thread_data *threadData = (thread_data *)data;
-	int sock_fd = threadData->sock_fd;
+	int sock_fd = threadData->icmp_sock_fd;
 
 	while (1)
 	{
-		struct icmp_timestamp_hdr hdr;
+		char * buff = malloc(100);
+		struct icmp_timestamp_hdr * hdr;
+		struct sockaddr_in remote_addr;
+		socklen_t addr_len = sizeof(remote_addr);
+		int recv = recvfrom((int)sock_fd, buff, 100, 0, (struct sockaddr *)&remote_addr, &addr_len);
+
+		int len = (*buff & 0x0F) * 4;
+		hdr = (struct icmp_timestamp_hdr *) (buff + len);
+
+		if (hdr->type != ICMP_TIMESTAMPREPLY)
+		{
+			printf("icmp: get outta here: %d\n", hdr->type);
+			continue;
+		}
+
+		char ip[INET_ADDRSTRLEN];
+		inet_ntop(AF_INET, &(remote_addr.sin_addr), ip, INET_ADDRSTRLEN);
+
+		unsigned long now_ts = get_time_since_midnight_ms();
+		unsigned long rtt = now_ts - ntohl(hdr->originateTime);
+		unsigned long uplink_time = ntohl(hdr->receiveTime) - ntohl(hdr->originateTime);
+		unsigned long downlink_time = now_ts - ntohl(hdr->transmitTime);
+
+		printf("Type: %4s  |  Reflector IP: %15s  |  Seq: %5d  |  Current time: %8ld  |  Originate: %8ld  |  Received time: %8ld  |  Transmit time: %8ld  |  RTT: %5ld  |  UL time: %5ld  |  DL time: %5ld\n", 
+		"ICMP", ip, ntohs(hdr->sequence), now_ts, (unsigned long) ntohl(hdr->originateTime), (unsigned long) ntohl(hdr->receiveTime), (unsigned long) ntohl(hdr->transmitTime), rtt, uplink_time, downlink_time);
+		free(buff);
+	}
+}
+
+void *udp_receiver_loop(void *data)
+{
+	thread_data *threadData = (thread_data *)data;
+	int sock_fd = threadData->udp_sock_fd;
+
+	while (1)
+	{
+		struct udp_timestamp_hdr hdr;
 		struct sockaddr_in remote_addr;
 		socklen_t addr_len = sizeof(remote_addr);
 		int recv = recvfrom((int)sock_fd, &hdr, sizeof(hdr), 0, (struct sockaddr *)&remote_addr, &addr_len);
@@ -97,13 +248,13 @@ void *receiver_loop(void *data)
 
 		if (recv != 32)
 		{
-			printf("wrong: %d\n", recv);
+			printf("udp: wrong: %d\n", recv);
 			continue;
 		}
 
 		if (hdr.type != ICMP_TIMESTAMPREPLY)
 		{
-			printf("get outta here: %d\n", hdr.type);
+			printf("udp: get outta here: %d\n", hdr.type);
 			continue;
 		}
 
@@ -118,19 +269,23 @@ void *receiver_loop(void *data)
 		unsigned long uplink_time = received_ts - originate_ts;
 		unsigned long downlink_time = now_ts - transmit_ts;
 
-		printf("Reflector IP: %s  |  Current time: %ld  |  Originate: %ld  |  Received time: %ld  |  Transmit time: %ld  |  RTT: %ld  |  UL time: %ld  |  DL time: %ld\n", ip, now_ts, originate_ts, received_ts, transmit_ts, rtt, uplink_time, downlink_time);
+		printf("Type: %4s  |  Reflector IP: %15s  |  Seq: %5d  |  Current time: %8ld  |  Originate: %8ld  |  Received time: %8ld  |  Transmit time: %8ld  |  RTT: %5ld  |  UL time: %5ld  |  DL time: %5ld\n", 
+		"UDP", ip, ntohs(hdr.sequence), now_ts, originate_ts, received_ts, transmit_ts, rtt, uplink_time, downlink_time);
 	}
 }
 
 void *sender_loop(void *data)
 {
 	thread_data *threadData = (thread_data *)data;
-	int sock_fd = threadData->sock_fd;
+	int icmp_sock_fd = threadData->icmp_sock_fd;
+	int udp_sock_fd = threadData->udp_sock_fd;
 	struct sockaddr_in *reflectors = threadData->reflectors;
 	struct timespec wait_time;
 
 	wait_time.tv_sec = 1;
 	wait_time.tv_nsec = 0;
+
+	int seq = 0;
 
 	while (1)
 	{
@@ -139,14 +294,17 @@ void *sender_loop(void *data)
 			char str[INET_ADDRSTRLEN];
 
 			inet_ntop(AF_INET, &(reflectors[i].sin_addr), str, INET_ADDRSTRLEN);
-			sendICMPTimestampRequest(sock_fd, &reflectors[i]);
+			sendICMPTimestampRequest(icmp_sock_fd, &reflectors[i], htons(seq));
+			sendUDPTimestampRequest(udp_sock_fd, &reflectors[i], htons(seq));
 		}
 
+		seq++;
 		nanosleep(&wait_time, NULL);
 	}
 }
 
-static const char *const ips[] = {"65.21.108.153", "5.161.66.148", "216.128.149.82", "108.61.220.16", "185.243.217.26", "185.175.56.188", "176.126.70.119"};
+// Fail_Safes reflectors "216.128.149.82", "108.61.220.16", (doesn't respond to ICMP TS atm)
+static const char *const ips[] = {"65.21.108.153", "5.161.66.148", "185.243.217.26", "185.175.56.188", "176.126.70.119"};
 
 int main()
 {
@@ -167,27 +325,45 @@ int main()
 		printf("%s\n", str);
 	}
 
-	pthread_t receiver_thread;
+	pthread_t icmp_receiver_thread;
+	pthread_t udp_receiver_thread;
 	pthread_t sender_thread;
 
-	int sock_fd;
+	int icmp_sock_fd;
+	int udp_sock_fd;
 
-	// if ((sock_fd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP)) == -1) {
-	if ((sock_fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
+	if ((icmp_sock_fd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP)) == -1)
 	{
-		printf("no socket for you\n");
+		printf("no icmp socket for you\n");
 		return 1;
 	}
 
+	if ((udp_sock_fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
+	{
+		printf("no udp socket for you\n");
+		return 1;
+	}
+
+	
+
 	thread_data data;
-	data.sock_fd = sock_fd;
+	data.icmp_sock_fd = icmp_sock_fd;
+	data.udp_sock_fd = udp_sock_fd;
 	data.reflectors = reflectors;
 	data.reflectorsLength = ipsLen;
 
+	printf("ICMP socket: %d\n", data.icmp_sock_fd);
+	printf("UDP socket: %d\n", data.udp_sock_fd);
+
 	int t;
-	if ((t = pthread_create(&receiver_thread, NULL, receiver_loop, (void *)&data)) != 0)
+	if ((t = pthread_create(&icmp_receiver_thread, NULL, icmp_receiver_loop, (void *)&data)) != 0)
 	{
-		printf("failed to create receiver thread: %d\n", t);
+		printf("failed to create icmp receiver thread: %d\n", t);
+	}
+
+	if ((t = pthread_create(&udp_receiver_thread, NULL, udp_receiver_loop, (void *)&data)) != 0)
+	{
+		printf("failed to create udp receiver thread: %d\n", t);
 	}
 
 	if ((t = pthread_create(&sender_thread, NULL, sender_loop, (void *)&data)) != 0)
@@ -195,12 +371,18 @@ int main()
 		printf("failed to create sender thread: %d\n", t);
 	}
 
-	void *receiver_status;
+	void *icmp_receiver_status;
+	void *udp_receiver_status;
 	void *sender_status;
 
-	if ((t = pthread_join(receiver_thread, &receiver_status)) != 0)
+	if ((t = pthread_join(icmp_receiver_thread, &icmp_receiver_status)) != 0)
 	{
-		printf("Error in receiver thread join: %d\n", t);
+		printf("Error in icmp receiver thread join: %d\n", t);
+	}
+
+	if ((t = pthread_join(udp_receiver_thread, &udp_receiver_status)) != 0)
+	{
+		printf("Error in udp receiver thread join: %d\n", t);
 	}
 
 	if ((t = pthread_join(sender_thread, &sender_status)) != 0)
