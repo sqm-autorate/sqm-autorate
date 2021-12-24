@@ -9,7 +9,6 @@ local posix = require("posix")
 local socket = require("posix.sys.socket")
 local time = require("posix.time")
 local vstruct = require("vstruct")
-local stats = require("lib.stats")
 
 local loglevel = {
     DEBUG = "DEBUG",
@@ -102,8 +101,8 @@ if reflector_type == "icmp" then
                           "149.112.112.11", "149.112.112.112", "193.19.108.2", "193.19.108.3", "9.9.9.9", "9.9.9.10",
                           "9.9.9.11"}
 else
-    reflector_array_v4 = {"65.21.108.153", "5.161.66.148", "216.128.149.82", "108.61.220.16",
-                          "185.243.217.26", "185.175.56.188", "176.126.70.119"}
+    reflector_array_v4 = {"65.21.108.153", "5.161.66.148", "216.128.149.82", "108.61.220.16", "185.243.217.26",
+                          "185.175.56.188", "176.126.70.119"}
     reflector_array_v6 = {"2a01:4f9:c010:5469::1", "2a01:4ff:f0:2194::1", "2001:19f0:5c01:1bb6:5400:03ff:febe:3fae",
                           "2001:19f0:6001:3de9:5400:03ff:febe:3f8e", "2a03:94e0:ffff:185:243:217:0:26",
                           "2a0d:5600:30:46::2", "2a00:1a28:1157:3ef::2"}
@@ -420,12 +419,12 @@ local function send_ts_ping(reflector, pkt_type, pkt_id)
 end
 
 local function maximum(table)
-   local max = math.max
-   local m = -1/0
-   for _,v in pairs(table) do
-      m = max(v,m)
-   end
-   return m
+    local max = math.max
+    local m = -1 / 0
+    for _, v in pairs(table) do
+        m = max(v, m)
+    end
+    return m
 end
 ---------------------------- End Local Functions ----------------------------
 
@@ -605,16 +604,16 @@ local function ratecontrol(baseline, recent)
             local next_dl_rate = cur_dl_rate
 
             if min_up_del < max_delta_owd and tx_load > .8 then
-	       safe_ul_rates[nrate_up] = floor(cur_ul_rate * tx_load)
-	       local maxul = maximum(safe_ul_rates)
-	       next_ul_rate = cur_ul_rate * (1 + .1 * max(0,(1 - cur_ul_rate/maxul))) + 500
+                safe_ul_rates[nrate_up] = floor(cur_ul_rate * tx_load)
+                local maxul = maximum(safe_ul_rates)
+                next_ul_rate = cur_ul_rate * (1 + .1 * max(0, (1 - cur_ul_rate / maxul))) + 500
                 nrate_up = nrate_up + 1
                 nrate_up = nrate_up % histsize
             end
             if min_down_del < max_delta_owd and rx_load > .8 then
-	       safe_dl_rates[nrate_down] = floor(cur_dl_rate * rx_load)
-	       local maxdl = maximum(safe_dl_rates)
-	       next_dl_rate = cur_dl_rate * (1 + .1 * max(0,(1 - cur_dl_rate/maxdl))) + 500
+                safe_dl_rates[nrate_down] = floor(cur_dl_rate * rx_load)
+                local maxdl = maximum(safe_dl_rates)
+                next_dl_rate = cur_dl_rate * (1 + .1 * max(0, (1 - cur_dl_rate / maxdl))) + 500
                 nrate_down = nrate_down + 1
                 nrate_down = nrate_down % histsize
             end
