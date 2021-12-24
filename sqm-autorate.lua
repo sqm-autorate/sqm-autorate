@@ -697,7 +697,7 @@ local function conductor()
     while true do
         local ok, refl, worked = coroutine.resume(pings, tick_duration / (#reflector_array_v4))
         if not ok then
-            for i = 1, i <= coroutine_retry_threshold, 1 do
+            for i = 1, coroutine_retry_threshold, 1 do
                 ok, refl, worked = coroutine.resume(pings, tick_duration / (#reflector_array_v4))
             end
             if not ok then
@@ -712,7 +712,7 @@ local function conductor()
         local time_data = nil
         ok, time_data = coroutine.resume(receiver, packet_id, reflector_type)
         if not ok then
-            for i = 1, i <= coroutine_retry_threshold, 1 do
+            for i = 1, coroutine_retry_threshold, 1 do
                 ok, time_data = coroutine.resume(receiver, packet_id, reflector_type)
             end
             if not ok then
@@ -759,7 +759,7 @@ local function conductor()
 
             local ok = coroutine.resume(regulator, owd_baseline, owd_recent)
             if not ok then
-                for i = 1, i <= coroutine_retry_threshold, 1 do
+                for i = 1, coroutine_retry_threshold, 1 do
                     ok = coroutine.resume(regulator, owd_baseline, owd_recent)
                 end
                 if not ok then
