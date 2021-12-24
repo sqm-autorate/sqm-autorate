@@ -24,7 +24,7 @@ reload() {
 start() {
     # sqm-autorate should be a "singleton". Let's try to enforce that by checking to see if a PID file exists first...
     if [ ! -f $PID_FILE ]; then
-        lua /usr/lib/sqm-autorate/sqm-autorate.lua &
+        luajit /usr/lib/sqm-autorate/sqm-autorate.lua &
         echo $! >/tmp/run/sqm-autorate.pid
     fi
 }
