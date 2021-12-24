@@ -111,8 +111,6 @@ end
 
 local max_delta_owd = 15 -- increase from baseline RTT for detection of bufferbloat
 
-local coroutine_retry_threshold = 5
-
 ---------------------------- Begin Internal Local Variables ----------------------------
 
 local csv_fd = io.open(stats_file, "w")
@@ -697,6 +695,7 @@ local function conductor()
     while true do
         local ok, refl, worked = coroutine.resume(pings, tick_duration / (#reflector_array_v4))
         if not ok then
+            local coroutine_retry_threshold = 5
             for i = 1, coroutine_retry_threshold, 1 do
                 ok, refl, worked = coroutine.resume(pings, tick_duration / (#reflector_array_v4))
             end
@@ -712,6 +711,7 @@ local function conductor()
         local time_data = nil
         ok, time_data = coroutine.resume(receiver, packet_id, reflector_type)
         if not ok then
+            local coroutine_retry_threshold = 5
             for i = 1, coroutine_retry_threshold, 1 do
                 ok, time_data = coroutine.resume(receiver, packet_id, reflector_type)
             end
@@ -759,6 +759,7 @@ local function conductor()
 
             local ok = coroutine.resume(regulator, owd_baseline, owd_recent)
             if not ok then
+                local coroutine_retry_threshold = 5
                 for i = 1, coroutine_retry_threshold, 1 do
                     ok = coroutine.resume(regulator, owd_baseline, owd_recent)
                 end
