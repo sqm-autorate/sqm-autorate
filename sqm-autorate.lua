@@ -459,7 +459,9 @@ if dl_if == "" then
 
     dl_if = ifb_name
 end
-print(ul_if, dl_if)
+if enable_debug_output then
+    logger(loglevel.DEBUG, "Upload iface: " .. ul_if .. " | Download iface: " .. dl_if)
+end
 
 -- Verify these are correct using "cat /sys/class/..."
 if dl_if:find("^ifb.+") or dl_if:find("^veth.+") then
