@@ -385,8 +385,7 @@ void *sender_loop(void *data)
 	exit(0);
 }
 
-// Fail_Safes reflectors "216.128.149.82", "108.61.220.16", (doesn't respond to ICMP TS atm)
-static const char *const ips[] = {"65.21.108.153", "5.161.66.148", "185.243.217.26", "185.175.56.188", "176.126.70.119"};
+static const char *const ips[] = {"65.21.108.153", "5.161.66.148", "185.243.217.26", "185.175.56.188", "176.126.70.119", "216.128.149.82", "108.61.220.16"};
 
 int main()
 {
