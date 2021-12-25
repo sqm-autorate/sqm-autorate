@@ -570,8 +570,8 @@ local function ratecontrol(baseline, recent)
     local safe_dl_rates = {}
     local safe_ul_rates = {}
     for i = 0, histsize - 1, 1 do
-        safe_dl_rates[i] = (math.random() + math.random() + math.random() + math.random() + 1) / 5 * (base_dl_rate)
-        safe_ul_rates[i] = (math.random() + math.random() + math.random() + math.random() + 1) / 5 * (base_ul_rate)
+       safe_dl_rates[i] = (math.random() * 0.2 + 0.75) * (base_dl_rate)
+       safe_ul_rates[i] = (math.random() * 0.2 + 0.75) * (base_ul_rate)
     end
 
     local nrate_up = 0
