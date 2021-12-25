@@ -237,7 +237,6 @@ int get_rx_timestamp(int sock_fd, struct timespec * rx_timestamp)
 		{
 			case SO_TIMESTAMPNS_OLD:
 				memcpy(rx_timestamp, CMSG_DATA(cmsg), sizeof(struct timespec));
-				printf("Gotcha! %ld, %ld\n", rx_timestamp->tv_sec, rx_timestamp->tv_nsec);
 				return 0;
 		}
 	}
@@ -400,14 +399,6 @@ int main()
 		reflectors[i].sin_port = htons(62222);
 	}
 
-	for (int i = 0; i < ipsLen; i++)
-	{
-		char str[INET_ADDRSTRLEN];
-
-		inet_ntop(AF_INET, &(reflectors[i].sin_addr), str, INET_ADDRSTRLEN);
-		printf("%s\n", str);
-	}
-
 	pthread_t icmp_receiver_thread;
 	pthread_t udp_receiver_thread;
 	pthread_t sender_thread;
@@ -446,9 +437,6 @@ int main()
 	data.udp_sock_fd = udp_sock_fd;
 	data.reflectors = reflectors;
 	data.reflectorsLength = ipsLen;
-
-	printf("ICMP socket: %d\n", data.icmp_sock_fd);
-	printf("UDP socket: %d\n", data.udp_sock_fd);
 
 	int t;
 	if ((t = pthread_create(&icmp_receiver_thread, NULL, icmp_receiver_loop, (void *)&data)) != 0)
