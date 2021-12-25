@@ -224,6 +224,11 @@ local function receive_icmp_pkt(pkt_id)
             local ip_start = string.byte(data, 1)
             local ip_ver = bit.rshift(ip_start, 4)
             local hdr_len = (ip_start - ip_ver * 16) * 4
+            
+            if (string.byte(data, hdr_len + 1) ~= 14) then
+                coroutine.yield(nil)
+            end
+            
             local ts_resp = vstruct.read("> 2*u1 3*u2 3*u4", string.sub(data, hdr_len + 1, #data))
             local time_after_midnight_ms = get_time_after_midnight_ms()
             local src_pkt_id = ts_resp[4]
