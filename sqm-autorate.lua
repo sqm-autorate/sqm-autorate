@@ -225,40 +225,47 @@ local function receive_icmp_pkt(pkt_id)
             local ip_ver = bit.rshift(ip_start, 4)
             local hdr_len = (ip_start - ip_ver * 16) * 4
             
-            if (#data - hdr_len ~= 20) then
-                coroutine.yield(nil)
-            end
-
-            if (string.byte(data, hdr_len + 1) ~= 14) then
-                coroutine.yield(nil)
-            end
-            
-            local ts_resp = vstruct.read("> 2*u1 3*u2 3*u4", string.sub(data, hdr_len + 1, #data))
-            local time_after_midnight_ms = get_time_after_midnight_ms()
-            local src_pkt_id = ts_resp[4]
-            local pos = get_table_position(reflector_array_v4, sa.addr)
-
-            -- A pos > 0 indicates the current sa.addr is a known member of the reflector array
-            if (pos > 0 and src_pkt_id == pkt_id) then
-                local stats = {
-                    reflector = sa.addr,
-                    original_ts = ts_resp[6],
-                    receive_ts = ts_resp[7],
-                    transmit_ts = ts_resp[8],
-                    rtt = time_after_midnight_ms - ts_resp[6],
-                    uplink_time = ts_resp[7] - ts_resp[6],
-                    downlink_time = time_after_midnight_ms - ts_resp[8]
-                }
-
-                if enable_debug_output then
-                    logger(loglevel.DEBUG,
-                        "Reflector IP: " .. stats.reflector .. "  |  Current time: " .. time_after_midnight_ms ..
-                            "  |  TX at: " .. stats.original_ts .. "  |  RTT: " .. stats.rtt .. "  |  UL time: " ..
-                            stats.uplink_time .. "  |  DL time: " .. stats.downlink_time)
-                    logger(loglevel.DEBUG, "Exiting receive_icmp_pkt() with stats return")
+            if (#data - hdr_len == 20) then
+                if (string.byte(data, hdr_len + 1) == 14) then
+                    local ts_resp = vstruct.read("> 2*u1 3*u2 3*u4", string.sub(data, hdr_len + 1, #data))
+                    local time_after_midnight_ms = get_time_after_midnight_ms()
+                    local src_pkt_id = ts_resp[4]
+                    local pos = get_table_position(reflector_array_v4, sa.addr)
+        
+                    -- A pos > 0 indicates the current sa.addr is a known member of the reflector array
+                    if (pos > 0 and src_pkt_id == pkt_id) then
+                        local stats = {
+                            reflector = sa.addr,
+                            original_ts = ts_resp[6],
+                            receive_ts = ts_resp[7],
+                            transmit_ts = ts_resp[8],
+                            rtt = time_after_midnight_ms - ts_resp[6],
+                            uplink_time = ts_resp[7] - ts_resp[6],
+                            downlink_time = time_after_midnight_ms - ts_resp[8]
+                        }
+        
+                        if enable_debug_output then
+                            logger(loglevel.DEBUG,
+                                "Reflector IP: " .. stats.reflector .. "  |  Current time: " .. time_after_midnight_ms ..
+                                    "  |  TX at: " .. stats.original_ts .. "  |  RTT: " .. stats.rtt .. "  |  UL time: " ..
+                                    stats.uplink_time .. "  |  DL time: " .. stats.downlink_time)
+                            logger(loglevel.DEBUG, "Exiting receive_icmp_pkt() with stats return")
+                        end
+        
+                        coroutine.yield(stats)
+                    end
+                else
+                    if enable_debug_output then
+                        logger(loglevel.DEBUG, "Exiting receive_icmp_pkt() with nil return due to wrong type")
+                    end
+                    coroutine.yield(nil)
+                    
                 end
-
-                coroutine.yield(stats)
+            else
+                if enable_debug_output then
+                    logger(loglevel.DEBUG, "Exiting receive_icmp_pkt() with nil return due to wrong length")
+                end
+                coroutine.yield(nil)
             end
         else
             if enable_debug_output then
