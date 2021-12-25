@@ -225,6 +225,10 @@ local function receive_icmp_pkt(pkt_id)
             local ip_ver = bit.rshift(ip_start, 4)
             local hdr_len = (ip_start - ip_ver * 16) * 4
             
+            if (#data - hdr_len ~= 20) then
+                coroutine.yield(nil)
+            end
+
             if (string.byte(data, hdr_len + 1) ~= 14) then
                 coroutine.yield(nil)
             end
