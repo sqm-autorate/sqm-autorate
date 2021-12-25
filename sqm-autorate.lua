@@ -62,8 +62,9 @@ if settings then
 end
 
 ---------------------------- Begin Local Variables - External Settings ----------------------------
-local base_ul_rate = settings and tonumber(settings:get("sqm", "@queue[0]", "upload"), 10) or "<STEADY STATE UPLOAD>" -- steady state bandwidth for upload
-local base_dl_rate = settings and tonumber(settings:get("sqm", "@queue[0]", "download"), 10) or
+local base_ul_rate = settings and tonumber(settings:get("sqm-autorate", "@network[0]", "transmit_kbits_base"), 10) or
+                         "<STEADY STATE UPLOAD>" -- steady state bandwidth for upload
+local base_dl_rate = settings and tonumber(settings:get("sqm-autorate", "@network[0]", "receive_kbits_base"), 10) or
                          "<STEADY STATE DOWNLOAD>" -- steady state bandwidth for download
 
 local min_ul_rate = settings and tonumber(settings:get("sqm-autorate", "@network[0]", "transmit_kbits_min"), 10) or
@@ -90,8 +91,10 @@ local tick_duration = 0.5 -- Frequency in seconds
 local min_change_interval = 0.5 -- don't change speeds unless this many seconds has passed since last change
 
 -- Interface names: leave empty to use values from SQM config or place values here to override SQM config
-local ul_if = "" -- upload interface
-local dl_if = "" -- download interface
+local ul_if = settings and settings:get("sqm-autorate", "@network[0]", "transmit_interface") or
+                  "<UPLOAD INTERFACE NAME>" -- upload interface
+local dl_if = settings and settings:get("sqm-autorate", "@network[0]", "receive_interface") or
+                  "<DOWNLOAD INTERFACE NAME>" -- download interface
 
 local reflector_type = settings and settings:get("sqm-autorate", "@network[0]", "reflector_type") or nil
 local reflector_array_v4 = {}
@@ -432,31 +435,31 @@ end
 ---------------------------- Begin Conductor Loop ----------------------------
 
 -- Figure out the interfaces in play here
-if ul_if == "" then
-    ul_if = settings and settings:get("sqm", "@queue[0]", "interface")
-    if not ul_if then
-        logger(loglevel.FATAL, "Upload interface not found in SQM config and was not overriden. Cannot continue.")
-        os.exit(1, true)
-    end
-end
+-- if ul_if == "" then
+--     ul_if = settings and settings:get("sqm", "@queue[0]", "interface")
+--     if not ul_if then
+--         logger(loglevel.FATAL, "Upload interface not found in SQM config and was not overriden. Cannot continue.")
+--         os.exit(1, true)
+--     end
+-- end
 
-if dl_if == "" then
-    local fh = io.popen(string.format("tc -p filter show parent ffff: dev %s", ul_if))
-    local tc_filter = fh:read("*a")
-    fh:close()
+-- if dl_if == "" then
+--     local fh = io.popen(string.format("tc -p filter show parent ffff: dev %s", ul_if))
+--     local tc_filter = fh:read("*a")
+--     fh:close()
 
-    local ifb_name = string.match(tc_filter, "ifb[%a%d]+")
-    if not ifb_name then
-        local ifb_name = string.match(tc_filter, "veth[%a%d]+")
-    end
-    if not ifb_name then
-        logger(loglevel.FATAL, string.format(
-            "Download interface not found for upload interface %s and was not overriden. Cannot continue.", ul_if))
-        os.exit(1, true)
-    end
+--     local ifb_name = string.match(tc_filter, "ifb[%a%d]+")
+--     if not ifb_name then
+--         local ifb_name = string.match(tc_filter, "veth[%a%d]+")
+--     end
+--     if not ifb_name then
+--         logger(loglevel.FATAL, string.format(
+--             "Download interface not found for upload interface %s and was not overriden. Cannot continue.", ul_if))
+--         os.exit(1, true)
+--     end
 
-    dl_if = ifb_name
-end
+--     dl_if = ifb_name
+-- end
 if enable_debug_output then
     logger(loglevel.DEBUG, "Upload iface: " .. ul_if .. " | Download iface: " .. dl_if)
 end
