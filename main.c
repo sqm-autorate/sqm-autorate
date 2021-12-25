@@ -11,6 +11,7 @@
 #include <sys/time.h>
 #include <time.h>
 #include <linux/net_tstamp.h>
+#include <linux/time_types.h>
 
 unsigned long sentICMP = 0;
 unsigned long sentUDP = 0;
@@ -121,17 +122,17 @@ void hexDump (
     printf ("  %s\n", buff);
 }
 
-struct timespec get_time()
+struct __kernel_timespec get_time()
 {
-	struct timespec time;
-	clock_gettime(CLOCK_REALTIME, &time);
+	struct __kernel_timespec time;
+	clock_gettime(CLOCK_REALTIME, (struct timespec *) &time);
 	return time;
 }
 
 unsigned long get_time_since_midnight_ms()
 {
-    struct timespec time;
-    clock_gettime(CLOCK_REALTIME, &time);
+    struct __kernel_timespec time;
+    clock_gettime(CLOCK_REALTIME, (struct timespec *) &time);
 
     return (time.tv_sec % 86400 * 1000) + (time.tv_nsec / 1000000);
 }
@@ -184,7 +185,7 @@ int sendUDPTimestampRequest(int sock_fd, struct sockaddr_in *reflector, int seq)
 
 	memset(&hdr, 0, sizeof(hdr));
 
-	struct timespec now = get_time();
+	struct __kernel_timespec now = get_time();
 
 	hdr.type = ICMP_TIMESTAMP;
 	hdr.identifier = htons(0xFEED);
@@ -207,7 +208,7 @@ int sendUDPTimestampRequest(int sock_fd, struct sockaddr_in *reflector, int seq)
 	return 0;
 }
 
-int get_rx_timestamp(int sock_fd, struct timespec * rx_timestamp)
+int get_rx_timestamp(int sock_fd, struct __kernel_timespec * rx_timestamp)
 {
 	struct msghdr msg;
 	struct iovec iov;
@@ -235,8 +236,8 @@ int get_rx_timestamp(int sock_fd, struct timespec * rx_timestamp)
 
 		switch (cmsg->cmsg_type)
 		{
-			case SO_TIMESTAMPNS_OLD:
-				memcpy(rx_timestamp, CMSG_DATA(cmsg), sizeof(struct timespec));
+			case SO_TIMESTAMPNS_NEW:
+				memcpy(rx_timestamp, CMSG_DATA(cmsg), sizeof(struct __kernel_timespec));
 				return 0;
 		}
 	}
@@ -255,7 +256,7 @@ void *icmp_receiver_loop(void *data)
 		struct icmp_timestamp_hdr * hdr;
 		struct sockaddr_in remote_addr;
 		socklen_t addr_len = sizeof(remote_addr);
-		struct timespec rxTimestamp;
+		struct __kernel_timespec rxTimestamp;
 		int recv = recvfrom((int)sock_fd, buff, 100, 0, (struct sockaddr *)&remote_addr, &addr_len);
 
 		if (recv < 0)
@@ -309,7 +310,7 @@ void *udp_receiver_loop(void *data)
 		struct udp_timestamp_hdr hdr;
 		struct sockaddr_in remote_addr;
 		socklen_t addr_len = sizeof(remote_addr);
-		struct timespec rxTimestamp;
+		struct __kernel_timespec rxTimestamp;
 		int recv = recvfrom((int)sock_fd, &hdr, sizeof(hdr), 0, (struct sockaddr *)&remote_addr, &addr_len);
 
 		if (recv == -1)
@@ -419,13 +420,13 @@ int main()
 
 	int ts_enable = 1;
 
-	if (setsockopt(icmp_sock_fd, SOL_SOCKET, SO_TIMESTAMPNS_OLD, &ts_enable, sizeof(ts_enable)) == -1)
+	if (setsockopt(icmp_sock_fd, SOL_SOCKET, SO_TIMESTAMPNS_NEW, &ts_enable, sizeof(ts_enable)) == -1)
 	{
 		printf("couldn't set ts option on icmp socket\n");
 		return 1;
 	}
 
-	if (setsockopt(udp_sock_fd, SOL_SOCKET, SO_TIMESTAMPNS_OLD, &ts_enable, sizeof(ts_enable)) == -1)
+	if (setsockopt(udp_sock_fd, SOL_SOCKET, SO_TIMESTAMPNS_NEW, &ts_enable, sizeof(ts_enable)) == -1)
 	{
 		printf("couldn't set ts option on udp socket\n");
 		return 1;
