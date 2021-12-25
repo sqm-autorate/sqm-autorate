@@ -9,6 +9,10 @@
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <time.h>
+unsigned long sentICMP = 0;
+unsigned long sentUDP = 0;
+unsigned long receivedICMP = 0;
+unsigned long receivedUDP = 0;
 
 struct icmp_timestamp_hdr
 {
@@ -166,6 +170,8 @@ int sendICMPTimestampRequest(int sock_fd, struct sockaddr_in *reflector, int seq
 		return 1;
 	}
 
+	sentICMP++;
+
 	return 0;
 }
 
@@ -192,6 +198,8 @@ int sendUDPTimestampRequest(int sock_fd, struct sockaddr_in *reflector, int seq)
 		printf("something wrong: %d\n", t);
 		return 1;
 	}
+
+	sentUDP++;
 
 	return 0;
 }
@@ -229,6 +237,8 @@ void *icmp_receiver_loop(void *data)
 		printf("Type: %4s  |  Reflector IP: %15s  |  Seq: %5d  |  Current time: %8ld  |  Originate: %8ld  |  Received time: %8ld  |  Transmit time: %8ld  |  RTT: %5ld  |  UL time: %5ld  |  DL time: %5ld\n", 
 		"ICMP", ip, ntohs(hdr->sequence), now_ts, (unsigned long) ntohl(hdr->originateTime), (unsigned long) ntohl(hdr->receiveTime), (unsigned long) ntohl(hdr->transmitTime), rtt, uplink_time, downlink_time);
 		free(buff);
+
+		receivedICMP++;
 	}
 }
 
@@ -271,6 +281,8 @@ void *udp_receiver_loop(void *data)
 
 		printf("Type: %4s  |  Reflector IP: %15s  |  Seq: %5d  |  Current time: %8ld  |  Originate: %8ld  |  Received time: %8ld  |  Transmit time: %8ld  |  RTT: %5ld  |  UL time: %5ld  |  DL time: %5ld\n", 
 		"UDP", ip, ntohs(hdr.sequence), now_ts, originate_ts, received_ts, transmit_ts, rtt, uplink_time, downlink_time);
+
+		receivedUDP++;
 	}
 }
 
@@ -301,6 +313,11 @@ void *sender_loop(void *data)
 		seq++;
 		nanosleep(&wait_time, NULL);
 	}
+
+	printf("ICMP sent: %5ld  |  ICMP received: %5ld\n", sentICMP, receivedICMP);
+	printf("UDP sent: %5ld   |  UDP received: %5ld\n", sentUDP, receivedUDP);
+
+	exit(0);
 }
 
 // Fail_Safes reflectors "216.128.149.82", "108.61.220.16", (doesn't respond to ICMP TS atm)
