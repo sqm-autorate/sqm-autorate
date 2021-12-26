@@ -19,19 +19,25 @@ local owd_baseline = lanes.linda()
 local owd_recent = lanes.linda()
 
 local loglevel = {
-    DEBUG = "DEBUG",
-    INFO = "INFO",
-    WARN = "WARN",
-    ERROR = "ERROR",
-    FATAL = "FATAL"
+    TRACE = {level = 6, name = "TRACE"},
+    DEBUG = {level = 5, name = "DEBUG"},
+    INFO = {level = 4, name = "INFO"},
+    WARN = {level = 3, name = "WARN"},
+    ERROR = {level = 2, name = "ERROR"},
+    FATAL = {level = 1, name = "FATAL"}
 }
+
+-- Set a default log level here, until we've got one from UCI
+local use_loglevel = loglevel.INFO
 
 -- Basic homegrown logger to keep us from having to import yet another module
 local function logger(loglevel, message)
-    local cur_date = os.date("%Y%m%dT%H:%M:%S")
-    -- local cur_date = os.date("%c")
-    local out_str = string.format("[%s - %s]: %s", loglevel, cur_date, message)
-    print(out_str)
+    if (loglevel.level <= use_loglevel.level) then
+        local cur_date = os.date("%Y%m%dT%H:%M:%S")
+        -- local cur_date = os.date("%c")
+        local out_str = string.format("[%s - %s]: %s", loglevel.name, cur_date, message)
+        print(out_str)
+    end
 end
 
 -- Figure out if we are running on OpenWrt here...
@@ -85,9 +91,8 @@ local speedhist_file = settings and settings:get("sqm-autorate", "@output[0]", "
 
 local histsize = settings and tonumber(settings:get("sqm-autorate", "@output[0]", "hist_size"), 10) or "<HISTORY SIZE>"
 
-local enable_verbose_output = settings and string.lower(settings:get("sqm-autorate", "@output[0]", "verbose")) or
-                                  "<ENABLE VERBOSE OUTPUT>"
-enable_verbose_output = 'true' == enable_verbose_output or '1' == enable_verbose_output or 'on' == enable_verbose_output
+use_loglevel = loglevel[string.upper(settings and settings:get("sqm-autorate", "@output[0]", "log_level") or
+                           "INFO")]
 
 ---------------------------- Begin Advanced User-Configurable Local Variables ----------------------------
 local enable_debug_output = false
@@ -215,9 +220,7 @@ local function get_table_len(tbl)
 end
 
 local function receive_icmp_pkt(pkt_id)
-    if enable_debug_output then
-        logger(loglevel.DEBUG, "Entered receive_icmp_pkt() with value: " .. pkt_id)
-    end
+    logger(loglevel.TRACE, "Entered receive_icmp_pkt() with value: " .. pkt_id)
 
     -- Read ICMP TS reply
     local data, sa = socket.recvfrom(sock, 100) -- An IPv4 ICMP reply should be ~56bytes. This value may need tweaking.
@@ -246,42 +249,32 @@ local function receive_icmp_pkt(pkt_id)
                         downlink_time = time_after_midnight_ms - ts_resp[8]
                     }
 
-                    if enable_debug_output then
-                        logger(loglevel.DEBUG,
-                            "Reflector IP: " .. stats.reflector .. "  |  Current time: " .. time_after_midnight_ms ..
-                                "  |  TX at: " .. stats.original_ts .. "  |  RTT: " .. stats.rtt .. "  |  UL time: " ..
-                                stats.uplink_time .. "  |  DL time: " .. stats.downlink_time)
-                        logger(loglevel.DEBUG, "Exiting receive_icmp_pkt() with stats return")
-                    end
+                    logger(loglevel.DEBUG,
+                        "Reflector IP: " .. stats.reflector .. "  |  Current time: " .. time_after_midnight_ms ..
+                            "  |  TX at: " .. stats.original_ts .. "  |  RTT: " .. stats.rtt .. "  |  UL time: " ..
+                            stats.uplink_time .. "  |  DL time: " .. stats.downlink_time)
+                    logger(loglevel.TRACE, "Exiting receive_icmp_pkt() with stats return")
 
                     return stats
                 end
             else
-                if enable_debug_output then
-                    logger(loglevel.DEBUG, "Exiting receive_icmp_pkt() with nil return due to wrong type")
-                end
+                logger(loglevel.TRACE, "Exiting receive_icmp_pkt() with nil return due to wrong type")
                 return nil
 
             end
         else
-            if enable_debug_output then
-                logger(loglevel.DEBUG, "Exiting receive_icmp_pkt() with nil return due to wrong length")
-            end
+            logger(loglevel.TRACE, "Exiting receive_icmp_pkt() with nil return due to wrong length")
             return nil
         end
     else
-        if enable_debug_output then
-            logger(loglevel.DEBUG, "Exiting receive_icmp_pkt() with nil return")
-        end
+        logger(loglevel.TRACE, "Exiting receive_icmp_pkt() with nil return")
 
         return nil
     end
 end
 
 local function receive_udp_pkt(pkt_id)
-    if enable_debug_output then
-        logger(loglevel.DEBUG, "Entered receive_udp_pkt() with value: " .. pkt_id)
-    end
+    logger(loglevel.TRACE, "Entered receive_udp_pkt() with value: " .. pkt_id)
 
     -- Read UDP TS reply
     local data, sa = socket.recvfrom(sock, 100) -- An IPv4 ICMP reply should be ~56bytes. This value may need tweaking.
@@ -309,29 +302,23 @@ local function receive_udp_pkt(pkt_id)
                 downlink_time = time_after_midnight_ms - transmit_ts
             }
 
-            if enable_debug_output then
-                logger(loglevel.DEBUG,
-                    "Reflector IP: " .. stats.reflector .. "  |  Current time: " .. time_after_midnight_ms ..
-                        "  |  TX at: " .. stats.original_ts .. "  |  RTT: " .. stats.rtt .. "  |  UL time: " ..
-                        stats.uplink_time .. "  |  DL time: " .. stats.downlink_time)
-                logger(loglevel.DEBUG, "Exiting receive_udp_pkt() with stats return")
-            end
+            logger(loglevel.DEBUG,
+                "Reflector IP: " .. stats.reflector .. "  |  Current time: " .. time_after_midnight_ms ..
+                    "  |  TX at: " .. stats.original_ts .. "  |  RTT: " .. stats.rtt .. "  |  UL time: " ..
+                    stats.uplink_time .. "  |  DL time: " .. stats.downlink_time)
+            logger(loglevel.TRACE, "Exiting receive_udp_pkt() with stats return")
 
             return stats
         end
     else
-        if enable_debug_output then
-            logger(loglevel.DEBUG, "Exiting receive_udp_pkt() with nil return")
-        end
+        logger(loglevel.TRACE, "Exiting receive_udp_pkt() with nil return")
 
         return nil
     end
 end
 
 local function receive_ts_ping(pkt_id, pkt_type)
-    if enable_debug_output then
-        logger(loglevel.DEBUG, "Entered receive_ts_ping() with value: " .. pkt_id)
-    end
+    logger(loglevel.TRACE, "Entered receive_ts_ping() with value: " .. pkt_id)
 
     local stats
     while true do
@@ -360,9 +347,7 @@ local function send_icmp_pkt(reflector, pkt_id)
     -- Received timestamp - 4 bytes
     -- Transmit timestamp - 4 bytes
 
-    if enable_debug_output then
-        logger(loglevel.DEBUG, "Entered send_icmp_pkt() with values: " .. reflector .. " | " .. pkt_id)
-    end
+    logger(loglevel.TRACE, "Entered send_icmp_pkt() with values: " .. reflector .. " | " .. pkt_id)
 
     -- Create a raw ICMP timestamp request message
     local time_after_midnight_ms = get_time_after_midnight_ms()
@@ -377,9 +362,7 @@ local function send_icmp_pkt(reflector, pkt_id)
         port = 0
     })
 
-    if enable_debug_output then
-        logger(loglevel.DEBUG, "Exiting send_icmp_pkt()")
-    end
+    logger(loglevel.TRACE, "Exiting send_icmp_pkt()")
 
     return ok
 end
@@ -398,9 +381,7 @@ local function send_udp_pkt(reflector, pkt_id)
     -- Transmit timestamp - 4 bytes
     -- Transmit timestamp (nanoseconds) - 4 bytes
 
-    if enable_debug_output then
-        logger(loglevel.DEBUG, "Entered send_udp_pkt() with values: " .. reflector .. " | " .. pkt_id)
-    end
+    logger(loglevel.TRACE, "Entered send_udp_pkt() with values: " .. reflector .. " | " .. pkt_id)
 
     -- Create a raw ICMP timestamp request message
     local time, time_ns = get_current_time()
@@ -415,18 +396,14 @@ local function send_udp_pkt(reflector, pkt_id)
         port = 62222
     })
 
-    if enable_debug_output then
-        logger(loglevel.DEBUG, "Exiting send_udp_pkt()")
-    end
+    logger(loglevel.TRACE, "Exiting send_udp_pkt()")
 
     return ok
 end
 
 local function send_ts_ping(reflector, pkt_type, pkt_id)
-    if enable_debug_output then
-        logger(loglevel.DEBUG,
-            "Entered send_ts_ping() with values: " .. reflector .. " | " .. pkt_type .. " | " .. pkt_id)
-    end
+    logger(loglevel.TRACE,
+        "Entered send_ts_ping() with values: " .. reflector .. " | " .. pkt_type .. " | " .. pkt_id)
 
     local result = nil
     if pkt_type == 'icmp' then
@@ -437,9 +414,7 @@ local function send_ts_ping(reflector, pkt_type, pkt_id)
         logger(loglevel.ERROR, "Unknown packet type specified.")
     end
 
-    if enable_debug_output then
-        logger(loglevel.DEBUG, "Exiting send_ts_ping()")
-    end
+    logger(loglevel.TRACE, "Exiting send_ts_ping()")
 
     return result
 end
@@ -482,9 +457,7 @@ end
 
 --     dl_if = ifb_name
 -- end
-if enable_debug_output then
-    logger(loglevel.DEBUG, "Upload iface: " .. ul_if .. " | Download iface: " .. dl_if)
-end
+logger(loglevel.DEBUG, "Upload iface: " .. ul_if .. " | Download iface: " .. dl_if)
 
 -- Verify these are correct using "cat /sys/class/..."
 if dl_if:find("^ifb.+") or dl_if:find("^veth.+") then
@@ -499,10 +472,8 @@ else
     tx_bytes_path = "/sys/class/net/" .. ul_if .. "/statistics/tx_bytes"
 end
 
-if enable_debug_output then
-    logger(loglevel.DEBUG, "rx_bytes_path: " .. rx_bytes_path)
-    logger(loglevel.DEBUG, "tx_bytes_path: " .. tx_bytes_path)
-end
+logger(loglevel.DEBUG, "rx_bytes_path: " .. rx_bytes_path)
+logger(loglevel.DEBUG, "tx_bytes_path: " .. tx_bytes_path)
 
 -- Test for existent stats files
 local test_file = io.open(rx_bytes_path)
@@ -540,17 +511,13 @@ local function ping_generator(freq)
     local sleep_time_ns = freq % 1 * 10^9
     local sleep_time_s = math.floor(freq)
 
-    if enable_debug_output then
-        logger(loglevel.DEBUG, "Entered pinger()")
-    end
+    logger(loglevel.TRACE, "Entered pinger()")
 
     while true do
         for _, reflector in ipairs(reflector_array_v4) do
             local result = send_ts_ping(reflector, reflector_type, packet_id)
 
-            if enable_debug_output then
-                logger(loglevel.DEBUG, "Result from send_ts_ping(): " .. result)
-            end
+            logger(loglevel.TRACE, "Result from send_ts_ping(): " .. result)
         end
 
         time.nanosleep({
@@ -613,9 +580,7 @@ local function ratecontrol()
                 min_up_del = min(min_up_del, owd_recent[k].up_ewma - val.up_ewma)
                 min_down_del = min(min_down_del, owd_recent[k].down_ewma - val.down_ewma)
 
-                if enable_debug_output then
-                    logger(loglevel.INFO, "min_up_del: " .. min_up_del .. "  min_down_del: " .. min_down_del)
-                end
+                logger(loglevel.INFO, "min_up_del: " .. min_up_del .. "  min_down_del: " .. min_down_del)
             end
 
             local cur_rx_bytes = read_stats_file(rx_bytes_path)
@@ -767,9 +732,7 @@ end
 
 -- Start this whole thing in motion!
 local function conductor()
-    if enable_debug_output then
-        logger(loglevel.DEBUG, "Entered conductor()")
-    end
+    logger(loglevel.TRACE, "Entered conductor()")
 
     local pinger = lanes.gen("*", { required = {"bit32", "posix.sys.socket", "posix.time", "vstruct"} }, ping_generator)(tick_duration)
     local receiver = lanes.gen("*", { required = {"bit32", "posix.sys.socket", "posix.time", "vstruct"} }, receive_ts_ping)(packet_id, reflector_type)
