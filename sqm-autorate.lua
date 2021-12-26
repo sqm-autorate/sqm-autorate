@@ -11,6 +11,12 @@ local socket = require("posix.sys.socket")
 local time = require("posix.time")
 local vstruct = require("vstruct")
 
+local lanes = require"lanes".configure()
+-- local linda = lanes.linda()
+local ts_stats = lanes.linda()
+local owd_baseline = lanes.linda()
+local owd_recent = lanes.linda()
+
 local loglevel = {
     DEBUG = "DEBUG",
     INFO = "INFO",
@@ -217,63 +223,61 @@ local function receive_icmp_pkt(pkt_id)
     end
 
     -- Read ICMP TS reply
-    while true do
-        local data, sa = socket.recvfrom(sock, 100) -- An IPv4 ICMP reply should be ~56bytes. This value may need tweaking.
+    local data, sa = socket.recvfrom(sock, 100) -- An IPv4 ICMP reply should be ~56bytes. This value may need tweaking.
 
-        if data then
-            local ip_start = string.byte(data, 1)
-            local ip_ver = bit.rshift(ip_start, 4)
-            local hdr_len = (ip_start - ip_ver * 16) * 4
-            
-            if (#data - hdr_len == 20) then
-                if (string.byte(data, hdr_len + 1) == 14) then
-                    local ts_resp = vstruct.read("> 2*u1 3*u2 3*u4", string.sub(data, hdr_len + 1, #data))
-                    local time_after_midnight_ms = get_time_after_midnight_ms()
-                    local src_pkt_id = ts_resp[4]
-                    local pos = get_table_position(reflector_array_v4, sa.addr)
-        
-                    -- A pos > 0 indicates the current sa.addr is a known member of the reflector array
-                    if (pos > 0 and src_pkt_id == pkt_id) then
-                        local stats = {
-                            reflector = sa.addr,
-                            original_ts = ts_resp[6],
-                            receive_ts = ts_resp[7],
-                            transmit_ts = ts_resp[8],
-                            rtt = time_after_midnight_ms - ts_resp[6],
-                            uplink_time = ts_resp[7] - ts_resp[6],
-                            downlink_time = time_after_midnight_ms - ts_resp[8]
-                        }
-        
-                        if enable_debug_output then
-                            logger(loglevel.DEBUG,
-                                "Reflector IP: " .. stats.reflector .. "  |  Current time: " .. time_after_midnight_ms ..
-                                    "  |  TX at: " .. stats.original_ts .. "  |  RTT: " .. stats.rtt .. "  |  UL time: " ..
-                                    stats.uplink_time .. "  |  DL time: " .. stats.downlink_time)
-                            logger(loglevel.DEBUG, "Exiting receive_icmp_pkt() with stats return")
-                        end
-        
-                        coroutine.yield(stats)
-                    end
-                else
+    if data then
+        local ip_start = string.byte(data, 1)
+        local ip_ver = bit.rshift(ip_start, 4)
+        local hdr_len = (ip_start - ip_ver * 16) * 4
+
+        if (#data - hdr_len == 20) then
+            if (string.byte(data, hdr_len + 1) == 14) then
+                local ts_resp = vstruct.read("> 2*u1 3*u2 3*u4", string.sub(data, hdr_len + 1, #data))
+                local time_after_midnight_ms = get_time_after_midnight_ms()
+                local src_pkt_id = ts_resp[4]
+                local pos = get_table_position(reflector_array_v4, sa.addr)
+
+                -- A pos > 0 indicates the current sa.addr is a known member of the reflector array
+                if (pos > 0 and src_pkt_id == pkt_id) then
+                    local stats = {
+                        reflector = sa.addr,
+                        original_ts = ts_resp[6],
+                        receive_ts = ts_resp[7],
+                        transmit_ts = ts_resp[8],
+                        rtt = time_after_midnight_ms - ts_resp[6],
+                        uplink_time = ts_resp[7] - ts_resp[6],
+                        downlink_time = time_after_midnight_ms - ts_resp[8]
+                    }
+
                     if enable_debug_output then
-                        logger(loglevel.DEBUG, "Exiting receive_icmp_pkt() with nil return due to wrong type")
+                        logger(loglevel.DEBUG,
+                            "Reflector IP: " .. stats.reflector .. "  |  Current time: " .. time_after_midnight_ms ..
+                                "  |  TX at: " .. stats.original_ts .. "  |  RTT: " .. stats.rtt .. "  |  UL time: " ..
+                                stats.uplink_time .. "  |  DL time: " .. stats.downlink_time)
+                        logger(loglevel.DEBUG, "Exiting receive_icmp_pkt() with stats return")
                     end
-                    coroutine.yield(nil)
-                    
+
+                    return stats
                 end
             else
                 if enable_debug_output then
-                    logger(loglevel.DEBUG, "Exiting receive_icmp_pkt() with nil return due to wrong length")
+                    logger(loglevel.DEBUG, "Exiting receive_icmp_pkt() with nil return due to wrong type")
                 end
-                coroutine.yield(nil)
+                return nil
+
             end
         else
             if enable_debug_output then
-                logger(loglevel.DEBUG, "Exiting receive_icmp_pkt() with nil return")
+                logger(loglevel.DEBUG, "Exiting receive_icmp_pkt() with nil return due to wrong length")
             end
-
-            coroutine.yield(nil)
+            return nil
         end
+    else
+        if enable_debug_output then
+            logger(loglevel.DEBUG, "Exiting receive_icmp_pkt() with nil return")
+        end
+
+        return nil
     end
 end
 
@@ -283,49 +287,47 @@ local function receive_udp_pkt(pkt_id)
     end
 
     -- Read UDP TS reply
-    while true do
-        local data, sa = socket.recvfrom(sock, 100) -- An IPv4 ICMP reply should be ~56bytes. This value may need tweaking.
+    local data, sa = socket.recvfrom(sock, 100) -- An IPv4 ICMP reply should be ~56bytes. This value may need tweaking.
 
-        if data then
-            local ts_resp = vstruct.read("> 2*u1 3*u2 6*u4", data)
+    if data then
+        local ts_resp = vstruct.read("> 2*u1 3*u2 6*u4", data)
 
-            local time_after_midnight_ms = get_time_after_midnight_ms()
-            local src_pkt_id = ts_resp[4]
-            local pos = get_table_position(reflector_array_v4, sa.addr)
+        local time_after_midnight_ms = get_time_after_midnight_ms()
+        local src_pkt_id = ts_resp[4]
+        local pos = get_table_position(reflector_array_v4, sa.addr)
 
-            -- A pos > 0 indicates the current sa.addr is a known member of the reflector array
-            if (pos > 0 and src_pkt_id == pkt_id) then
-                local originate_ts = (ts_resp[6] % 86400 * 1000) + (math.floor(ts_resp[7] / 1000000))
-                local receive_ts = (ts_resp[8] % 86400 * 1000) + (math.floor(ts_resp[9] / 1000000))
-                local transmit_ts = (ts_resp[10] % 86400 * 1000) + (math.floor(ts_resp[11] / 1000000))
+        -- A pos > 0 indicates the current sa.addr is a known member of the reflector array
+        if (pos > 0 and src_pkt_id == pkt_id) then
+            local originate_ts = (ts_resp[6] % 86400 * 1000) + (math.floor(ts_resp[7] / 1000000))
+            local receive_ts = (ts_resp[8] % 86400 * 1000) + (math.floor(ts_resp[9] / 1000000))
+            local transmit_ts = (ts_resp[10] % 86400 * 1000) + (math.floor(ts_resp[11] / 1000000))
 
-                local stats = {
-                    reflector = sa.addr,
-                    original_ts = originate_ts,
-                    receive_ts = receive_ts,
-                    transmit_ts = transmit_ts,
-                    rtt = time_after_midnight_ms - originate_ts,
-                    uplink_time = receive_ts - originate_ts,
-                    downlink_time = time_after_midnight_ms - transmit_ts
-                }
+            local stats = {
+                reflector = sa.addr,
+                original_ts = originate_ts,
+                receive_ts = receive_ts,
+                transmit_ts = transmit_ts,
+                rtt = time_after_midnight_ms - originate_ts,
+                uplink_time = receive_ts - originate_ts,
+                downlink_time = time_after_midnight_ms - transmit_ts
+            }
 
-                if enable_debug_output then
-                    logger(loglevel.DEBUG,
-                        "Reflector IP: " .. stats.reflector .. "  |  Current time: " .. time_after_midnight_ms ..
-                            "  |  TX at: " .. stats.original_ts .. "  |  RTT: " .. stats.rtt .. "  |  UL time: " ..
-                            stats.uplink_time .. "  |  DL time: " .. stats.downlink_time)
-                    logger(loglevel.DEBUG, "Exiting receive_udp_pkt() with stats return")
-                end
-
-                coroutine.yield(stats)
-            end
-        else
             if enable_debug_output then
-                logger(loglevel.DEBUG, "Exiting receive_udp_pkt() with nil return")
+                logger(loglevel.DEBUG,
+                    "Reflector IP: " .. stats.reflector .. "  |  Current time: " .. time_after_midnight_ms ..
+                        "  |  TX at: " .. stats.original_ts .. "  |  RTT: " .. stats.rtt .. "  |  UL time: " ..
+                        stats.uplink_time .. "  |  DL time: " .. stats.downlink_time)
+                logger(loglevel.DEBUG, "Exiting receive_udp_pkt() with stats return")
             end
 
-            coroutine.yield(nil)
+            return stats
         end
+    else
+        if enable_debug_output then
+            logger(loglevel.DEBUG, "Exiting receive_udp_pkt() with nil return")
+        end
+
+        return nil
     end
 end
 
@@ -334,12 +336,19 @@ local function receive_ts_ping(pkt_id, pkt_type)
         logger(loglevel.DEBUG, "Entered receive_ts_ping() with value: " .. pkt_id)
     end
 
-    if pkt_type == 'icmp' then
-        receive_icmp_pkt(pkt_id)
-    elseif pkt_type == 'udp' then
-        receive_udp_pkt(pkt_id)
-    else
-        logger(loglevel.ERROR, "Unknown packet type specified.")
+    local stats
+    while true do
+        if pkt_type == 'icmp' then
+            stats = receive_icmp_pkt(pkt_id)
+        elseif pkt_type == 'udp' then
+            stats = receive_udp_pkt(pkt_id)
+        else
+            logger(loglevel.ERROR, "Unknown packet type specified.")
+        end
+
+        if stats then
+            ts_stats:send("stats", stats)
+        end
     end
 end
 
@@ -530,7 +539,7 @@ os.execute(string.format("tc qdisc change root dev %s cake bandwidth %sKbit", dl
 os.execute(string.format("tc qdisc change root dev %s cake bandwidth %sKbit", ul_if, base_ul_rate))
 
 -- Constructor Gadget...
-local function pinger(freq)
+local function ping_generator(freq)
     if enable_debug_output then
         logger(loglevel.DEBUG, "Entered pinger()")
     end
@@ -539,7 +548,7 @@ local function pinger(freq)
         for _, reflector in ipairs(reflector_array_v4) do
             local curtime_s, curtime_ns = get_current_time()
             while ((curtime_s - lastsend_s) + (curtime_ns - lastsend_ns) / 1e9) < freq do
-                coroutine.yield(reflector, nil)
+                -- coroutine.yield(reflector, nil)
                 curtime_s, curtime_ns = get_current_time()
             end
 
@@ -550,7 +559,7 @@ local function pinger(freq)
             end
 
             lastsend_s, lastsend_ns = get_current_time()
-            coroutine.yield(reflector, result)
+            -- coroutine.yield(reflector, result)
         end
     end
 end
@@ -567,7 +576,7 @@ local function read_stats_file(file_path)
     return bytes
 end
 
-local function ratecontrol(baseline, recent)
+local function ratecontrol()
     local start_s, start_ns = get_current_time() -- first time we entered this loop, times will be relative to this seconds value to preserve precision
     local lastchg_s, lastchg_ns = get_current_time()
     local lastchg_t = lastchg_s - start_s + lastchg_ns / 1e9
@@ -604,9 +613,9 @@ local function ratecontrol(baseline, recent)
             local min_up_del = 1 / 0
             local min_down_del = 1 / 0
 
-            for k, val in pairs(baseline) do
-                min_up_del = min(min_up_del, recent[k].up_ewma - val.up_ewma)
-                min_down_del = min(min_down_del, recent[k].down_ewma - val.down_ewma)
+            for k, val in pairs(owd_baseline) do
+                min_up_del = min(min_up_del, owd_recent[k].up_ewma - val.up_ewma)
+                min_down_del = min(min_down_del, owd_recent[k].down_ewma - val.down_ewma)
 
                 if enable_debug_output then
                     logger(loglevel.INFO, "min_up_del: " .. min_up_del .. "  min_down_del: " .. min_down_del)
@@ -691,9 +700,73 @@ local function ratecontrol(baseline, recent)
             end
             lastdump_t = now_t
         end
-
-        coroutine.yield(nil)
     end
+end
+
+local function baseline_calculator()
+    local slow_factor = .9
+    local fast_factor = .2
+    local sleep_time_ns = 500000.0
+    local sleep_time_s = 0.0
+
+    local _, time_data = ts_stats:receive("500", "stats")
+    if time_data then
+        if not owd_baseline[time_data.reflector] then
+            owd_baseline[time_data.reflector] = {}
+        end
+        if not owd_recent[time_data.reflector] then
+            owd_recent[time_data.reflector] = {}
+        end
+
+        if not owd_baseline[time_data.reflector].up_ewma then
+            owd_baseline[time_data.reflector].up_ewma = time_data.uplink_time
+        end
+        if not owd_recent[time_data.reflector].up_ewma then
+            owd_recent[time_data.reflector].up_ewma = time_data.uplink_time
+        end
+        if not owd_baseline[time_data.reflector].down_ewma then
+            owd_baseline[time_data.reflector].down_ewma = time_data.downlink_time
+        end
+        if not owd_recent[time_data.reflector].down_ewma then
+            owd_recent[time_data.reflector].down_ewma = time_data.downlink_time
+        end
+
+        owd_baseline[time_data.reflector].up_ewma = owd_baseline[time_data.reflector].up_ewma * slow_factor +
+                                                        (1 - slow_factor) * time_data.uplink_time
+        owd_recent[time_data.reflector].up_ewma = owd_recent[time_data.reflector].up_ewma * fast_factor +
+                                                      (1 - fast_factor) * time_data.uplink_time
+        owd_baseline[time_data.reflector].down_ewma = owd_baseline[time_data.reflector].down_ewma * slow_factor +
+                                                          (1 - slow_factor) * time_data.downlink_time
+        owd_recent[time_data.reflector].down_ewma = owd_recent[time_data.reflector].down_ewma * fast_factor +
+                                                        (1 - fast_factor) * time_data.downlink_time
+
+        -- when baseline is above the recent, set equal to recent, so we track down more quickly
+        owd_baseline[time_data.reflector].up_ewma = math.min(owd_baseline[time_data.reflector].up_ewma,
+            owd_recent[time_data.reflector].up_ewma)
+        owd_baseline[time_data.reflector].down_ewma = math.min(owd_baseline[time_data.reflector].down_ewma,
+            owd_recent[time_data.reflector].down_ewma)
+
+        if enable_verbose_baseline_output then
+            for ref, val in pairs(owd_baseline) do
+                local up_ewma = a_else_b(val.up_ewma, "?")
+                local down_ewma = a_else_b(val.down_ewma, "?")
+                logger(loglevel.INFO,
+                    "Reflector " .. ref .. " up baseline = " .. up_ewma .. " down baseline = " .. down_ewma)
+            end
+
+            for ref, val in pairs(owd_recent) do
+                local up_ewma = a_else_b(val.up_ewma, "?")
+                local down_ewma = a_else_b(val.down_ewma, "?")
+                logger(loglevel.INFO,
+                    "Reflector " .. ref .. " up baseline = " .. up_ewma .. " down baseline = " .. down_ewma)
+            end
+        end
+    end
+
+    time.nanosleep({
+        tv_sec = sleep_time_s,
+        tv_nsec = sleep_time_ns
+    })
 end
 
 -- Start this whole thing in motion!
@@ -702,114 +775,42 @@ local function conductor()
         logger(loglevel.DEBUG, "Entered conductor()")
     end
 
-    local pings = coroutine.create(pinger)
-    local receiver = coroutine.create(receive_ts_ping)
-    local regulator = coroutine.create(ratecontrol)
+    local pinger = lanes.gen("*", ping_generator)(tick_duration / (#reflector_array_v4))
+    local receiver = lanes.gen("*", receive_ts_ping)(packet_id, reflector_type)
+    local baseliner = lanes.gen("*", baseline_calculator)()
+    local regulator = lanes.gen("*", ratecontrol)(owd_baseline, owd_recent)
+    pinger:join()
+    receiver:join()
+    baseliner:join()
+    regulator:join()
 
-    local owd_baseline = {}
-    local slow_factor = .9
-    local owd_recent = {}
-    local fast_factor = .2
+    -- while true do
+    --     -- local ok, refl, worked = coroutine.resume(pings, tick_duration / (#reflector_array_v4))
+    --     -- if not ok then
+    --     --     local coroutine_retry_threshold = 5
+    --     --     for i = 1, coroutine_retry_threshold, 1 do
+    --     --         ok, refl, worked = coroutine.resume(pings, tick_duration / (#reflector_array_v4))
+    --     --     end
+    --     --     if not ok then
+    --     --         print(debug.traceback(pings))
+    --     --         os.exit(1, true)
+    --     --     end
+    --     -- end
 
-    while true do
-        local ok, refl, worked = coroutine.resume(pings, tick_duration / (#reflector_array_v4))
-        if not ok then
-            local coroutine_retry_threshold = 5
-            for i = 1, coroutine_retry_threshold, 1 do
-                ok, refl, worked = coroutine.resume(pings, tick_duration / (#reflector_array_v4))
-            end
-            if not ok then
-                print(debug.traceback(pings))
-                os.exit(1, true)
-            end
-        end
+    --     -- local time_data = nil
+    --     -- ok, time_data = coroutine.resume(receiver, packet_id, reflector_type)
+    --     -- if not ok then
+    --     --     local coroutine_retry_threshold = 5
+    --     --     for i = 1, coroutine_retry_threshold, 1 do
+    --     --         ok, time_data = coroutine.resume(receiver, packet_id, reflector_type)
+    --     --     end
+    --     --     if not ok then
+    --     --         print(debug.traceback(receiver))
+    --     --         os.exit(1, true)
+    --     --     end
+    --     -- end
 
-        local sleep_time_ns = 500000.0
-        local sleep_time_s = 0.0
-
-        local time_data = nil
-        ok, time_data = coroutine.resume(receiver, packet_id, reflector_type)
-        if not ok then
-            local coroutine_retry_threshold = 5
-            for i = 1, coroutine_retry_threshold, 1 do
-                ok, time_data = coroutine.resume(receiver, packet_id, reflector_type)
-            end
-            if not ok then
-                print(debug.traceback(receiver))
-                os.exit(1, true)
-            end
-        end
-
-        if ok and time_data then
-            if not owd_baseline[time_data.reflector] then
-                owd_baseline[time_data.reflector] = {}
-            end
-            if not owd_recent[time_data.reflector] then
-                owd_recent[time_data.reflector] = {}
-            end
-
-            if not owd_baseline[time_data.reflector].up_ewma then
-                owd_baseline[time_data.reflector].up_ewma = time_data.uplink_time
-            end
-            if not owd_recent[time_data.reflector].up_ewma then
-                owd_recent[time_data.reflector].up_ewma = time_data.uplink_time
-            end
-            if not owd_baseline[time_data.reflector].down_ewma then
-                owd_baseline[time_data.reflector].down_ewma = time_data.downlink_time
-            end
-            if not owd_recent[time_data.reflector].down_ewma then
-                owd_recent[time_data.reflector].down_ewma = time_data.downlink_time
-            end
-
-            owd_baseline[time_data.reflector].up_ewma = owd_baseline[time_data.reflector].up_ewma * slow_factor +
-                                                            (1 - slow_factor) * time_data.uplink_time
-            owd_recent[time_data.reflector].up_ewma = owd_recent[time_data.reflector].up_ewma * fast_factor +
-                                                          (1 - fast_factor) * time_data.uplink_time
-            owd_baseline[time_data.reflector].down_ewma = owd_baseline[time_data.reflector].down_ewma * slow_factor +
-                                                              (1 - slow_factor) * time_data.downlink_time
-            owd_recent[time_data.reflector].down_ewma = owd_recent[time_data.reflector].down_ewma * fast_factor +
-                                                            (1 - fast_factor) * time_data.downlink_time
-
-            -- when baseline is above the recent, set equal to recent, so we track down more quickly
-            owd_baseline[time_data.reflector].up_ewma = math.min(owd_baseline[time_data.reflector].up_ewma,
-                owd_recent[time_data.reflector].up_ewma)
-            owd_baseline[time_data.reflector].down_ewma = math.min(owd_baseline[time_data.reflector].down_ewma,
-                owd_recent[time_data.reflector].down_ewma)
-
-            local ok = coroutine.resume(regulator, owd_baseline, owd_recent)
-            if not ok then
-                local coroutine_retry_threshold = 5
-                for i = 1, coroutine_retry_threshold, 1 do
-                    ok = coroutine.resume(regulator, owd_baseline, owd_recent)
-                end
-                if not ok then
-                    print(debug.traceback(regulator))
-                    os.exit(1, true)
-                end
-            end
-
-            if enable_verbose_baseline_output then
-                for ref, val in pairs(owd_baseline) do
-                    local up_ewma = a_else_b(val.up_ewma, "?")
-                    local down_ewma = a_else_b(val.down_ewma, "?")
-                    logger(loglevel.INFO,
-                        "Reflector " .. ref .. " up baseline = " .. up_ewma .. " down baseline = " .. down_ewma)
-                end
-
-                for ref, val in pairs(owd_recent) do
-                    local up_ewma = a_else_b(val.up_ewma, "?")
-                    local down_ewma = a_else_b(val.down_ewma, "?")
-                    logger(loglevel.INFO,
-                        "Reflector " .. ref .. " up baseline = " .. up_ewma .. " down baseline = " .. down_ewma)
-                end
-            end
-        end
-
-        time.nanosleep({
-            tv_sec = sleep_time_s,
-            tv_nsec = sleep_time_ns
-        })
-    end
+    -- end
 end
 
 conductor() -- go!
