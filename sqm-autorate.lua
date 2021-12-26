@@ -784,33 +784,8 @@ local function conductor()
     baseliner:join()
     regulator:join()
 
-    -- while true do
-    --     -- local ok, refl, worked = coroutine.resume(pings, tick_duration / (#reflector_array_v4))
-    --     -- if not ok then
-    --     --     local coroutine_retry_threshold = 5
-    --     --     for i = 1, coroutine_retry_threshold, 1 do
-    --     --         ok, refl, worked = coroutine.resume(pings, tick_duration / (#reflector_array_v4))
-    --     --     end
-    --     --     if not ok then
-    --     --         print(debug.traceback(pings))
-    --     --         os.exit(1, true)
-    --     --     end
-    --     -- end
-
-    --     -- local time_data = nil
-    --     -- ok, time_data = coroutine.resume(receiver, packet_id, reflector_type)
-    --     -- if not ok then
-    --     --     local coroutine_retry_threshold = 5
-    --     --     for i = 1, coroutine_retry_threshold, 1 do
-    --     --         ok, time_data = coroutine.resume(receiver, packet_id, reflector_type)
-    --     --     end
-    --     --     if not ok then
-    --     --         print(debug.traceback(receiver))
-    --     --         os.exit(1, true)
-    --     --     end
-    --     -- end
-
-    -- end
+    -- TODO We need a way to catch CTRL+C from a user and send a kill signal to the threads...
+    -- Otherwise, the execution has to be ended via `kill -9 <this process ID>`
 end
 
 conductor() -- go!
