@@ -3,15 +3,16 @@
 -- Initial sh implementation by @Lynx (OpenWrt forum)
 -- Initial Lua port by @Lochnair, @dlakelan, and @_FailSafe (OpenWrt forum)
 -- Recommended style guide: https://github.com/luarocks/lua-style-guide
-local bit = require("bit32")
-local debug = require("debug")
-local math = require("math")
-local posix = require("posix")
-local socket = require("posix.sys.socket")
-local time = require("posix.time")
-local vstruct = require("vstruct")
-
 local lanes = require"lanes".configure()
+
+local bit = lanes.require "bit32"
+local debug = lanes.require "debug"
+local math = lanes.require "math"
+local posix = lanes.require "posix"
+local socket = lanes.require "posix.sys.socket"
+local time = lanes.require "posix.time"
+local vstruct = lanes.require "vstruct"
+
 -- local linda = lanes.linda()
 local ts_stats = lanes.linda()
 local owd_baseline = lanes.linda()
