@@ -1,3 +1,5 @@
 **/.DS_Store
 **/*.bak
 test.bin
+Manifest.toml
+Project.toml
