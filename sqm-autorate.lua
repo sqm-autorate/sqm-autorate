@@ -148,12 +148,8 @@ else
     os.exit(1, true)
 end
 
-socket.setsockopt(sock, socket.SOL_SOCKET, socket.SO_RCVTIMEO, 0, 500)
 socket.setsockopt(sock, socket.SOL_SOCKET, socket.SO_SNDTIMEO, 0, 500)
 
--- Set non-blocking flag on socket
-local flags = posix.fcntl(sock, posix.F_GETFL)
-assert(posix.fcntl(sock, posix.F_SETFL, bit.bor(flags, posix.O_NONBLOCK)), "Failed to set non-blocking flag")
 ---------------------------- End Local Variables ----------------------------
 
 ---------------------------- Begin Local Functions ----------------------------
@@ -541,27 +537,26 @@ os.execute(string.format("tc qdisc change root dev %s cake bandwidth %sKbit", ul
 
 -- Constructor Gadget...
 local function ping_generator(freq)
+    local sleep_time_ns = freq % 1 * 10^9
+    local sleep_time_s = math.floor(freq)
+
     if enable_debug_output then
         logger(loglevel.DEBUG, "Entered pinger()")
     end
-    local lastsend_s, lastsend_ns = get_current_time()
+
     while true do
         for _, reflector in ipairs(reflector_array_v4) do
-            local curtime_s, curtime_ns = get_current_time()
-            while ((curtime_s - lastsend_s) + (curtime_ns - lastsend_ns) / 1e9) < freq do
-                -- coroutine.yield(reflector, nil)
-                curtime_s, curtime_ns = get_current_time()
-            end
-
             local result = send_ts_ping(reflector, reflector_type, packet_id)
 
             if enable_debug_output then
                 logger(loglevel.DEBUG, "Result from send_ts_ping(): " .. result)
             end
-
-            lastsend_s, lastsend_ns = get_current_time()
-            -- coroutine.yield(reflector, result)
         end
+
+        time.nanosleep({
+            tv_sec = sleep_time_s,
+            tv_nsec = sleep_time_ns
+        })
     end
 end
 
@@ -776,7 +771,7 @@ local function conductor()
         logger(loglevel.DEBUG, "Entered conductor()")
     end
 
-    local pinger = lanes.gen("*", { required = {"bit32", "posix.sys.socket", "posix.time", "vstruct"} }, ping_generator)(tick_duration / (#reflector_array_v4))
+    local pinger = lanes.gen("*", { required = {"bit32", "posix.sys.socket", "posix.time", "vstruct"} }, ping_generator)(tick_duration)
     local receiver = lanes.gen("*", { required = {"bit32", "posix.sys.socket", "posix.time", "vstruct"} }, receive_ts_ping)(packet_id, reflector_type)
     local baseliner = lanes.gen("*", { required = {"bit32", "posix", "posix.time"} }, baseline_calculator)()
     local regulator = lanes.gen("*", { required = {"bit32", "posix", "posix.time"} }, ratecontrol)()
