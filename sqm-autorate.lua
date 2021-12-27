@@ -445,7 +445,7 @@ end
 local function ts_ping_sender(pkt_type, pkt_id, freq)
     logger(loglevel.TRACE, "Entered ts_ping_sender() with values: " .. freq .. " | " .. pkt_type .. " | " .. pkt_id)
     local ff = (freq / #reflector_array_v4)
-    local sleep_time_ns = (ff % 1) * 1e9
+    local sleep_time_ns = math.floor((ff % 1) * 1e9)
     local sleep_time_s = math.floor(ff)
     local ping_func = nil
 
@@ -478,7 +478,7 @@ local function read_stats_file(file)
 end
 
 local function ratecontrol()
-    local sleep_time_ns = (min_change_interval % 1) * 1e9
+    local sleep_time_ns = math.floor((min_change_interval % 1) * 1e9)
     local sleep_time_s = math.floor(min_change_interval)
 
     local start_s, start_ns = get_current_time() -- first time we entered this loop, times will be relative to this seconds value to preserve precision
