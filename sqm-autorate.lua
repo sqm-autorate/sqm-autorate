@@ -189,6 +189,11 @@ local function a_else_b(a, b)
     end
 end
 
+local function nsleep(s,n)
+   -- nanosleep requires integers
+   time.nanosleep({tv_sec = math.floor(s), tv_nsec = math.floor(ns)})
+end
+
 local function get_current_time()
     local time_s, time_ns = 0, 0
     local val1, val2 = time.clock_gettime(time.CLOCK_REALTIME)
@@ -460,10 +465,7 @@ local function ts_ping_sender(pkt_type, pkt_id, freq)
     while true do
         for _, reflector in ipairs(reflector_array_v4) do
             ping_func(reflector, pkt_id)
-            time.nanosleep({
-                tv_sec = sleep_time_s,
-                tv_nsec = sleep_time_ns
-            })
+            nsleep(sleep_time_s,sleep_time_ns)
         end
 
     end
@@ -618,10 +620,7 @@ local function ratecontrol()
             lastdump_t = now_t
         end
 
-        time.nanosleep({
-            tv_sec = sleep_time_s,
-            tv_nsec = sleep_time_ns
-        })
+        nsleep(sleep_time_s,sleep_time_ns)
     end
 end
 
