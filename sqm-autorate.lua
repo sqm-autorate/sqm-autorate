@@ -774,22 +774,33 @@ update_cake_bandwidth(ul_if, base_ul_rate)
 local function conductor()
     logger(loglevel.TRACE, "Entered conductor()")
 
-    local pinger = lanes.gen("*", {
-        required = {"bit32", "posix.sys.socket", "posix.time", "vstruct"}
-    }, ts_ping_sender)(reflector_type, packet_id, tick_duration)
-    local receiver = lanes.gen("*", {
-        required = {"bit32", "posix.sys.socket", "posix.time", "vstruct"}
-    }, receive_ts_ping)(packet_id, reflector_type)
-    local baseliner = lanes.gen("*", {
-        required = {"bit32", "posix", "posix.time"}
-    }, baseline_calculator)()
-    local regulator = lanes.gen("*", {
-        required = {"bit32", "posix", "posix.time"}
-    }, ratecontrol)()
-    pinger:join()
-    receiver:join()
-    baseliner:join()
-    regulator:join()
+    local threads = {
+        pinger = lanes.gen("*", {
+            required = {"bit32", "posix.sys.socket", "posix.time", "vstruct"}
+        }, ts_ping_sender)(reflector_type, packet_id, tick_duration),
+        receiver = lanes.gen("*", {
+            required = {"bit32", "posix.sys.socket", "posix.time", "vstruct"}
+        }, receive_ts_ping)(packet_id, reflector_type),
+        baseliner = lanes.gen("*", {
+            required = {"bit32", "posix", "posix.time"}
+        }, baseline_calculator)(),
+        regulator = lanes.gen("*", {
+            required = {"bit32", "posix", "posix.time"}
+        }, ratecontrol)()
+    }
+    local join_timeout = 0.5
+
+    while true do
+        for name, thread in pairs(threads) do
+            _, err = thread:join(join_timeout)
+
+            if err and err ~= "timeout" then
+                print('Something went wrong in the ' .. name .. ' thread')
+                print(err)
+                exit(1)
+            end
+        end
+    end
 end
 
 conductor() -- go!
