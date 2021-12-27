@@ -128,11 +128,6 @@ local max_delta_owd = 15 -- increase from baseline RTT for detection of bufferbl
 
 ---------------------------- Begin Internal Local Variables ----------------------------
 
-local csv_fd = io.open(stats_file, "w")
-local speeddump_fd = io.open(speedhist_file, "w")
-csv_fd:write("times,timens,rxload,txload,deltadelaydown,deltadelayup,dlrate,uprate\n")
-speeddump_fd:write("time,counter,upspeed,downspeed\n")
-
 local cur_process_id = posix.getpid()
 if type(cur_process_id) == "table" then
     cur_process_id = cur_process_id["pid"]
@@ -564,6 +559,12 @@ local function ratecontrol()
 
     local nrate_up = 0
     local nrate_down = 0
+
+    local csv_fd = io.open(stats_file, "w")
+    local speeddump_fd = io.open(speedhist_file, "w")
+
+    csv_fd:write("times,timens,rxload,txload,deltadelaydown,deltadelayup,dlrate,uprate\n")
+    speeddump_fd:write("time,counter,upspeed,downspeed\n")
 
     while true do
         local now_s, now_ns = get_current_time()
