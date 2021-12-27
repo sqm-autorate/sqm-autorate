@@ -522,15 +522,9 @@ local function ping_generator(freq)
     end
 end
 
-local function read_stats_file(file_path)
-    local file = io.open(file_path)
-    if not file then
-        logger(loglevel.FATAL, "Could not open stats file: " .. file_path)
-        os.exit(1, true)
-        return nil
-    end
+local function read_stats_file(file)
+    file:seek("set", 0)
     local bytes = file:read()
-    file:close()
     return bytes
 end
 
@@ -545,8 +539,17 @@ local function ratecontrol()
 
     local cur_dl_rate = base_dl_rate
     local cur_ul_rate = base_ul_rate
-    local prev_rx_bytes = read_stats_file(rx_bytes_path)
-    local prev_tx_bytes = read_stats_file(tx_bytes_path)
+    local rx_bytes_file = io.open(rx_bytes_path)
+    local tx_bytes_file = io.open(tx_bytes_path)
+
+    if not rx_bytes_file or not tx_bytes_file then
+        logger(loglevel.FATAL, "Could not open stats file: '" .. rx_bytes_path .. "' or '" .. tx_bytes_path .. "'")
+        os.exit(1, true)
+        return nil
+    end
+
+    local prev_rx_bytes = read_stats_file(rx_bytes_file)
+    local prev_tx_bytes = read_stats_file(tx_bytes_file)
     local t_prev_bytes = lastchg_t
     local t_cur_bytes = lastchg_t
 
@@ -584,8 +587,8 @@ local function ratecontrol()
                 logger(loglevel.INFO, "min_up_del: " .. min_up_del .. "  min_down_del: " .. min_down_del)
             end
 
-            local cur_rx_bytes = read_stats_file(rx_bytes_path)
-            local cur_tx_bytes = read_stats_file(tx_bytes_path)
+            local cur_rx_bytes = read_stats_file(rx_bytes_file)
+            local cur_tx_bytes = read_stats_file(tx_bytes_file)
             t_prev_bytes = t_cur_bytes
             t_cur_bytes = now_t
 
