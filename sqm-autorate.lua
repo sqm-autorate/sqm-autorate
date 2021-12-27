@@ -191,7 +191,7 @@ end
 
 local function nsleep(s,n)
    -- nanosleep requires integers
-   time.nanosleep({tv_sec = math.floor(s), tv_nsec = math.floor(ns)})
+   time.nanosleep({tv_sec = math.floor(s), tv_nsec = math.floor(((s%1.0) * 1e9) + ns)})
 end
 
 local function get_current_time()
