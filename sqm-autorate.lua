@@ -456,17 +456,18 @@ local function ts_ping_sender(pkt_type, pkt_id, freq)
         logger(loglevel.ERROR, "Unknown packet type specified.")
     end
 
-    logger(loglevel.TRACE, "Exiting send_ts_ping()")
+    while true do
+        for _, reflector in ipairs(reflector_array_v4) do
+            ping_func(reflector, pkt_id)
+        end
 
-    return result
-end
-
-local function maximum(table)
-    local m = -1 / 0
-    for _, v in pairs(table) do
-        m = math.max(v, m)
+        time.nanosleep({
+            tv_sec = sleep_time_s,
+            tv_nsec = sleep_time_ns
+        })
     end
-    return m
+
+    logger(loglevel.TRACE, "Exiting ts_ping_sender()")
 end
 ---------------------------- End Local Functions ----------------------------
 
@@ -726,11 +727,10 @@ local function baseline_calculator()
     local fast_factor = .2
 
     while true do
-
         local _, time_data = stats_queue:receive(nil, "stats")
         local owd_baseline = owd_data:get("owd_baseline")
         local owd_recent = owd_data:get("owd_recent")
-
+        print("HERE")
         if time_data then
             if not owd_baseline[time_data.reflector] then
                 owd_baseline[time_data.reflector] = {}
