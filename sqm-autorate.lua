@@ -189,7 +189,7 @@ local function a_else_b(a, b)
     end
 end
 
-local function nsleep(s,n)
+local function nsleep(s,ns)
    -- nanosleep requires integers
    time.nanosleep({tv_sec = math.floor(s), tv_nsec = math.floor(((s%1.0) * 1e9) + ns)})
 end
