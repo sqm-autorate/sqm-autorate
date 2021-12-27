@@ -444,8 +444,9 @@ end
 
 local function ts_ping_sender(pkt_type, pkt_id, freq)
     logger(loglevel.TRACE, "Entered ts_ping_sender() with values: " .. freq .. " | " .. pkt_type .. " | " .. pkt_id)
-    local sleep_time_ns = ((freq/#reflector_array_v4) % 1) * 1e9
-    local sleep_time_s = math.floor(freq/#reflector_array_v4)
+    local ff = (freq/#reflector_array_v4)
+    local sleep_time_ns = (ff % 1) * 1e9
+    local sleep_time_s = math.floor(ff)
     local ping_func = nil
 
     if pkt_type == "icmp" then
