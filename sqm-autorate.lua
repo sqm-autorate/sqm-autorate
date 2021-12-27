@@ -19,12 +19,30 @@ local owd_baseline = lanes.linda()
 local owd_recent = lanes.linda()
 
 local loglevel = {
-    TRACE = {level = 6, name = "TRACE"},
-    DEBUG = {level = 5, name = "DEBUG"},
-    INFO = {level = 4, name = "INFO"},
-    WARN = {level = 3, name = "WARN"},
-    ERROR = {level = 2, name = "ERROR"},
-    FATAL = {level = 1, name = "FATAL"}
+    TRACE = {
+        level = 6,
+        name = "TRACE"
+    },
+    DEBUG = {
+        level = 5,
+        name = "DEBUG"
+    },
+    INFO = {
+        level = 4,
+        name = "INFO"
+    },
+    WARN = {
+        level = 3,
+        name = "WARN"
+    },
+    ERROR = {
+        level = 2,
+        name = "ERROR"
+    },
+    FATAL = {
+        level = 1,
+        name = "FATAL"
+    }
 }
 
 -- Set a default log level here, until we've got one from UCI
@@ -91,8 +109,7 @@ local speedhist_file = settings and settings:get("sqm-autorate", "@output[0]", "
 
 local histsize = settings and tonumber(settings:get("sqm-autorate", "@output[0]", "hist_size"), 10) or "<HISTORY SIZE>"
 
-use_loglevel = loglevel[string.upper(settings and settings:get("sqm-autorate", "@output[0]", "log_level") or
-                           "INFO")]
+use_loglevel = loglevel[string.upper(settings and settings:get("sqm-autorate", "@output[0]", "log_level") or "INFO")]
 
 ---------------------------- Begin Advanced User-Configurable Local Variables ----------------------------
 local enable_debug_output = false
@@ -298,9 +315,9 @@ local function receive_udp_pkt(pkt_id)
             }
 
             logger(loglevel.DEBUG,
-                "Reflector IP: " .. stats.reflector .. "  |  Current time: " .. time_after_midnight_ms ..
-                    "  |  TX at: " .. stats.original_ts .. "  |  RTT: " .. stats.rtt .. "  |  UL time: " ..
-                    stats.uplink_time .. "  |  DL time: " .. stats.downlink_time)
+                "Reflector IP: " .. stats.reflector .. "  |  Current time: " .. time_after_midnight_ms .. "  |  TX at: " ..
+                    stats.original_ts .. "  |  RTT: " .. stats.rtt .. "  |  UL time: " .. stats.uplink_time ..
+                    "  |  DL time: " .. stats.downlink_time)
             logger(loglevel.TRACE, "Exiting receive_udp_pkt() with stats return")
 
             return stats
@@ -397,8 +414,7 @@ local function send_udp_pkt(reflector, pkt_id)
 end
 
 local function send_ts_ping(reflector, pkt_type, pkt_id)
-    logger(loglevel.TRACE,
-        "Entered send_ts_ping() with values: " .. reflector .. " | " .. pkt_type .. " | " .. pkt_id)
+    logger(loglevel.TRACE, "Entered send_ts_ping() with values: " .. reflector .. " | " .. pkt_type .. " | " .. pkt_id)
 
     local result = nil
     if pkt_type == 'icmp' then
@@ -503,7 +519,7 @@ os.execute(string.format("tc qdisc change root dev %s cake bandwidth %sKbit", ul
 
 -- Constructor Gadget...
 local function ping_generator(freq)
-    local sleep_time_ns = freq % 1 * 10^9
+    local sleep_time_ns = freq % 1 * 10 ^ 9
     local sleep_time_s = math.floor(freq)
 
     logger(loglevel.TRACE, "Entered pinger()")
@@ -738,10 +754,18 @@ end
 local function conductor()
     logger(loglevel.TRACE, "Entered conductor()")
 
-    local pinger = lanes.gen("*", { required = {"bit32", "posix.sys.socket", "posix.time", "vstruct"} }, ping_generator)(tick_duration)
-    local receiver = lanes.gen("*", { required = {"bit32", "posix.sys.socket", "posix.time", "vstruct"} }, receive_ts_ping)(packet_id, reflector_type)
-    local baseliner = lanes.gen("*", { required = {"bit32", "posix", "posix.time"} }, baseline_calculator)()
-    local regulator = lanes.gen("*", { required = {"bit32", "posix", "posix.time"} }, ratecontrol)()
+    local pinger = lanes.gen("*", {
+        required = {"bit32", "posix.sys.socket", "posix.time", "vstruct"}
+    }, ping_generator)(tick_duration)
+    local receiver = lanes.gen("*", {
+        required = {"bit32", "posix.sys.socket", "posix.time", "vstruct"}
+    }, receive_ts_ping)(packet_id, reflector_type)
+    local baseliner = lanes.gen("*", {
+        required = {"bit32", "posix", "posix.time"}
+    }, baseline_calculator)()
+    local regulator = lanes.gen("*", {
+        required = {"bit32", "posix", "posix.time"}
+    }, ratecontrol)()
     pinger:join()
     receiver:join()
     baseliner:join()
