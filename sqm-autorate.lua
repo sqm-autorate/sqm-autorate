@@ -13,10 +13,20 @@ local socket = lanes.require "posix.sys.socket"
 local time = lanes.require "posix.time"
 local vstruct = lanes.require "vstruct"
 
--- local linda = lanes.linda()
-local ts_stats = lanes.linda()
-local owd_baseline = lanes.linda()
-local owd_recent = lanes.linda()
+-- The stats_queue is intended to be a true FIFO queue.
+-- The purpose of the queue is to hold the processed timestamp
+-- packets that are returned to us and this holds them for OWD
+-- processing.
+local stats_queue = lanes.linda()
+
+-- The owd_data construct is not intended to be used as a queue.
+-- Instead, it is just a method for sharing the OWD tables between
+-- multiple threads. Calls against this construct will be get()/set()
+-- to reinforce the intent that this is not a queue. This holds two
+-- separate tables which are owd_baseline and owd_recent.
+local owd_data = lanes.linda()
+owd_data:set("owd_baseline", {})
+owd_data:set("owd_recent", {})
 
 local loglevel = {
     TRACE = {
@@ -113,7 +123,7 @@ use_loglevel = loglevel[string.upper(settings and settings:get("sqm-autorate", "
 
 ---------------------------- Begin Advanced User-Configurable Local Variables ----------------------------
 local enable_debug_output = false
-local enable_verbose_baseline_output = false
+local enable_verbose_baseline_output = true
 local enable_lynx_graph_output = false
 
 local tick_duration = 0.5 -- Frequency in seconds
@@ -342,8 +352,9 @@ local function receive_ts_ping(pkt_id, pkt_type)
             logger(loglevel.ERROR, "Unknown packet type specified.")
         end
 
+        -- If we got stats, drop them onto the stats_queue for processing
         if stats then
-            ts_stats:send("stats", stats)
+            stats_queue:send("stats", stats)
         end
     end
 end
@@ -431,10 +442,9 @@ local function send_ts_ping(reflector, pkt_type, pkt_id)
 end
 
 local function maximum(table)
-    local max = math.max
     local m = -1 / 0
     for _, v in pairs(table) do
-        m = max(v, m)
+        m = math.max(v, m)
     end
     return m
 end
@@ -545,13 +555,13 @@ local function read_stats_file(file)
 end
 
 local function ratecontrol()
+    local sleep_time_ns = 0.0 -- 500000.0
+    local sleep_time_s = 1.0
+
     local start_s, start_ns = get_current_time() -- first time we entered this loop, times will be relative to this seconds value to preserve precision
     local lastchg_s, lastchg_ns = get_current_time()
     local lastchg_t = lastchg_s - start_s + lastchg_ns / 1e9
     local lastdump_t = lastchg_t - 310
-    local min = math.min
-    local max = math.max
-    local floor = math.floor
 
     local cur_dl_rate = base_dl_rate
     local cur_ul_rate = base_ul_rate
@@ -586,6 +596,17 @@ local function ratecontrol()
     speeddump_fd:write("time,counter,upspeed,downspeed\n")
 
     while true do
+        local owd_baseline = owd_data:get("owd_baseline")
+        local owd_recent = owd_data:get("owd_recent")
+
+        -- HERE FOR TEMP DEBUGGING
+        -- for k, v in pairs(owd_baseline) do
+        --     print(k, v)
+        -- end
+        -- for k, v in pairs(owd_recent) do
+        --     print(k, v)
+        -- end
+
         local now_s, now_ns = get_current_time()
         now_s = now_s - start_s
         local now_t = now_s + now_ns / 1e9
@@ -597,8 +618,8 @@ local function ratecontrol()
             local min_down_del = 1 / 0
 
             for k, val in pairs(owd_baseline) do
-                min_up_del = min(min_up_del, owd_recent[k].up_ewma - val.up_ewma)
-                min_down_del = min(min_down_del, owd_recent[k].down_ewma - val.down_ewma)
+                min_up_del = math.min(min_up_del, owd_recent[k].up_ewma - val.up_ewma)
+                min_down_del = math.min(min_down_del, owd_recent[k].down_ewma - val.down_ewma)
 
                 logger(loglevel.INFO, "min_up_del: " .. min_up_del .. "  min_down_del: " .. min_down_del)
             end
@@ -616,37 +637,37 @@ local function ratecontrol()
             local next_dl_rate = cur_dl_rate
 
             if min_up_del < max_delta_owd and tx_load > .8 then
-                safe_ul_rates[nrate_up] = floor(cur_ul_rate * tx_load)
+                safe_ul_rates[nrate_up] = math.floor(cur_ul_rate * tx_load)
                 local maxul = maximum(safe_ul_rates)
-                next_ul_rate = cur_ul_rate * (1 + .1 * max(0, (1 - cur_ul_rate / maxul))) + 500
+                next_ul_rate = cur_ul_rate * (1 + .1 * math.max(0, (1 - cur_ul_rate / maxul))) + 500
                 nrate_up = nrate_up + 1
                 nrate_up = nrate_up % histsize
             end
             if min_down_del < max_delta_owd and rx_load > .8 then
-                safe_dl_rates[nrate_down] = floor(cur_dl_rate * rx_load)
+                safe_dl_rates[nrate_down] = math.floor(cur_dl_rate * rx_load)
                 local maxdl = maximum(safe_dl_rates)
-                next_dl_rate = cur_dl_rate * (1 + .1 * max(0, (1 - cur_dl_rate / maxdl))) + 500
+                next_dl_rate = cur_dl_rate * (1 + .1 * math.max(0, (1 - cur_dl_rate / maxdl))) + 500
                 nrate_down = nrate_down + 1
                 nrate_down = nrate_down % histsize
             end
 
             if min_up_del > max_delta_owd then
                 if #safe_ul_rates > 0 then
-                    next_ul_rate = min(0.9 * cur_ul_rate * tx_load, safe_ul_rates[math.random(#safe_ul_rates) - 1])
+                    next_ul_rate = math.min(0.9 * cur_ul_rate * tx_load, safe_ul_rates[math.random(#safe_ul_rates) - 1])
                 else
                     next_ul_rate = 0.9 * cur_ul_rate * tx_load
                 end
             end
             if min_down_del > max_delta_owd then
                 if #safe_dl_rates > 0 then
-                    next_dl_rate = min(0.9 * cur_dl_rate * rx_load, safe_dl_rates[math.random(#safe_dl_rates) - 1])
+                    next_dl_rate = math.min(0.9 * cur_dl_rate * rx_load, safe_dl_rates[math.random(#safe_dl_rates) - 1])
                 else
                     next_dl_rate = 0.9 * cur_dl_rate * rx_load
                 end
             end
 
-            next_ul_rate = floor(max(min_ul_rate, next_ul_rate))
-            next_dl_rate = floor(max(min_dl_rate, next_dl_rate))
+            next_ul_rate = math.floor(math.max(min_ul_rate, next_ul_rate))
+            next_dl_rate = math.floor(math.max(min_dl_rate, next_dl_rate))
 
             -- TC modification
             if next_dl_rate ~= cur_dl_rate then
@@ -681,6 +702,11 @@ local function ratecontrol()
             end
             lastdump_t = now_t
         end
+
+        time.nanosleep({
+            tv_sec = sleep_time_s,
+            tv_nsec = sleep_time_ns
+        })
     end
 end
 
@@ -690,64 +716,73 @@ local function baseline_calculator()
     local sleep_time_ns = 500000.0
     local sleep_time_s = 0.0
 
-    local _, time_data = ts_stats:receive("500", "stats")
-    if time_data then
-        if not owd_baseline[time_data.reflector] then
-            owd_baseline[time_data.reflector] = {}
-        end
-        if not owd_recent[time_data.reflector] then
-            owd_recent[time_data.reflector] = {}
-        end
+    while true do
+        local _, time_data = stats_queue:receive("500", "stats")
+        local owd_baseline = owd_data:get("owd_baseline")
+        local owd_recent = owd_data:get("owd_recent")
 
-        if not owd_baseline[time_data.reflector].up_ewma then
-            owd_baseline[time_data.reflector].up_ewma = time_data.uplink_time
-        end
-        if not owd_recent[time_data.reflector].up_ewma then
-            owd_recent[time_data.reflector].up_ewma = time_data.uplink_time
-        end
-        if not owd_baseline[time_data.reflector].down_ewma then
-            owd_baseline[time_data.reflector].down_ewma = time_data.downlink_time
-        end
-        if not owd_recent[time_data.reflector].down_ewma then
-            owd_recent[time_data.reflector].down_ewma = time_data.downlink_time
-        end
-
-        owd_baseline[time_data.reflector].up_ewma = owd_baseline[time_data.reflector].up_ewma * slow_factor +
-                                                        (1 - slow_factor) * time_data.uplink_time
-        owd_recent[time_data.reflector].up_ewma = owd_recent[time_data.reflector].up_ewma * fast_factor +
-                                                      (1 - fast_factor) * time_data.uplink_time
-        owd_baseline[time_data.reflector].down_ewma = owd_baseline[time_data.reflector].down_ewma * slow_factor +
-                                                          (1 - slow_factor) * time_data.downlink_time
-        owd_recent[time_data.reflector].down_ewma = owd_recent[time_data.reflector].down_ewma * fast_factor +
-                                                        (1 - fast_factor) * time_data.downlink_time
-
-        -- when baseline is above the recent, set equal to recent, so we track down more quickly
-        owd_baseline[time_data.reflector].up_ewma = math.min(owd_baseline[time_data.reflector].up_ewma,
-            owd_recent[time_data.reflector].up_ewma)
-        owd_baseline[time_data.reflector].down_ewma = math.min(owd_baseline[time_data.reflector].down_ewma,
-            owd_recent[time_data.reflector].down_ewma)
-
-        if enable_verbose_baseline_output then
-            for ref, val in pairs(owd_baseline) do
-                local up_ewma = a_else_b(val.up_ewma, "?")
-                local down_ewma = a_else_b(val.down_ewma, "?")
-                logger(loglevel.INFO,
-                    "Reflector " .. ref .. " up baseline = " .. up_ewma .. " down baseline = " .. down_ewma)
+        if time_data then
+            if not owd_baseline[time_data.reflector] then
+                owd_baseline[time_data.reflector] = {}
+            end
+            if not owd_recent[time_data.reflector] then
+                owd_recent[time_data.reflector] = {}
             end
 
-            for ref, val in pairs(owd_recent) do
-                local up_ewma = a_else_b(val.up_ewma, "?")
-                local down_ewma = a_else_b(val.down_ewma, "?")
-                logger(loglevel.INFO,
-                    "Reflector " .. ref .. " up baseline = " .. up_ewma .. " down baseline = " .. down_ewma)
+            if not owd_baseline[time_data.reflector].up_ewma then
+                owd_baseline[time_data.reflector].up_ewma = time_data.uplink_time
+            end
+            if not owd_recent[time_data.reflector].up_ewma then
+                owd_recent[time_data.reflector].up_ewma = time_data.uplink_time
+            end
+            if not owd_baseline[time_data.reflector].down_ewma then
+                owd_baseline[time_data.reflector].down_ewma = time_data.downlink_time
+            end
+            if not owd_recent[time_data.reflector].down_ewma then
+                owd_recent[time_data.reflector].down_ewma = time_data.downlink_time
+            end
+
+            owd_baseline[time_data.reflector].up_ewma = owd_baseline[time_data.reflector].up_ewma * slow_factor +
+                                                            (1 - slow_factor) * time_data.uplink_time
+            owd_recent[time_data.reflector].up_ewma = owd_recent[time_data.reflector].up_ewma * fast_factor +
+                                                          (1 - fast_factor) * time_data.uplink_time
+            owd_baseline[time_data.reflector].down_ewma = owd_baseline[time_data.reflector].down_ewma * slow_factor +
+                                                              (1 - slow_factor) * time_data.downlink_time
+            owd_recent[time_data.reflector].down_ewma = owd_recent[time_data.reflector].down_ewma * fast_factor +
+                                                            (1 - fast_factor) * time_data.downlink_time
+
+            -- when baseline is above the recent, set equal to recent, so we track down more quickly
+            owd_baseline[time_data.reflector].up_ewma = math.min(owd_baseline[time_data.reflector].up_ewma,
+                owd_recent[time_data.reflector].up_ewma)
+            owd_baseline[time_data.reflector].down_ewma = math.min(owd_baseline[time_data.reflector].down_ewma,
+                owd_recent[time_data.reflector].down_ewma)
+
+            -- Set the values back into the shared tables
+            owd_data:set("owd_baseline", owd_baseline)
+            owd_data:set("owd_recent", owd_recent)
+
+            if enable_verbose_baseline_output then
+                for ref, val in pairs(owd_baseline) do
+                    local up_ewma = a_else_b(val.up_ewma, "?")
+                    local down_ewma = a_else_b(val.down_ewma, "?")
+                    logger(loglevel.INFO,
+                        "Reflector " .. ref .. " up baseline = " .. up_ewma .. " down baseline = " .. down_ewma)
+                end
+
+                for ref, val in pairs(owd_recent) do
+                    local up_ewma = a_else_b(val.up_ewma, "?")
+                    local down_ewma = a_else_b(val.down_ewma, "?")
+                    logger(loglevel.INFO,
+                        "Reflector " .. ref .. " up baseline = " .. up_ewma .. " down baseline = " .. down_ewma)
+                end
             end
         end
+
+        time.nanosleep({
+            tv_sec = sleep_time_s,
+            tv_nsec = sleep_time_ns
+        })
     end
-
-    time.nanosleep({
-        tv_sec = sleep_time_s,
-        tv_nsec = sleep_time_ns
-    })
 end
 
 -- Start this whole thing in motion!
@@ -770,9 +805,6 @@ local function conductor()
     receiver:join()
     baseliner:join()
     regulator:join()
-
-    -- TODO We need a way to catch CTRL+C from a user and send a kill signal to the threads...
-    -- Otherwise, the execution has to be ended via `kill -9 <this process ID>`
 end
 
 conductor() -- go!
