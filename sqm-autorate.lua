@@ -529,7 +529,7 @@ os.execute(string.format("tc qdisc change root dev %s cake bandwidth %sKbit", ul
 
 -- Constructor Gadget...
 local function ping_generator(freq)
-    local sleep_time_ns = freq % 1 * 10 ^ 9
+   local sleep_time_ns = (freq % 1) * 1e9
     local sleep_time_s = math.floor(freq)
 
     logger(loglevel.TRACE, "Entered pinger()")
@@ -555,8 +555,8 @@ local function read_stats_file(file)
 end
 
 local function ratecontrol()
-    local sleep_time_ns = 0.0 -- 500000.0
-    local sleep_time_s = 1.0
+    local sleep_time_ns = (min_change_interval % 1)*1e9
+    local sleep_time_s = math.floor(min_change_interval)
 
     local start_s, start_ns = get_current_time() -- first time we entered this loop, times will be relative to this seconds value to preserve precision
     local lastchg_s, lastchg_ns = get_current_time()
@@ -713,11 +713,9 @@ end
 local function baseline_calculator()
     local slow_factor = .9
     local fast_factor = .2
-    local sleep_time_ns = 500000.0
-    local sleep_time_s = 0.0
 
     while true do
-        local _, time_data = stats_queue:receive("500", "stats")
+        local _, time_data = stats_queue:receive(nil, "stats")
         local owd_baseline = owd_data:get("owd_baseline")
         local owd_recent = owd_data:get("owd_recent")
 
@@ -777,11 +775,6 @@ local function baseline_calculator()
                 end
             end
         end
-
-        time.nanosleep({
-            tv_sec = sleep_time_s,
-            tv_nsec = sleep_time_ns
-        })
     end
 end
 
