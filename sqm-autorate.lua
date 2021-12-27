@@ -249,6 +249,15 @@ local function maximum(table)
     return m
 end
 
+local function update_cake_bandwidth(iface, rate_in_kbit)
+    local is_changed = false
+    if (iface == dl_if and rate_in_kbit >= min_dl_rate) or (iface == ul_if and rate_in_kbit >= min_ul_rate) then
+        os.execute(string.format("tc qdisc change root dev %s cake bandwidth %sKbit", iface, rate_in_kbit))
+        is_changed = true
+    end
+    return is_changed
+end
+
 local function receive_icmp_pkt(pkt_id)
     logger(loglevel.TRACE, "Entered receive_icmp_pkt() with value: " .. pkt_id)
 
@@ -540,7 +549,7 @@ os.execute(string.format("tc qdisc change root dev %s cake bandwidth %sKbit", ul
 
 -- Constructor Gadget...
 local function ping_generator(freq)
-   local sleep_time_ns = (freq % 1) * 1e9
+    local sleep_time_ns = (freq % 1) * 1e9
     local sleep_time_s = math.floor(freq)
 
     logger(loglevel.TRACE, "Entered pinger()")
@@ -565,7 +574,7 @@ local function read_stats_file(file)
 end
 
 local function ratecontrol()
-    local sleep_time_ns = (min_change_interval % 1)*1e9
+    local sleep_time_ns = (min_change_interval % 1) * 1e9
     local sleep_time_s = math.floor(min_change_interval)
 
     local start_s, start_ns = get_current_time() -- first time we entered this loop, times will be relative to this seconds value to preserve precision
@@ -673,10 +682,10 @@ local function ratecontrol()
 
             -- TC modification
             if next_dl_rate ~= cur_dl_rate then
-                os.execute(string.format("tc qdisc change root dev %s cake bandwidth %sKbit", dl_if, next_dl_rate))
+                update_cake_bandwidth(dl_if, next_dl_rate)
             end
             if next_ul_rate ~= cur_ul_rate then
-                os.execute(string.format("tc qdisc change root dev %s cake bandwidth %sKbit", ul_if, next_ul_rate))
+                update_cake_bandwidth(ul_if, next_ul_rate)
             end
 
             cur_dl_rate = next_dl_rate
@@ -761,7 +770,7 @@ local function baseline_calculator()
             -- Set the values back into the shared tables
             owd_data:set("owd_baseline", owd_baseline)
             owd_data:set("owd_recent", owd_recent)
-            print("HERE")
+
             if enable_verbose_baseline_output then
                 for ref, val in pairs(owd_baseline) do
                     local up_ewma = a_else_b(val.up_ewma, "?")
@@ -782,7 +791,7 @@ local function baseline_calculator()
 end
 ---------------------------- End Local Functions ----------------------------
 
----------------------------- Begin Conductor Loop ----------------------------
+---------------------------- Begin Conductor ----------------------------
 
 -- Figure out the interfaces in play here
 -- if ul_if == "" then
@@ -856,8 +865,8 @@ math.randomseed(nowns)
 local packet_id = cur_process_id + 32768
 
 -- Set initial TC values
-os.execute(string.format("tc qdisc change root dev %s cake bandwidth %sKbit", dl_if, base_dl_rate))
-os.execute(string.format("tc qdisc change root dev %s cake bandwidth %sKbit", ul_if, base_ul_rate))
+update_cake_bandwidth(dl_if, base_dl_rate)
+update_cake_bandwidth(ul_if, base_ul_rate)
 
 -- Start this whole thing in motion!
 local function conductor()
