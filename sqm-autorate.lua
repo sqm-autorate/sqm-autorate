@@ -241,6 +241,14 @@ local function get_table_len(tbl)
     return count
 end
 
+local function maximum(table)
+    local m = -1 / 0
+    for _, v in pairs(table) do
+        m = math.max(v, m)
+    end
+    return m
+end
+
 local function receive_icmp_pkt(pkt_id)
     logger(loglevel.TRACE, "Entered receive_icmp_pkt() with value: " .. pkt_id)
 
@@ -342,17 +350,18 @@ end
 local function receive_ts_ping(pkt_id, pkt_type)
     logger(loglevel.TRACE, "Entered receive_ts_ping() with value: " .. pkt_id)
 
-    local stats
-    while true do
-        if pkt_type == 'icmp' then
-            stats = receive_icmp_pkt(pkt_id)
-        elseif pkt_type == 'udp' then
-            stats = receive_udp_pkt(pkt_id)
-        else
-            logger(loglevel.ERROR, "Unknown packet type specified.")
-        end
+    local receive_func = nil
+    if pkt_type == "icmp" then
+        receive_func = receive_icmp_pkt
+    elseif pkt_type == "udp" then
+        receive_func = receive_udp_pkt
+    else
+        logger(loglevel.ERROR, "Unknown packet type specified.")
+    end
 
+    while true do
         -- If we got stats, drop them onto the stats_queue for processing
+        local stats = receive_func(pkt_id)
         if stats then
             stats_queue:send("stats", stats)
         end
@@ -424,14 +433,16 @@ local function send_udp_pkt(reflector, pkt_id)
     return ok
 end
 
-local function send_ts_ping(reflector, pkt_type, pkt_id)
-    logger(loglevel.TRACE, "Entered send_ts_ping() with values: " .. reflector .. " | " .. pkt_type .. " | " .. pkt_id)
+local function ts_ping_sender(pkt_type, pkt_id, freq)
+    logger(loglevel.TRACE, "Entered ts_ping_sender() with values: " .. freq .. " | " .. pkt_type .. " | " .. pkt_id)
+    local sleep_time_ns = freq % 1 * 1e9
+    local sleep_time_s = math.floor(freq)
+    local ping_func = nil
 
-    local result = nil
-    if pkt_type == 'icmp' then
-        result = send_icmp_pkt(reflector, pkt_id)
-    elseif pkt_type == 'udp' then
-        result = send_udp_pkt(reflector, pkt_id)
+    if pkt_type == "icmp" then
+        ping_func = send_icmp_pkt
+    elseif pkt_type == "udp" then
+        ping_func = send_udp_pkt
     else
         logger(loglevel.ERROR, "Unknown packet type specified.")
     end
@@ -536,16 +547,15 @@ local function ping_generator(freq)
 
     while true do
         for _, reflector in ipairs(reflector_array_v4) do
-            local result = send_ts_ping(reflector, reflector_type, packet_id)
-
-            logger(loglevel.TRACE, "Result from send_ts_ping(): " .. result)
+            ping_func(reflector, pkt_id)
         end
-
+        print("HERE1")
         time.nanosleep({
             tv_sec = sleep_time_s,
             tv_nsec = sleep_time_ns
         })
     end
+    logger(loglevel.TRACE, "Exiting ts_ping_sender()")
 end
 
 local function read_stats_file(file)
@@ -596,23 +606,15 @@ local function ratecontrol()
     speeddump_fd:write("time,counter,upspeed,downspeed\n")
 
     while true do
-        local owd_baseline = owd_data:get("owd_baseline")
-        local owd_recent = owd_data:get("owd_recent")
-
-        -- HERE FOR TEMP DEBUGGING
-        -- for k, v in pairs(owd_baseline) do
-        --     print(k, v)
-        -- end
-        -- for k, v in pairs(owd_recent) do
-        --     print(k, v)
-        -- end
-
         local now_s, now_ns = get_current_time()
         now_s = now_s - start_s
         local now_t = now_s + now_ns / 1e9
         if now_t - lastchg_t > min_change_interval then
             -- if it's been long enough, and the stats indicate needing to change speeds
             -- change speeds here
+
+            local owd_baseline = owd_data:get("owd_baseline")
+            local owd_recent = owd_data:get("owd_recent")
 
             local min_up_del = 1 / 0
             local min_down_del = 1 / 0
@@ -715,6 +717,7 @@ local function baseline_calculator()
     local fast_factor = .2
 
     while true do
+
         local _, time_data = stats_queue:receive(nil, "stats")
         local owd_baseline = owd_data:get("owd_baseline")
         local owd_recent = owd_data:get("owd_recent")
@@ -758,7 +761,7 @@ local function baseline_calculator()
             -- Set the values back into the shared tables
             owd_data:set("owd_baseline", owd_baseline)
             owd_data:set("owd_recent", owd_recent)
-
+            print("HERE")
             if enable_verbose_baseline_output then
                 for ref, val in pairs(owd_baseline) do
                     local up_ewma = a_else_b(val.up_ewma, "?")
@@ -777,6 +780,84 @@ local function baseline_calculator()
         end
     end
 end
+---------------------------- End Local Functions ----------------------------
+
+---------------------------- Begin Conductor Loop ----------------------------
+
+-- Figure out the interfaces in play here
+-- if ul_if == "" then
+--     ul_if = settings and settings:get("sqm", "@queue[0]", "interface")
+--     if not ul_if then
+--         logger(loglevel.FATAL, "Upload interface not found in SQM config and was not overriden. Cannot continue.")
+--         os.exit(1, true)
+--     end
+-- end
+
+-- if dl_if == "" then
+--     local fh = io.popen(string.format("tc -p filter show parent ffff: dev %s", ul_if))
+--     local tc_filter = fh:read("*a")
+--     fh:close()
+
+--     local ifb_name = string.match(tc_filter, "ifb[%a%d]+")
+--     if not ifb_name then
+--         local ifb_name = string.match(tc_filter, "veth[%a%d]+")
+--     end
+--     if not ifb_name then
+--         logger(loglevel.FATAL, string.format(
+--             "Download interface not found for upload interface %s and was not overriden. Cannot continue.", ul_if))
+--         os.exit(1, true)
+--     end
+
+--     dl_if = ifb_name
+-- end
+logger(loglevel.DEBUG, "Upload iface: " .. ul_if .. " | Download iface: " .. dl_if)
+
+-- Verify these are correct using "cat /sys/class/..."
+if dl_if:find("^ifb.+") or dl_if:find("^veth.+") then
+    rx_bytes_path = "/sys/class/net/" .. dl_if .. "/statistics/tx_bytes"
+else
+    rx_bytes_path = "/sys/class/net/" .. dl_if .. "/statistics/rx_bytes"
+end
+
+if ul_if:find("^ifb.+") or ul_if:find("^veth.+") then
+    tx_bytes_path = "/sys/class/net/" .. ul_if .. "/statistics/rx_bytes"
+else
+    tx_bytes_path = "/sys/class/net/" .. ul_if .. "/statistics/tx_bytes"
+end
+
+logger(loglevel.DEBUG, "rx_bytes_path: " .. rx_bytes_path)
+logger(loglevel.DEBUG, "tx_bytes_path: " .. tx_bytes_path)
+
+-- Test for existent stats files
+local test_file = io.open(rx_bytes_path)
+if not test_file then
+    logger(loglevel.FATAL, "Could not open stats file: " .. rx_bytes_path)
+    os.exit(1, true)
+end
+test_file:close()
+
+test_file = io.open(tx_bytes_path)
+if not test_file then
+    logger(loglevel.FATAL, "Could not open stats file: " .. tx_bytes_path)
+    os.exit(1, true)
+end
+test_file:close()
+
+if enable_lynx_graph_output then
+    print(string.format("%10s%20s;%20s;%20s;%20s;%20s;%20s;%20s;", " ", "log_time", "rx_load", "tx_load",
+        "min_downlink_delta", "min_uplink_delta", "cur_dl_rate", "cur_ul_rate"))
+end
+
+-- Random seed
+local nows, nowns = get_current_time()
+math.randomseed(nowns)
+
+-- Set a packet ID
+local packet_id = cur_process_id + 32768
+
+-- Set initial TC values
+os.execute(string.format("tc qdisc change root dev %s cake bandwidth %sKbit", dl_if, base_dl_rate))
+os.execute(string.format("tc qdisc change root dev %s cake bandwidth %sKbit", ul_if, base_ul_rate))
 
 -- Start this whole thing in motion!
 local function conductor()
@@ -784,7 +865,7 @@ local function conductor()
 
     local pinger = lanes.gen("*", {
         required = {"bit32", "posix.sys.socket", "posix.time", "vstruct"}
-    }, ping_generator)(tick_duration)
+    }, ts_ping_sender)(reflector_type, packet_id, tick_duration)
     local receiver = lanes.gen("*", {
         required = {"bit32", "posix.sys.socket", "posix.time", "vstruct"}
     }, receive_ts_ping)(packet_id, reflector_type)
