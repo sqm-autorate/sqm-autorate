@@ -22,7 +22,8 @@ reload() {
 }
 
 start() {
-    luajit /usr/lib/sqm-autorate/sqm-autorate.lua &
+    #luajit /usr/lib/sqm-autorate/sqm-autorate.lua &
+    lua /usr/lib/sqm-autorate/sqm-autorate.lua &
     echo $! >/tmp/run/sqm-autorate.pid
 }
 
