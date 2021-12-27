@@ -444,8 +444,8 @@ end
 
 local function ts_ping_sender(pkt_type, pkt_id, freq)
     logger(loglevel.TRACE, "Entered ts_ping_sender() with values: " .. freq .. " | " .. pkt_type .. " | " .. pkt_id)
-    local sleep_time_ns = freq % 1 * 1e9
-    local sleep_time_s = math.floor(freq)
+    local sleep_time_ns = ((freq/#reflector_array_v4) % 1) * 1e9
+    local sleep_time_s = math.floor(freq/#reflector_array_v4)
     local ping_func = nil
 
     if pkt_type == "icmp" then
@@ -459,12 +459,12 @@ local function ts_ping_sender(pkt_type, pkt_id, freq)
     while true do
         for _, reflector in ipairs(reflector_array_v4) do
             ping_func(reflector, pkt_id)
+	    time.nanosleep({
+		  tv_sec = sleep_time_s,
+		  tv_nsec = sleep_time_ns
+	    })
         end
 
-        time.nanosleep({
-            tv_sec = sleep_time_s,
-            tv_nsec = sleep_time_ns
-        })
     end
 
     logger(loglevel.TRACE, "Exiting ts_ping_sender()")
