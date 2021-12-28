@@ -1,28 +1,49 @@
 # CAKE with Adaptive Bandwidth - "autorate"
 
-## Lua Native Port
+## Lua Threads
 
-**sqm-autorate.lua** is a Lua native port of the original
-[sqm-autorate.sh shell script.](https://github.com/lynxthecat/sqm-autorate)
-Functionality should be virtually identical to the shell version, so refer to [Original Shell Version](#original-shell-version) (below) for details as to the goal and theory.
+**sqm-autorate.lua** is a Lua implementation of an SQM auto-rate algorithm and it employs multiple [preemptive] threads to perform the following high-level actions in parallel:
 
-### Lua Port Setup
+- Ping Sender
+- Ping Receiver
+- Baseline Calculator
+- Rate Controller
+
+The functionality in this Lua version is a culmination of progressive iterations to the original shell version as introduced by @Lynx (OpenWrt Forum). Refer to the [Original Shell Version](#original-shell-version) (below) for details as to the original goal and theory.
+
+### Lua Threads Setup
 
 Run the following setup script to download the required operational files and prequisites:
 
 ```bash
-sh -c "$(curl -sL https://raw.githubusercontent.com/Fail-Safe/sqm-autorate/experimental/sqm-autorate-setup.sh)"
+sh -c "$(curl -sL https://raw.githubusercontent.com/Fail-Safe/sqm-autorate/testing/lua-threads/sqm-autorate-setup.sh)"
 ```
 
 ### Configuration
 
 Generally, configuration should be performed via the `/etc/config/sqm-autorate` file.
 
-Advanced users may override values (following comments) directly in `/usr/lib/sqm-autorate/sqm-autorate.lua` as comfort level allows.
+Advanced users may override values (following comments) directly in `/usr/lib/sqm-autorate/sqm-autorate.lua` as comfort level dictates.
+
+#### Config File Options
+
+| Section | Option Name | Value Description | Default |
+| - | - | - | - |
+| network | transmit_interface | The transmit interface name which is typically the physical device name of the WAN-facing interface. | 'wan' |
+| network | receive_interface | The receive interface name which is typically created as a virtual interface when CAKE is active. This typically begins with 'ifb4' or 'veth'. | 'ifb4wan' |
+| network | transmit_kbits_base | The highest speed in kbit/s at which bufferbloat typically is non-existent for outbound traffic on the given connection. This is used for reference in determining safe speeds via learning, but is not a hard floor or ceiling. | '10000' |
+| network | receive_kbits_base | The highest speed in kbit/s at which bufferbloat typically is non-existent for inbound traffic on the given connection. This is used for reference in determining safe speeds via learning, but is not a hard floor or ceiling. | '10000' |
+| network | transmit_kbits_min | The absolute minimum outbound speed in kbits/s the autorate algorithm is allowed to fall back to in cases of extreme congestion. | '1500' |
+| network | receive_kbits_min | The absolute minimum inbound speed in kbits/s the autorate algorithm is allowed to fall back to in cases of extreme congestion. | '1500' |
+| network | reflector_type | This is intended for future use and details are TBD. | 'icmp' |
+| output | log_level | Used to set the highest level of logging verbosity. e.g. setting to 'INFO' will output all log levels at the set level or lower (in terms of verbosity). [Verbosity Options](#verbosity-options) | 'INFO' |
+| output | stats_file | The location to which the autorate OWD reflector stats will be written. | '/tmp/sqm-autorate.csv' |
+| output | speed_hist_file | The location to which autorate speed adjustment history will be written. | '/tmp/sqm-speedhist.csv' |
+| output | hist_size | The amount of "safe" speed history which the algorithm will maintain for reference during times of increased latency/congestion. | '100' |
 
 ### Execution
 
-The Lua port can be invoked directly or operate via the sqm-autorate service script in this branch.
+The Lua Threads version can be invoked directly or operate via the sqm-autorate service script in this branch, which is installed via the setup script.
 
 #### Direct Execution (for Testing and Tuning)
 
@@ -32,15 +53,39 @@ For testing/tuning, invoke the `sqm-autorate.lua` script from the command line:
 lua /usr/lib/sqm-autorate/sqm-autorate.lua
 ```
 
-The script outputs statistics about various internal variables to the terminal.
 When you run a speed test, you should see the `current_dl_rate` and
 `current_ul_rate` values change to match the current conditions.
 They should then drift back to the configured download and update rates
 when the link is idle.
 
-To disable the output, set `enable_lynx_graph_output` to "false" in the script.
 The script also writes the similar information to `/tmp/sqm-autorate.csv` and speed history data to `/tmp/sqm-speedhist.csv`.
 There is currently no way to turn off output to these files, though the file location can be modified via `/etc/config/sqm-autorate`.
+
+### Output and Monitoring
+
+#### Verbosity Options
+
+The script can output statistics about various internal variables to the terminal. To enable higher levels of verbosity, you may toggle the following settings (beware, they can generate a LOT of output):
+
+```bash
+local enable_debug_output = false
+local enable_verbose_baseline_output = false
+```
+
+The overall verbosity of the script can be adjusted via the `option log_level` in `/etc/config/sqm-autorate`.
+
+The available values are one of the following, in order of decreasing overall verbosity:
+
+- TRACE
+- DEBUG
+- INFO
+- WARN
+- ERROR
+- FATAL
+
+#### Log Output
+
+
 
 #### Service Execution
 
