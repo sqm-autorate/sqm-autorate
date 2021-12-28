@@ -12,6 +12,10 @@
 **High-level Notice**
 This script "learns" over time and the time it takes to "stabilize" is somewhere generally between 30-90 minutes, although this is subject to change as development continues. Do not assume something is wrong if you notice some initial latency spikes when first running this script. That is expected and will smooth out over time.
 
+In it's current iteration this script also reacts harshly under conditions with high latency and low load, which can force the rates down to the minimum.
+If this applies to you please try to adjust the `max_delta_owd` variable to a higher value.
+
+
 The functionality in this Lua version is a culmination of progressive iterations to the original shell version as introduced by @Lynx (OpenWrt Forum). Refer to the [Original Shell Version](#original-shell-version) (below) for details as to the original goal and theory.
 
 ### Lua Threads Algorithm
