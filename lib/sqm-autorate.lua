@@ -1,7 +1,10 @@
--- Automatically adjust bandwidth for CAKE in dependence on detected load and OWD
+-- Automatically adjust bandwidth for CAKE in dependence on detected load
+-- and OWD, as well as connection history.
+--
 -- Inspired by @moeller0 (OpenWrt forum)
 -- Initial sh implementation by @Lynx (OpenWrt forum)
--- Initial Lua port by @Lochnair, @dlakelan, and @_FailSafe (OpenWrt forum)
+-- Lua version maintained by @Lochnair, @dlakelan, and @_FailSafe (OpenWrt forum)
+--
 -- Recommended style guide: https://github.com/luarocks/lua-style-guide
 local lanes = require"lanes".configure()
 
