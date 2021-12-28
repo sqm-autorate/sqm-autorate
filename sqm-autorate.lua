@@ -189,9 +189,12 @@ local function a_else_b(a, b)
     end
 end
 
-local function nsleep(s,ns)
-   -- nanosleep requires integers
-   time.nanosleep({tv_sec = math.floor(s), tv_nsec = math.floor(((s%1.0) * 1e9) + ns)})
+local function nsleep(s, ns)
+    -- nanosleep requires integers
+    time.nanosleep({
+        tv_sec = math.floor(s),
+        tv_nsec = math.floor(((s % 1.0) * 1e9) + ns)
+    })
 end
 
 local function get_current_time()
@@ -465,7 +468,7 @@ local function ts_ping_sender(pkt_type, pkt_id, freq)
     while true do
         for _, reflector in ipairs(reflector_array_v4) do
             ping_func(reflector, pkt_id)
-            nsleep(sleep_time_s,sleep_time_ns)
+            nsleep(sleep_time_s, sleep_time_ns)
         end
 
     end
@@ -620,7 +623,7 @@ local function ratecontrol()
             lastdump_t = now_t
         end
 
-        nsleep(sleep_time_s,sleep_time_ns)
+        nsleep(sleep_time_s, sleep_time_ns)
     end
 end
 
@@ -694,85 +697,83 @@ end
 ---------------------------- End Local Functions ----------------------------
 
 ---------------------------- Begin Conductor ----------------------------
-
--- Figure out the interfaces in play here
--- if ul_if == "" then
---     ul_if = settings and settings:get("sqm", "@queue[0]", "interface")
---     if not ul_if then
---         logger(loglevel.FATAL, "Upload interface not found in SQM config and was not overriden. Cannot continue.")
---         os.exit(1, true)
---     end
--- end
-
--- if dl_if == "" then
---     local fh = io.popen(string.format("tc -p filter show parent ffff: dev %s", ul_if))
---     local tc_filter = fh:read("*a")
---     fh:close()
-
---     local ifb_name = string.match(tc_filter, "ifb[%a%d]+")
---     if not ifb_name then
---         local ifb_name = string.match(tc_filter, "veth[%a%d]+")
---     end
---     if not ifb_name then
---         logger(loglevel.FATAL, string.format(
---             "Download interface not found for upload interface %s and was not overriden. Cannot continue.", ul_if))
---         os.exit(1, true)
---     end
-
---     dl_if = ifb_name
--- end
-logger(loglevel.DEBUG, "Upload iface: " .. ul_if .. " | Download iface: " .. dl_if)
-
--- Verify these are correct using "cat /sys/class/..."
-if dl_if:find("^ifb.+") or dl_if:find("^veth.+") then
-    rx_bytes_path = "/sys/class/net/" .. dl_if .. "/statistics/tx_bytes"
-else
-    rx_bytes_path = "/sys/class/net/" .. dl_if .. "/statistics/rx_bytes"
-end
-
-if ul_if:find("^ifb.+") or ul_if:find("^veth.+") then
-    tx_bytes_path = "/sys/class/net/" .. ul_if .. "/statistics/rx_bytes"
-else
-    tx_bytes_path = "/sys/class/net/" .. ul_if .. "/statistics/tx_bytes"
-end
-
-logger(loglevel.DEBUG, "rx_bytes_path: " .. rx_bytes_path)
-logger(loglevel.DEBUG, "tx_bytes_path: " .. tx_bytes_path)
-
--- Test for existent stats files
-local test_file = io.open(rx_bytes_path)
-if not test_file then
-    logger(loglevel.FATAL, "Could not open stats file: " .. rx_bytes_path)
-    os.exit(1, true)
-end
-test_file:close()
-
-test_file = io.open(tx_bytes_path)
-if not test_file then
-    logger(loglevel.FATAL, "Could not open stats file: " .. tx_bytes_path)
-    os.exit(1, true)
-end
-test_file:close()
-
-if enable_lynx_graph_output then
-    print(string.format("%10s%20s;%20s;%20s;%20s;%20s;%20s;%20s;", " ", "log_time", "rx_load", "tx_load",
-        "min_downlink_delta", "min_uplink_delta", "cur_dl_rate", "cur_ul_rate"))
-end
-
--- Random seed
-local nows, nowns = get_current_time()
-math.randomseed(nowns)
-
--- Set a packet ID
-local packet_id = cur_process_id + 32768
-
--- Set initial TC values
-update_cake_bandwidth(dl_if, base_dl_rate)
-update_cake_bandwidth(ul_if, base_ul_rate)
-
--- Start this whole thing in motion!
 local function conductor()
     logger(loglevel.TRACE, "Entered conductor()")
+
+    -- Figure out the interfaces in play here
+    -- if ul_if == "" then
+    --     ul_if = settings and settings:get("sqm", "@queue[0]", "interface")
+    --     if not ul_if then
+    --         logger(loglevel.FATAL, "Upload interface not found in SQM config and was not overriden. Cannot continue.")
+    --         os.exit(1, true)
+    --     end
+    -- end
+
+    -- if dl_if == "" then
+    --     local fh = io.popen(string.format("tc -p filter show parent ffff: dev %s", ul_if))
+    --     local tc_filter = fh:read("*a")
+    --     fh:close()
+
+    --     local ifb_name = string.match(tc_filter, "ifb[%a%d]+")
+    --     if not ifb_name then
+    --         local ifb_name = string.match(tc_filter, "veth[%a%d]+")
+    --     end
+    --     if not ifb_name then
+    --         logger(loglevel.FATAL, string.format(
+    --             "Download interface not found for upload interface %s and was not overriden. Cannot continue.", ul_if))
+    --         os.exit(1, true)
+    --     end
+
+    --     dl_if = ifb_name
+    -- end
+    logger(loglevel.DEBUG, "Upload iface: " .. ul_if .. " | Download iface: " .. dl_if)
+
+    -- Verify these are correct using "cat /sys/class/..."
+    if dl_if:find("^ifb.+") or dl_if:find("^veth.+") then
+        rx_bytes_path = "/sys/class/net/" .. dl_if .. "/statistics/tx_bytes"
+    else
+        rx_bytes_path = "/sys/class/net/" .. dl_if .. "/statistics/rx_bytes"
+    end
+
+    if ul_if:find("^ifb.+") or ul_if:find("^veth.+") then
+        tx_bytes_path = "/sys/class/net/" .. ul_if .. "/statistics/rx_bytes"
+    else
+        tx_bytes_path = "/sys/class/net/" .. ul_if .. "/statistics/tx_bytes"
+    end
+
+    logger(loglevel.DEBUG, "rx_bytes_path: " .. rx_bytes_path)
+    logger(loglevel.DEBUG, "tx_bytes_path: " .. tx_bytes_path)
+
+    -- Test for existent stats files
+    local test_file = io.open(rx_bytes_path)
+    if not test_file then
+        logger(loglevel.FATAL, "Could not open stats file: " .. rx_bytes_path)
+        os.exit(1, true)
+    end
+    test_file:close()
+
+    test_file = io.open(tx_bytes_path)
+    if not test_file then
+        logger(loglevel.FATAL, "Could not open stats file: " .. tx_bytes_path)
+        os.exit(1, true)
+    end
+    test_file:close()
+
+    if enable_lynx_graph_output then
+        print(string.format("%10s%20s;%20s;%20s;%20s;%20s;%20s;%20s;", " ", "log_time", "rx_load", "tx_load",
+            "min_downlink_delta", "min_uplink_delta", "cur_dl_rate", "cur_ul_rate"))
+    end
+
+    -- Random seed
+    local nows, nowns = get_current_time()
+    math.randomseed(nowns)
+
+    -- Set a packet ID
+    local packet_id = cur_process_id + 32768
+
+    -- Set initial TC values
+    update_cake_bandwidth(dl_if, base_dl_rate)
+    update_cake_bandwidth(ul_if, base_ul_rate)
 
     local threads = {
         pinger = lanes.gen("*", {
@@ -790,6 +791,7 @@ local function conductor()
     }
     local join_timeout = 0.5
 
+    -- Start this whole thing in motion!
     while true do
         for name, thread in pairs(threads) do
             _, err = thread:join(join_timeout)
