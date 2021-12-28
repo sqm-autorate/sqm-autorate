@@ -604,11 +604,9 @@ local function ratecontrol()
             cur_dl_rate = next_dl_rate
             cur_ul_rate = next_ul_rate
 
-            if enable_verbose_output then
-                logger(loglevel.INFO,
-                    string.format("%d,%d,%f,%f,%f,%f,%d,%d\n", lastchg_s, lastchg_ns, rx_load, tx_load, min_down_del,
-                        min_up_del, cur_dl_rate, cur_ul_rate))
-            end
+            logger(loglevel.DEBUG,
+                string.format("%d,%d,%f,%f,%f,%f,%d,%d\n", lastchg_s, lastchg_ns, rx_load, tx_load, min_down_del,
+                    min_up_del, cur_dl_rate, cur_ul_rate))
 
             lastchg_s, lastchg_ns = get_current_time()
 
