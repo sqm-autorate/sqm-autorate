@@ -32,7 +32,7 @@ Per @dlakelan (OpenWrt Forum):
 Run the following setup script to download the required operational files and prequisites:
 
 ```bash
-sh -c "$(curl -sL https://raw.githubusercontent.com/Fail-Safe/sqm-autorate/testing/lua-threads/sqm-autorate-setup.sh)"
+sh -c "$(wget -q -O- https://raw.githubusercontent.com/Fail-Safe/sqm-autorate/testing/lua-threads/sqm-autorate-setup.sh)"
 ```
 
 ### Lua Threads Removal
@@ -42,7 +42,7 @@ Not that you will ever want to uninstall this autorate tool...
 Run the following removal script to remove the operational files:
 
 ```bash
-sh -c "$(curl -sL https://raw.githubusercontent.com/Fail-Safe/sqm-autorate/testing/lua-threads/sqm-autorate-remove.sh)"
+sh -c "$(wget -q -O- https://raw.githubusercontent.com/Fail-Safe/sqm-autorate/testing/lua-threads/sqm-autorate-remove.sh)"
 ```
 
 ### Configuration
