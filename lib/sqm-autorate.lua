@@ -700,6 +700,7 @@ end
 
 ---------------------------- Begin Conductor ----------------------------
 local function conductor()
+    logger(loglevel.INFO, "Starting sqm-autorate.lua v" .. _VERSION)
     logger(loglevel.TRACE, "Entered conductor()")
 
     -- Figure out the interfaces in play here
