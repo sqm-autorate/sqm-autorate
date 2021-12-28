@@ -793,7 +793,7 @@ local function conductor()
     -- Start this whole thing in motion!
     while true do
         for name, thread in pairs(threads) do
-            _, err = thread:join(join_timeout)
+            local _, err = thread:join(join_timeout)
 
             if err and err ~= "timeout" then
                 print('Something went wrong in the ' .. name .. ' thread')
