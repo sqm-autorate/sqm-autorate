@@ -125,7 +125,6 @@ local histsize = settings and tonumber(settings:get("sqm-autorate", "@output[0]"
 use_loglevel = loglevel[string.upper(settings and settings:get("sqm-autorate", "@output[0]", "log_level") or "INFO")]
 
 ---------------------------- Begin Advanced User-Configurable Local Variables ----------------------------
-local enable_debug_output = false
 local enable_verbose_baseline_output = false
 
 local tick_duration = 0.5 -- Frequency in seconds

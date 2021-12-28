@@ -87,10 +87,9 @@ service sqm-autorate enable && service sqm-autorate start
 
 #### Verbosity Options
 
-The script can output statistics about various internal variables to the terminal. To enable higher levels of verbosity, you may toggle the following settings (beware, they can generate a LOT of output):
+The script can output statistics about various internal variables to the terminal. To enable higher levels of verbosity for testing and tuning, you may toggle the following setting:
 
 ```bash
-local enable_debug_output = false
 local enable_verbose_baseline_output = false
 ```
 
