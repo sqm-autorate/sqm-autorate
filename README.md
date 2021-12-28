@@ -11,6 +11,19 @@
 
 The functionality in this Lua version is a culmination of progressive iterations to the original shell version as introduced by @Lynx (OpenWrt Forum). Refer to the [Original Shell Version](#original-shell-version) (below) for details as to the original goal and theory.
 
+### Lua Threads Algorithm
+
+Per @dlakelan (OpenWrt Forum):
+> When the load gets near to the current max in any direction, and latency hasn't increased, then it reacts by opening the throttle according to a formula that I'm still tweaking, but it starts out exponentially and then slows to linear. When it bumps the speed up it puts the old speed into a database of samples of known good speeds. When it hits latency increase then it throttles town the speed by grabbing a random known good speed, and ensuring that's at least less than 0.9 times the current speed. Most of the time the latency increase goes away immediately, and it begins to rise again.
+
+> That's the basic idea, the historical database of known good rates makes it possible to rapidly choke off any latency increase, and obviates the need to decay down in the absence of load. But it does have to run under load a while to learn that "safe" region.
+
+> The random value is often below 0.9 and the duration of lag spikes is quite short when you exploit the historical database. My thought is that we want to keep lag spike duration as short as possible, so having a database of recent "known good" values is valuable. Right now that database is a 100 sample ring-buffer so it's "recent" values. That's a tunable, if you have relatively rapidly varying speeds you might drop this down to 50 or 20 or something.
+
+> The shell's technique is more or less a feedback control loop: rate of change of speed is related to load and observed delay. The historical database adds a predictive component that allows the system to directly jump to a closer to known-good value. Since there is also a rate-of-change component still: exponential transitioning to linear upward, and exponential downward (always below 0.9x) the system should transition strictly faster in all cases.
+
+> For those who are interested in the algorithm theory though, the existence of the random transition makes this into a piecewise deterministic random process. The randomness is a choice of a value from a database of recent past, so it's "markovian" in the sense that current behavior is based on the past, but it's not based on just the "current value". The randomness produces discontinuous "jumps" but in between those jumps the behavior is deterministic and looks like feedback control. Ideally the system should transition to a linear exploration before it gets too high and induces bufferbloat. I think there's a lot to be said for tuning this transition.
+
 ### Lua Threads Setup
 
 Run the following setup script to download the required operational files and prequisites:
