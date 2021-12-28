@@ -97,7 +97,7 @@ to the compromise setting (yellow);
 if the setting is too high, CAKE will still buffer
 too much data (green) and induce unwanted latency.
 
-![image of Bandwidth Compromise](./_readme/Bandwidth-Compromise.png)
+![image of Bandwidth Compromise](.readme/Bandwidth-Compromise.png)
 
 The **autorate.sh** script periodically measures the load
 and Round-Trip-Time (RTT) to adjust the upload and
@@ -148,7 +148,7 @@ _**The remainder of this document has been deprecated - read the Setup section a
 > a known fixed, stable component, on top of which
 > is provided an unknown variable component:
 >
-> ![image of CAKE bandwidth adaptation](./_readme/CAKE-Bandwidth-Adaptation.png)
+> ![image of CAKE bandwidth adaptation](.readme/CAKE-Bandwidth-Adaptation.png)
 >
 > The minimum bandwidth is then set to (or
 > slightly below) the fixed component, and the
