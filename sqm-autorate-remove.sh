@@ -16,4 +16,5 @@ rm -f /etc/config/"$name"
 
 echo "!!! If you would like to remove the Lua modules which this setup previously installed, please run the following command:"
 echo "!!! WARNING: Only run the following if no other applications are using these Lua modules..."
-echo "luarocks remove vstruct && opkg remove luarocks lua-bit32 luaposix lualanes"
+echo ""
+echo "--> luarocks remove vstruct && opkg remove luarocks lua-bit32 luaposix lualanes <--"
