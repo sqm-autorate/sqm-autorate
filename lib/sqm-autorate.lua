@@ -364,8 +364,8 @@ local function receive_udp_pkt(pkt_id)
     end
 end
 
-local function receive_ts_ping(pkt_id, pkt_type)
-    logger(loglevel.TRACE, "Entered receive_ts_ping() with value: " .. pkt_id)
+local function ts_ping_receiver(pkt_id, pkt_type)
+    logger(loglevel.TRACE, "Entered ts_ping_receiver() with value: " .. pkt_id)
 
     local receive_func = nil
     if pkt_type == "icmp" then
@@ -781,7 +781,7 @@ local function conductor()
         }, ts_ping_sender)(reflector_type, packet_id, tick_duration),
         receiver = lanes.gen("*", {
             required = {"bit32", "posix.sys.socket", "posix.time", "vstruct"}
-        }, receive_ts_ping)(packet_id, reflector_type),
+        }, ts_ping_receiver)(packet_id, reflector_type),
         baseliner = lanes.gen("*", {
             required = {"bit32", "posix", "posix.time"}
         }, baseline_calculator)(),
