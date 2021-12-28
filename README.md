@@ -23,8 +23,6 @@ sh -c "$(curl -sL https://raw.githubusercontent.com/Fail-Safe/sqm-autorate/testi
 
 Generally, configuration should be performed via the `/etc/config/sqm-autorate` file.
 
-Advanced users may override values (following comments) directly in `/usr/lib/sqm-autorate/sqm-autorate.lua` as comfort level dictates.
-
 #### Config File Options
 
 | Section | Option Name | Value Description | Default |
@@ -40,6 +38,8 @@ Advanced users may override values (following comments) directly in `/usr/lib/sq
 | output | stats_file | The location to which the autorate OWD reflector stats will be written. | '/tmp/sqm-autorate.csv' |
 | output | speed_hist_file | The location to which autorate speed adjustment history will be written. | '/tmp/sqm-speedhist.csv' |
 | output | hist_size | The amount of "safe" speed history which the algorithm will maintain for reference during times of increased latency/congestion. | '100' |
+
+Advanced users may override values (following comments) directly in `/usr/lib/sqm-autorate/sqm-autorate.lua` as comfort level dictates.
 
 ### Execution
 
@@ -60,6 +60,15 @@ when the link is idle.
 
 The script also writes the similar information to `/tmp/sqm-autorate.csv` and speed history data to `/tmp/sqm-speedhist.csv`.
 There is currently no way to turn off output to these files, though the file location can be modified via `/etc/config/sqm-autorate`.
+
+#### Service Execution (for Steady-State Execution)
+
+You can also install the `sqm-autorate.lua` script as a service,
+so that it starts up automatically when you reboot the router.
+
+```bash
+service sqm-autorate enable && service sqm-autorate start
+```
 
 ### Output and Monitoring
 
@@ -85,25 +94,38 @@ The available values are one of the following, in order of decreasing overall ve
 
 #### Log Output
 
+- **sqm-autorate.csv**: The location to which the autorate OWD reflector stats will be written. By default, this file is stored in `/tmp`.
+- **sqm-speedhist.csv**: The location to which autorate speed adjustment history will be written. By default, this file is stored in `/tmp`.
 
+#### Output Analysis
 
-#### Service Execution
+Analysis of the CSV outputs can be performed via MS Excel, or more preferably, via Julia (aka [JuliaLang](https://julialang.org/)). The process to analyze the results via Julia looks like this:
 
-You can also install the `sqm-autorate.lua` script as a service,
-so that it starts up automatically when you reboot the router.
-
-```bash
-service sqm-autorate enable && service sqm-autorate start
-```
-
-There is a detailed and fun discussion with plenty of sketches relating to the development of the script and alternatives on the [OpenWrt Forum - CAKE /w Adaptive Bandwidth.](https://forum.openwrt.org/t/cake-w-adaptive-bandwidth/108848/312)
+1. Clone this Github project to a computer where Julia is installed.
+2. Copy (via SCP or otherwise) the `/tmp/sqm-autorate.csv` and `/tmp/sqm-speedhist.csv` files within the `julia` sub-directory of the cloned project directory.
+3. [First Time Only] In a terminal:
+    ```bash
+    cd <github project dir>/julia
+    julia
+    using Pkg
+    Pkg.activate(".")
+    Pkg.add(["CSV","StatsPlots","DataFrames","StatsBase"])
+    ```
+4. [Subsequent Executions] In a terminal:
+    ```bash
+    cd <github project dir>/julia
+    julia
+    include("plotstats.jl")
+    ```
+5. After some time, the outputs will be available as PNG and GIF files in the current directory.
 
 ### A Request to Testers
 
-If you use this script I have just one ask.
-Please post your experience on this
+Please post your overall experience on this
 [OpenWrt Forum thread.](https://forum.openwrt.org/t/cake-w-adaptive-bandwidth/108848/312)
 Your feedback will help improve the script for the benefit of others.
+
+Bug reports and/or feature requests [should be added here](https://github.com/Fail-Safe/sqm-autorate/issues/new/choose) to allow for proper prioritization and tracking.
 
 ## Original Shell Version
 
