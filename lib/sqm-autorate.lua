@@ -124,7 +124,6 @@ use_loglevel = loglevel[string.upper(settings and settings:get("sqm-autorate", "
 ---------------------------- Begin Advanced User-Configurable Local Variables ----------------------------
 local enable_debug_output = false
 local enable_verbose_baseline_output = false
-local enable_lynx_graph_output = false
 
 local tick_duration = 0.5 -- Frequency in seconds
 local min_change_interval = 0.5 -- don't change speeds unless this many seconds has passed since last change
@@ -758,11 +757,6 @@ local function conductor()
         os.exit(1, true)
     end
     test_file:close()
-
-    if enable_lynx_graph_output then
-        print(string.format("%10s%20s;%20s;%20s;%20s;%20s;%20s;%20s;", " ", "log_time", "rx_load", "tx_load",
-            "min_downlink_delta", "min_uplink_delta", "cur_dl_rate", "cur_ul_rate"))
-    end
 
     -- Random seed
     local nows, nowns = get_current_time()
