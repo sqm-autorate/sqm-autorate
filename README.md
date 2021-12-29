@@ -93,6 +93,15 @@ For testing/tuning, invoke the `sqm-autorate.lua` script from the command line:
 lua /usr/lib/sqm-autorate/sqm-autorate.lua
 ```
 
+If you are greeted with an angry message about not being able to locate `vstruct` (or any other Lua package), you will need to add the following exports to your current environment*:
+
+```bash
+export LUA_CPATH="/usr/lib/lua/5.1/?.so;./?.so;/usr/lib/lua/?.so;/usr/lib/lua/loadall.so"
+export LUA_PATH="/usr/share/lua/5.1/?.lua;/usr/share/lua/5.1/?/init.lua;./?.lua;/usr/share/lua/?.lua;/usr/share/lua/?/init.lua;/usr/lib/lua/?.lua;/usr/lib/lua/?/init.lua"
+```
+
+**Note: This is not required for the service method of execution as the service script handles these exports itself.*
+
 When you run a speed test, you should see the `current_dl_rate` and
 `current_ul_rate` values change to match the current conditions.
 They should then drift back to the configured download and update rates
