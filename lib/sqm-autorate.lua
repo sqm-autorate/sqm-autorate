@@ -813,6 +813,7 @@ local parser = argparse("sqm-autorate.lua", "CAKE with Adaptive Bandwidth - 'aut
 parser:flag("-v --version", "Displays the SQM Autorate version.")
 local args = parser:parse()
 
+-- Print the version and then exit
 if args.version then
     print(_VERSION)
     os.exit(0, true)
