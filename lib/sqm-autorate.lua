@@ -1,3 +1,5 @@
+#!/usr/bin/env lua
+
 -- Automatically adjust bandwidth for CAKE in dependence on detected load
 -- and OWD, as well as connection history.
 --
@@ -805,7 +807,7 @@ local function conductor()
 end
 ---------------------------- End Conductor Loop ----------------------------
 
-local parser = argparse("sqm-autorate", "CAKE with Adaptive Bandwidth - 'autorate'",
+local parser = argparse("sqm-autorate.lua", "CAKE with Adaptive Bandwidth - 'autorate'",
     "For more info, please visit: https://github.com/Fail-Safe/sqm-autorate")
 
 parser:flag("-v --version", "Displays the SQM Autorate version.")
