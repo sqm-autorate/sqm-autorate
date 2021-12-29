@@ -60,8 +60,9 @@ if [ -f "$owrt_release_file" ]; then
         opkg install -V0 lua luarocks lua-bit32 luaposix lualanes && luarocks install vstruct
 
         # Try to install lua-argparse if possible...
-        echo ">>> Checking to see if lua-argparse is available for install..."
+        echo ">> Checking to see if lua-argparse is available for install..."
         if [ "$(opkg find lua-argparse | wc -l)" = "1" ]; then
+            echo ">>> It is available. Installing lua-argparse..."
             opkg install -V0 lua-argparse
         else
             echo "!! The lua-argparse package is not available for your distro. This means additional command-line options and arguments will not be available to you."
