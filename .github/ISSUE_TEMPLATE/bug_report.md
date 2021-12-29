@@ -7,6 +7,9 @@ assignees: ''
 
 ---
 
+**Script Version**
+The version which exhibited this bug behavior. Can be found via `/usr/lib/sqm-autorate/sqm-autorate.lua -v` or in the first line of `/tmp/sqm-autorate.log`.
+
 **Describe the bug**
 A clear and concise description of what the bug is.
 
@@ -25,6 +28,7 @@ If applicable, add screenshots to help explain your problem.
 
 **OpenWrt Details (please paste your output from `cat /etc/os-release`):**
  - OS-Release:
+ - Connection Type + Speed:
 
 **Additional context**
 Add any other context about the problem here.
