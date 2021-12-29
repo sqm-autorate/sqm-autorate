@@ -35,7 +35,7 @@ owd_data:set("owd_baseline", {})
 owd_data:set("owd_recent", {})
 
 -- The versioning value for this script
-local _VERSION = "0.0.1b1"
+local _VERSION = "0.0.1b2"
 
 local loglevel = {
     TRACE = {
