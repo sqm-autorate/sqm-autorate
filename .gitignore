@@ -1,2 +1,3 @@
 **/*.bak
 test.bin
+**/.DS_Store
