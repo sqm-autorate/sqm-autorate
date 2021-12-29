@@ -57,7 +57,15 @@ if [ -f "$owrt_release_file" ]; then
 
         # Install the sqm-autorate prereqs...
         echo ">>> Installing prerequisite packages via opkg..."
-        opkg install -V0 lua luarocks lua-bit32 luaposix lualanes lua-argparse && luarocks install vstruct
+        opkg install -V0 lua luarocks lua-bit32 luaposix lualanes && luarocks install vstruct
+
+        # Try to install lua-argparse if possible...
+        echo ">>> Checking to see if lua-argparse is available for install..."
+        if [ "$(opkg find lua-argparse | wc -l)" = "1" ]; then
+            opkg install -V0 lua-argparse
+        else
+            echo "!! The lua-argparse package is not available for your distro. This means additional command-line options and arguments will not be available to you."
+        fi
 
         echo ">>> Putting config file into place..."
         if [ -f "/etc/config/sqm-autorate" ]; then
