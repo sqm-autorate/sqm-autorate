@@ -1,3 +1,5 @@
+#!/usr/bin/env lua
+
 -- Automatically adjust bandwidth for CAKE in dependence on detected load
 -- and OWD, as well as connection history.
 --
@@ -5,8 +7,32 @@
 -- Initial sh implementation by @Lynx (OpenWrt forum)
 -- Lua version maintained by @Lochnair, @dlakelan, and @_FailSafe (OpenWrt forum)
 --
--- Recommended style guide: https://github.com/luarocks/lua-style-guide
+-- ** Recommended style guide: https://github.com/luarocks/lua-style-guide **
+--
+-- Found this clever function here: https://stackoverflow.com/a/15434737
+-- This function will assist in compatibility given differences between OpenWrt, Turris OS, etc.
+local function is_module_available(name)
+    if package.loaded[name] then
+        return true
+    else
+        for _, searcher in ipairs(package.searchers or package.loaders) do
+            local loader = searcher(name)
+            if type(loader) == 'function' then
+                package.preload[name] = loader
+                return true
+            end
+        end
+        return false
+    end
+end
+
 local lanes = require"lanes".configure()
+
+-- Try to load argparse if it's installed
+local argparse = nil
+if is_module_available("argparse") then
+    argparse = lanes.require "argparse"
+end
 
 local bit = lanes.require "bit32"
 local debug = lanes.require "debug"
@@ -32,7 +58,7 @@ owd_data:set("owd_baseline", {})
 owd_data:set("owd_recent", {})
 
 -- The versioning value for this script
-local _VERSION = "0.0.1b1"
+local _VERSION = "0.0.1b2"
 
 local loglevel = {
     TRACE = {
@@ -75,22 +101,6 @@ local function logger(loglevel, message)
 end
 
 -- Figure out if we are running on OpenWrt here...
--- Found this clever function here: https://stackoverflow.com/a/15434737
-local function is_module_available(name)
-    if package.loaded[name] then
-        return true
-    else
-        for _, searcher in ipairs(package.searchers or package.loaders) do
-            local loader = searcher(name)
-            if type(loader) == 'function' then
-                package.preload[name] = loader
-                return true
-            end
-        end
-        return false
-    end
-end
-
 local uci_lib = nil
 local settings = nil
 if is_module_available("luci.model.uci") then
@@ -802,6 +812,20 @@ local function conductor()
         end
     end
 end
+---------------------------- End Conductor Loop ----------------------------
+
+if argparse then
+    local parser = argparse("sqm-autorate.lua", "CAKE with Adaptive Bandwidth - 'autorate'",
+        "For more info, please visit: https://github.com/Fail-Safe/sqm-autorate")
+
+    parser:flag("-v --version", "Displays the SQM Autorate version.")
+    local args = parser:parse()
+
+    -- Print the version and then exit
+    if args.version then
+        print(_VERSION)
+        os.exit(0, true)
+    end
+end
 
 conductor() -- go!
----------------------------- End Conductor Loop ----------------------------
