@@ -8,7 +8,7 @@
 -- Recommended style guide: https://github.com/luarocks/lua-style-guide
 local lanes = require"lanes".configure()
 
-local bit = lanes.require "bit32"
+local bit = nil
 local debug = lanes.require "debug"
 local math = lanes.require "math"
 local posix = lanes.require "posix"
@@ -89,6 +89,15 @@ local function is_module_available(name)
         end
         return false
     end
+end
+
+if is_module_available("bit") then
+    bit = lanes.require "bit"
+elseif is_module_available("bit32") then
+    bit = lanes.require "bit32"
+else
+    logger(loglevel.FATAL, "No bitwise module found")
+    os.exit(1, true)
 end
 
 local uci_lib = nil
