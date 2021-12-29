@@ -37,6 +37,10 @@ Examples of the algorithm in action over time:
 
 ![Up Convergence](/.readme/5a82f679066f7479efda59fbaea11390d0e6d1bb.gif)
 
+![Fraction of Down Delay](/.readme/7ef21e89d37447bf05fde1ea4ba89a4b4b74e1f9.png)
+
+![Fraction of Up Delay](/.readme/6104d5c3f849d07b00f55590ceab2363ef0ce1e2.png)
+
 ### Lua Threads Setup
 
 Run the following setup script to download the required operational files and prequisites:
