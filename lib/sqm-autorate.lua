@@ -34,7 +34,6 @@ if is_module_available("argparse") then
     argparse = lanes.require "argparse"
 end
 
-local bit = lanes.require "bit32"
 local debug = lanes.require "debug"
 local math = lanes.require "math"
 local posix = lanes.require "posix"
@@ -100,7 +99,17 @@ local function logger(loglevel, message)
     end
 end
 
--- Figure out if we are running on OpenWrt here...
+local bit = nil
+if is_module_available("bit") then
+    bit = lanes.require "bit"
+elseif is_module_available("bit32") then
+    bit = lanes.require "bit32"
+else
+    logger(loglevel.FATAL, "No bitwise module found")
+    os.exit(1, true)
+end
+
+-- Figure out if we are running on OpenWrt here and load luci.model.uci if available...
 local uci_lib = nil
 local settings = nil
 if is_module_available("luci.model.uci") then
