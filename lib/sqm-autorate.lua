@@ -8,6 +8,7 @@
 -- Recommended style guide: https://github.com/luarocks/lua-style-guide
 local lanes = require"lanes".configure()
 
+local argparse = lanes.require "argparse"
 local bit = lanes.require "bit32"
 local debug = lanes.require "debug"
 local math = lanes.require "math"
@@ -802,6 +803,17 @@ local function conductor()
         end
     end
 end
+---------------------------- End Conductor Loop ----------------------------
+
+local parser = argparse("SQM Autorate", "CAKE with Adaptive Bandwidth - 'autorate'",
+    "For more info, please visit: https://github.com/Fail-Safe/sqm-autorate")
+
+parser:flag("-v --version", "Displays the SQM Autorate version.")
+local args = parser:parse()
+
+if args.version then
+    print("HERE")
+    os.exit(0, true)
+end
 
 conductor() -- go!
----------------------------- End Conductor Loop ----------------------------
