@@ -57,7 +57,7 @@ if [ -f "$owrt_release_file" ]; then
 
         # Install the sqm-autorate prereqs...
         echo ">>> Installing prerequisite packages via opkg..."
-        opkg install -V0 lua luarocks lua-bit32 luaposix lualanes && luarocks install vstruct
+        opkg install -V0 lua luarocks lua-bit32 luaposix lualanes lua-argparse && luarocks install vstruct
 
         echo ">>> Putting config file into place..."
         if [ -f "/etc/config/sqm-autorate" ]; then
