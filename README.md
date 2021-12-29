@@ -29,6 +29,14 @@ Per @dlakelan (OpenWrt Forum):
 
 > For those who are interested in the algorithm theory though, the existence of the random transition makes this into a piecewise deterministic random process. The randomness is a choice of a value from a database of recent past, so it's "markovian" in the sense that current behavior is based on the past, but it's not based on just the "current value". The randomness produces discontinuous "jumps" but in between those jumps the behavior is deterministic and looks like feedback control. Ideally the system should transition to a linear exploration before it gets too high and induces bufferbloat. I think there's a lot to be said for tuning this transition.
 
+### Algorithm In Action
+
+Examples of the algorithm in action over time:
+
+![Down Convergence](/.readme/9e03cf98b1a0d42248c19b615f6ede593beebc35.gif)
+
+![Up Convergence](/.readme/5a82f679066f7479efda59fbaea11390d0e6d1bb.gif)
+
 ### Lua Threads Setup
 
 Run the following setup script to download the required operational files and prequisites:
