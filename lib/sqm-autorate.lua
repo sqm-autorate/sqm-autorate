@@ -805,14 +805,14 @@ local function conductor()
 end
 ---------------------------- End Conductor Loop ----------------------------
 
-local parser = argparse("SQM Autorate", "CAKE with Adaptive Bandwidth - 'autorate'",
+local parser = argparse("sqm-autorate", "CAKE with Adaptive Bandwidth - 'autorate'",
     "For more info, please visit: https://github.com/Fail-Safe/sqm-autorate")
 
 parser:flag("-v --version", "Displays the SQM Autorate version.")
 local args = parser:parse()
 
 if args.version then
-    print("HERE")
+    print(_VERSION)
     os.exit(0, true)
 end
 
