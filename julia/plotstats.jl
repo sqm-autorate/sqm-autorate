@@ -15,13 +15,17 @@ downmax = maximum(dat.dlrate)
 upmax = maximum(dat.uprate)
 
 
-@df dat plot(:times + :timens/1e9,:rxload,title="Bandwidth and Delay through time",xlab="time (s)",ylab="Relative load/delay",labels="DL Load",legend=:topright,xlim=xlimvals,ylim=(0,3),alpha=0.5)
-@df dat plot!(:times + :timens/1e9,:txload,title="Bandwidth and Delay through time",xlab="time (s)",ylab="Relative load/delay",labels="UL Load",alpha=0.5)
-@df dat plot!(:times + :timens/1e9, :deltadelaydown / 20,label="Down Delay (del/20ms)",alpha=0.5)
-p1 = @df dat plot!(:times + :timens/1e9, :deltadelayup / 20,label="Up Delay (del/20ms)",alpha=0.5)
+pload = @df dat plot(:times + :timens/1e9,:rxload,title="Bandwidth Fractional utilization",xlab="time (s)",ylab="Relative load/delay",labels="DL Load",legend=:topright,xlim=xlimvals,ylim=(0,1.25))
+@df dat plot!(:times + :timens/1e9,:txload,xlab="time (s)",ylab="Relative load/delay",labels="UL Load")
 
-@df dat plot(:times + :timens/1e9,:dlrate ./ 1000,title="Bandwidth Setting",label="Download Rate (Mbps)",xlab="time (s)",ylab="Mbps",legend=:topright,xlim=xlimvals,ylim=(0,downmax/1000.0))
-p2 = @df dat plot!(:times + :timens/1e9,:uprate ./ 1000,title="Bandwidth Setting",label="Upload Rate (Mbps)",xlab="time (s)",ylab="Mbps")
+pdel = @df dat plot(:times + :timens/1e9, :deltadelaydown,title="Delay through time", label="Down Delay",ylab="delay (ms)",xlim=(xlimvals))
+@df dat plot!(:times + :timens/1e9, :deltadelayup,label="Up Delay")
+
+pbw = @df dat plot(:times + :timens/1e9,:dlrate ./ 1000,title="Cake Bandwidth Setting",label="Download Rate (Mbps)",xlab="time (s)",ylab="Mbps",legend=:topright,xlim=xlimvals,ylim=(0,max(downmax,upmax)*1.2/1000.0))
+@df dat plot!(:times + :timens/1e9,:uprate ./ 1000,label="Upload Rate (Mbps)",xlab="time (s)",ylab="Mbps")
+
+plot(pload,pdel,pbw,layout=grid(3,1,heights=[.45,.1,.45]),size=(800,1200),left_margin=5mm)
+savefig("timeseries.png")
 
 
 hists = CSV.read(histfile,DataFrame)
@@ -29,8 +33,6 @@ hists = CSV.read(histfile,DataFrame)
 p3 = density(hists.upspeed ./ 1000,group=hists.time,xlim=(0,upmax*1.25/1000),title="Upload History Distribution",xlab="Bandwidth (Mbps)",legend=true)
 p4 = density(hists.downspeed ./ 1000,group=hists.time,xlim=(0,downmax*1.25/1000),title="Download History Distribution",xlab="Bandwidth (Mbps)",legend=true)
 
-plot(p1,p2,layout=(2,1),size=(800,1200),margin=10mm)
-savefig("timeseries.png")
 
 anim = @animate for t in unique(hists.time)
     density(hists[hists.time .== t, "upspeed"] ./ 1000,xlim=(0,upmax*1.25/1000),xlab="Bandwidth (Mbps)",title=@sprintf("Up speed t=%.2fhrs",t/3600))
