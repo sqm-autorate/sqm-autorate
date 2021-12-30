@@ -702,7 +702,7 @@ local function baseline_calculator()
                 owd_recent[time_data.reflector].down_ewma)
 
             -- Set the values back into the shared tables
-            owd_data:set("owd_baseline", {
+            owd_data:set("owd_tables", {
                 baseline = owd_baseline,
                 recent = owd_recent
             })
