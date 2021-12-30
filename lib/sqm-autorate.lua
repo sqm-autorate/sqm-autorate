@@ -59,7 +59,7 @@ owd_data:set("owd_tables", {
 })
 
 -- The versioning value for this script
-local _VERSION = "0.0.1b2"
+local _VERSION = "0.0.1b3"
 
 local loglevel = {
     TRACE = {
@@ -801,9 +801,6 @@ local function conductor()
     update_cake_bandwidth(ul_if, base_ul_rate)
 
     local threads = {
-        pinger = lanes.gen("*", {
-            required = {"bit32", "posix.sys.socket", "posix.time", "vstruct"}
-        }, ts_ping_sender)(reflector_type, packet_id, tick_duration),
         receiver = lanes.gen("*", {
             required = {"bit32", "posix.sys.socket", "posix.time", "vstruct"}
         }, ts_ping_receiver)(packet_id, reflector_type),
@@ -812,7 +809,10 @@ local function conductor()
         }, baseline_calculator)(),
         regulator = lanes.gen("*", {
             required = {"bit32", "posix", "posix.time"}
-        }, ratecontrol)()
+        }, ratecontrol)(),
+        pinger = lanes.gen("*", {
+            required = {"bit32", "posix.sys.socket", "posix.time", "vstruct"}
+        }, ts_ping_sender)(reflector_type, packet_id, tick_duration)
     }
     local join_timeout = 0.5
 
