@@ -16,7 +16,7 @@ upmax = maximum(dat.uprate)
 
 
 pload = @df dat plot(:times + :timens/1e9,:rxload,title="Bandwidth Fractional utilization",xlab="time (s)",ylab="Relative load/delay",labels="DL Load",legend=:topright,xlim=xlimvals,ylim=(0,1.25))
-@df dat plot!(:times + :timens/1e9,:txload,xlab="time (s)",ylab="Relative load/delay",labels="UL Load")
+@df dat plot!(:times + :timens/1e9,:txload,xlab="time (s)",ylab="Relative load",labels="UL Load")
 
 pdel = @df dat plot(:times + :timens/1e9, :deltadelaydown,title="Delay through time", label="Down Delay",ylab="delay (ms)",xlim=(xlimvals))
 @df dat plot!(:times + :timens/1e9, :deltadelayup,label="Up Delay")
