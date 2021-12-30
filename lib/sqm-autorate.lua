@@ -560,84 +560,88 @@ local function ratecontrol()
             local owd_baseline = owd_tables["baseline"]
             local owd_recent = owd_tables["recent"]
 
-            local min_up_del = 1 / 0
-            local min_down_del = 1 / 0
+            if #owd_baseline > 0 and #owd_recent > 0 then
+                local min_up_del = 1 / 0
+                local min_down_del = 1 / 0
 
-            for k, val in pairs(owd_baseline) do
-                min_up_del = math.min(min_up_del, owd_recent[k].up_ewma - val.up_ewma)
-                min_down_del = math.min(min_down_del, owd_recent[k].down_ewma - val.down_ewma)
+                for k, val in pairs(owd_baseline) do
+                    min_up_del = math.min(min_up_del, owd_recent[k].up_ewma - val.up_ewma)
+                    min_down_del = math.min(min_down_del, owd_recent[k].down_ewma - val.down_ewma)
 
-                logger(loglevel.INFO, "min_up_del: " .. min_up_del .. "  min_down_del: " .. min_down_del)
-            end
-
-            local cur_rx_bytes = read_stats_file(rx_bytes_file)
-            local cur_tx_bytes = read_stats_file(tx_bytes_file)
-            t_prev_bytes = t_cur_bytes
-            t_cur_bytes = now_t
-
-            local rx_load = (8 / 1000) * (cur_rx_bytes - prev_rx_bytes) / (t_cur_bytes - t_prev_bytes) / cur_dl_rate
-            local tx_load = (8 / 1000) * (cur_tx_bytes - prev_tx_bytes) / (t_cur_bytes - t_prev_bytes) / cur_ul_rate
-            prev_rx_bytes = cur_rx_bytes
-            prev_tx_bytes = cur_tx_bytes
-            local next_ul_rate = cur_ul_rate
-            local next_dl_rate = cur_dl_rate
-
-            if min_up_del < max_delta_owd and tx_load > .8 then
-                safe_ul_rates[nrate_up] = math.floor(cur_ul_rate * tx_load)
-                local maxul = maximum(safe_ul_rates)
-                next_ul_rate = cur_ul_rate * (1 + .1 * math.max(0, (1 - cur_ul_rate / maxul))) + 500
-                nrate_up = nrate_up + 1
-                nrate_up = nrate_up % histsize
-            end
-            if min_down_del < max_delta_owd and rx_load > .8 then
-                safe_dl_rates[nrate_down] = math.floor(cur_dl_rate * rx_load)
-                local maxdl = maximum(safe_dl_rates)
-                next_dl_rate = cur_dl_rate * (1 + .1 * math.max(0, (1 - cur_dl_rate / maxdl))) + 500
-                nrate_down = nrate_down + 1
-                nrate_down = nrate_down % histsize
-            end
-
-            if min_up_del > max_delta_owd then
-                if #safe_ul_rates > 0 then
-                    next_ul_rate = math.min(0.9 * cur_ul_rate * tx_load, safe_ul_rates[math.random(#safe_ul_rates) - 1])
-                else
-                    next_ul_rate = 0.9 * cur_ul_rate * tx_load
+                    logger(loglevel.INFO, "min_up_del: " .. min_up_del .. "  min_down_del: " .. min_down_del)
                 end
-            end
-            if min_down_del > max_delta_owd then
-                if #safe_dl_rates > 0 then
-                    next_dl_rate = math.min(0.9 * cur_dl_rate * rx_load, safe_dl_rates[math.random(#safe_dl_rates) - 1])
-                else
-                    next_dl_rate = 0.9 * cur_dl_rate * rx_load
+
+                local cur_rx_bytes = read_stats_file(rx_bytes_file)
+                local cur_tx_bytes = read_stats_file(tx_bytes_file)
+                t_prev_bytes = t_cur_bytes
+                t_cur_bytes = now_t
+
+                local rx_load = (8 / 1000) * (cur_rx_bytes - prev_rx_bytes) / (t_cur_bytes - t_prev_bytes) / cur_dl_rate
+                local tx_load = (8 / 1000) * (cur_tx_bytes - prev_tx_bytes) / (t_cur_bytes - t_prev_bytes) / cur_ul_rate
+                prev_rx_bytes = cur_rx_bytes
+                prev_tx_bytes = cur_tx_bytes
+                local next_ul_rate = cur_ul_rate
+                local next_dl_rate = cur_dl_rate
+
+                if min_up_del < max_delta_owd and tx_load > .8 then
+                    safe_ul_rates[nrate_up] = math.floor(cur_ul_rate * tx_load)
+                    local maxul = maximum(safe_ul_rates)
+                    next_ul_rate = cur_ul_rate * (1 + .1 * math.max(0, (1 - cur_ul_rate / maxul))) + 500
+                    nrate_up = nrate_up + 1
+                    nrate_up = nrate_up % histsize
                 end
+                if min_down_del < max_delta_owd and rx_load > .8 then
+                    safe_dl_rates[nrate_down] = math.floor(cur_dl_rate * rx_load)
+                    local maxdl = maximum(safe_dl_rates)
+                    next_dl_rate = cur_dl_rate * (1 + .1 * math.max(0, (1 - cur_dl_rate / maxdl))) + 500
+                    nrate_down = nrate_down + 1
+                    nrate_down = nrate_down % histsize
+                end
+
+                if min_up_del > max_delta_owd then
+                    if #safe_ul_rates > 0 then
+                        next_ul_rate = math.min(0.9 * cur_ul_rate * tx_load,
+                            safe_ul_rates[math.random(#safe_ul_rates) - 1])
+                    else
+                        next_ul_rate = 0.9 * cur_ul_rate * tx_load
+                    end
+                end
+                if min_down_del > max_delta_owd then
+                    if #safe_dl_rates > 0 then
+                        next_dl_rate = math.min(0.9 * cur_dl_rate * rx_load,
+                            safe_dl_rates[math.random(#safe_dl_rates) - 1])
+                    else
+                        next_dl_rate = 0.9 * cur_dl_rate * rx_load
+                    end
+                end
+
+                next_ul_rate = math.floor(math.max(min_ul_rate, next_ul_rate))
+                next_dl_rate = math.floor(math.max(min_dl_rate, next_dl_rate))
+
+                -- TC modification
+                if next_dl_rate ~= cur_dl_rate then
+                    update_cake_bandwidth(dl_if, next_dl_rate)
+                end
+                if next_ul_rate ~= cur_ul_rate then
+                    update_cake_bandwidth(ul_if, next_ul_rate)
+                end
+
+                cur_dl_rate = next_dl_rate
+                cur_ul_rate = next_ul_rate
+
+                logger(loglevel.DEBUG,
+                    string.format("%d,%d,%f,%f,%f,%f,%d,%d\n", lastchg_s, lastchg_ns, rx_load, tx_load, min_down_del,
+                        min_up_del, cur_dl_rate, cur_ul_rate))
+
+                lastchg_s, lastchg_ns = get_current_time()
+
+                -- output to log file before doing delta on the time
+                csv_fd:write(string.format("%d,%d,%f,%f,%f,%f,%d,%d\n", lastchg_s, lastchg_ns, rx_load, tx_load,
+                    min_down_del, min_up_del, cur_dl_rate, cur_ul_rate))
+
+                lastchg_s = lastchg_s - start_s
+                lastchg_t = lastchg_s + lastchg_ns / 1e9
             end
-
-            next_ul_rate = math.floor(math.max(min_ul_rate, next_ul_rate))
-            next_dl_rate = math.floor(math.max(min_dl_rate, next_dl_rate))
-
-            -- TC modification
-            if next_dl_rate ~= cur_dl_rate then
-                update_cake_bandwidth(dl_if, next_dl_rate)
-            end
-            if next_ul_rate ~= cur_ul_rate then
-                update_cake_bandwidth(ul_if, next_ul_rate)
-            end
-
-            cur_dl_rate = next_dl_rate
-            cur_ul_rate = next_ul_rate
-
-            logger(loglevel.DEBUG,
-                string.format("%d,%d,%f,%f,%f,%f,%d,%d\n", lastchg_s, lastchg_ns, rx_load, tx_load, min_down_del,
-                    min_up_del, cur_dl_rate, cur_ul_rate))
-
-            lastchg_s, lastchg_ns = get_current_time()
-
-            -- output to log file before doing delta on the time
-            csv_fd:write(string.format("%d,%d,%f,%f,%f,%f,%d,%d\n", lastchg_s, lastchg_ns, rx_load, tx_load,
-                min_down_del, min_up_del, cur_dl_rate, cur_ul_rate))
-
-            lastchg_s = lastchg_s - start_s
-            lastchg_t = lastchg_s + lastchg_ns / 1e9
         end
 
         if now_t - lastdump_t > 300 then
