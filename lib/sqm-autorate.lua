@@ -53,8 +53,10 @@ local stats_queue = lanes.linda()
 -- to reinforce the intent that this is not a queue. This holds two
 -- separate tables which are owd_baseline and owd_recent.
 local owd_data = lanes.linda()
-owd_data:set("owd_baseline", {})
-owd_data:set("owd_recent", {})
+owd_data:set("owd_tables", {
+    baseline = {},
+    recent = {}
+})
 
 -- The versioning value for this script
 local _VERSION = "0.0.1b2"
@@ -554,8 +556,9 @@ local function ratecontrol()
             -- if it's been long enough, and the stats indicate needing to change speeds
             -- change speeds here
 
-            local owd_baseline = owd_data:get("owd_baseline")
-            local owd_recent = owd_data:get("owd_recent")
+            local owd_tables = owd_data:get("owd_tables")
+            local owd_baseline = owd_tables["baseline"]
+            local owd_recent = owd_tables["recent"]
 
             local min_up_del = 1 / 0
             local min_down_del = 1 / 0
@@ -654,8 +657,9 @@ local function baseline_calculator()
 
     while true do
         local _, time_data = stats_queue:receive(nil, "stats")
-        local owd_baseline = owd_data:get("owd_baseline")
-        local owd_recent = owd_data:get("owd_recent")
+        local owd_tables = owd_data:get("owd_tables")
+        local owd_baseline = owd_tables["baseline"]
+        local owd_recent = owd_tables["recent"]
 
         if time_data then
             if not owd_baseline[time_data.reflector] then
@@ -694,8 +698,10 @@ local function baseline_calculator()
                 owd_recent[time_data.reflector].down_ewma)
 
             -- Set the values back into the shared tables
-            owd_data:set("owd_baseline", owd_baseline)
-            owd_data:set("owd_recent", owd_recent)
+            owd_data:set("owd_baseline", {
+                baseline = owd_baseline,
+                recent = owd_recent
+            })
 
             if enable_verbose_baseline_output then
                 for ref, val in pairs(owd_baseline) do
