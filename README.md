@@ -41,7 +41,11 @@ Examples of the algorithm in action over time:
 
 ![Fraction of Up Delay](/.readme/6104d5c3f849d07b00f55590ceab2363ef0ce1e2.png)
 
-### Lua Threads Setup
+### Requirements
+
+Lua sqm-autorate is written for OpenWrt 21.02 first and foremost. The current developers are not against extending it for OpenWrt 19.07, however it is not the priority as none run 19.07. If it runs, that's great. If it doesn't run and someone works out why, and how to fix it, that's great as well. If they supply patches for the good of the project, that's even better!
+
+### Installation
 
 Run the following setup script to download the required operational files and prequisites:
 
@@ -49,7 +53,7 @@ Run the following setup script to download the required operational files and pr
 sh -c "$(wget -q -O- https://raw.githubusercontent.com/Fail-Safe/sqm-autorate/testing/lua-threads/sqm-autorate-setup.sh)"
 ```
 
-### Lua Threads Removal
+### Removal
 
 Not that you will ever want to uninstall this autorate tool...
 
