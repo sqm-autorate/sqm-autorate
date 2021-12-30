@@ -45,6 +45,8 @@ Examples of the algorithm in action over time:
 
 Lua sqm-autorate is written for OpenWrt 21.02 first and foremost. The current developers are not against extending it for OpenWrt 19.07, however it is not the priority as none run 19.07. If it runs, that's great. If it doesn't run and someone works out why, and how to fix it, that's great as well. If they supply patches for the good of the project, that's even better!
 
+For those running OpenWrt snapshot builds, a patch is required for Lua Lanes. Details can be found here: https://github.com/Fail-Safe/sqm-autorate/issues/32#issuecomment-1002584519
+
 ### Installation
 
 Run the following setup script to download the required operational files and prequisites:
