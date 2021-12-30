@@ -1,6 +1,6 @@
 using Pkg
 Pkg.activate(".")
-using CSV, StatsPlots, DataFrames, Printf, StatsBase
+using CSV, StatsPlots, DataFrames, Printf, StatsBase, Measures
 
 ratefile = "sqm-autorate.csv"
 histfile = "sqm-speedhist.csv"
@@ -29,7 +29,7 @@ hists = CSV.read(histfile,DataFrame)
 p3 = density(hists.upspeed ./ 1000,group=hists.time,xlim=(0,upmax*1.25/1000),title="Upload History Distribution",xlab="Bandwidth (Mbps)",legend=true)
 p4 = density(hists.downspeed ./ 1000,group=hists.time,xlim=(0,downmax*1.25/1000),title="Download History Distribution",xlab="Bandwidth (Mbps)",legend=true)
 
-plot(p1,p2,layout=(2,1),size=(800,1200))
+plot(p1,p2,layout=(2,1),size=(800,1200),margin=10mm)
 savefig("timeseries.png")
 
 anim = @animate for t in unique(hists.time)
