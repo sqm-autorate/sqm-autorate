@@ -53,11 +53,13 @@ local stats_queue = lanes.linda()
 -- to reinforce the intent that this is not a queue. This holds two
 -- separate tables which are owd_baseline and owd_recent.
 local owd_data = lanes.linda()
-owd_data:set("owd_baseline", {})
-owd_data:set("owd_recent", {})
+owd_data:set("owd_tables", {
+    baseline = {},
+    recent = {}
+})
 
 -- The versioning value for this script
-local _VERSION = "0.0.1b2"
+local _VERSION = "0.0.1b3"
 
 local loglevel = {
     TRACE = {
@@ -554,9 +556,11 @@ local function ratecontrol()
             -- if it's been long enough, and the stats indicate needing to change speeds
             -- change speeds here
 
-            local owd_baseline = owd_data:get("owd_baseline")
-            local owd_recent = owd_data:get("owd_recent")
+            local owd_tables = owd_data:get("owd_tables")
+            local owd_baseline = owd_tables["baseline"]
+            local owd_recent = owd_tables["recent"]
 
+            -- if #owd_baseline > 0 and #owd_recent > 0 then
             local min_up_del = 1 / 0
             local min_down_del = 1 / 0
 
@@ -635,6 +639,7 @@ local function ratecontrol()
 
             lastchg_s = lastchg_s - start_s
             lastchg_t = lastchg_s + lastchg_ns / 1e9
+            -- end
         end
 
         if now_t - lastdump_t > 300 then
@@ -654,8 +659,9 @@ local function baseline_calculator()
 
     while true do
         local _, time_data = stats_queue:receive(nil, "stats")
-        local owd_baseline = owd_data:get("owd_baseline")
-        local owd_recent = owd_data:get("owd_recent")
+        local owd_tables = owd_data:get("owd_tables")
+        local owd_baseline = owd_tables["baseline"]
+        local owd_recent = owd_tables["recent"]
 
         if time_data then
             if not owd_baseline[time_data.reflector] then
@@ -694,8 +700,10 @@ local function baseline_calculator()
                 owd_recent[time_data.reflector].down_ewma)
 
             -- Set the values back into the shared tables
-            owd_data:set("owd_baseline", owd_baseline)
-            owd_data:set("owd_recent", owd_recent)
+            owd_data:set("owd_tables", {
+                baseline = owd_baseline,
+                recent = owd_recent
+            })
 
             if enable_verbose_baseline_output then
                 for ref, val in pairs(owd_baseline) do
@@ -793,9 +801,6 @@ local function conductor()
     update_cake_bandwidth(ul_if, base_ul_rate)
 
     local threads = {
-        pinger = lanes.gen("*", {
-            required = {"bit32", "posix.sys.socket", "posix.time", "vstruct"}
-        }, ts_ping_sender)(reflector_type, packet_id, tick_duration),
         receiver = lanes.gen("*", {
             required = {"bit32", "posix.sys.socket", "posix.time", "vstruct"}
         }, ts_ping_receiver)(packet_id, reflector_type),
@@ -804,7 +809,10 @@ local function conductor()
         }, baseline_calculator)(),
         regulator = lanes.gen("*", {
             required = {"bit32", "posix", "posix.time"}
-        }, ratecontrol)()
+        }, ratecontrol)(),
+        pinger = lanes.gen("*", {
+            required = {"bit32", "posix.sys.socket", "posix.time", "vstruct"}
+        }, ts_ping_sender)(reflector_type, packet_id, tick_duration)
     }
     local join_timeout = 0.5
 
