@@ -176,7 +176,8 @@ Analysis of the CSV outputs can be performed via MS Excel, or more preferably, v
     julia
     using Pkg
     Pkg.activate(".")
-    Pkg.add(["CSV","StatsPlots","DataFrames","StatsBase"])
+    Pkg.instantiate()
+    include("plotstats.jl")
     ```
 4. [Subsequent Executions] In a terminal:
     ```bash
