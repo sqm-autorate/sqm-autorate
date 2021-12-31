@@ -83,6 +83,13 @@ if [ -f "$owrt_release_file" ]; then
                 mv "./$config_file" "/etc/config/$name"
             fi
         fi
+
+        # transition section 1 - to be removed
+        if grep -q -e 'receive' -e 'transmit' "/etc/config/$name" ; then
+            echo ">>> Revising config option names..."
+            sed 's/receive/download/; s/transmit/upload/' "/etc/config/$name" > "/tmp/$name.config"
+            mv "/tmp/$name.config" "/etc/config/$name"
+        fi
     fi
 fi
 
