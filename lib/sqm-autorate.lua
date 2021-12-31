@@ -34,7 +34,6 @@ if is_module_available("argparse") then
     argparse = lanes.require "argparse"
 end
 
-local debug = lanes.require "debug"
 local math = lanes.require "math"
 local posix = lanes.require "posix"
 local socket = lanes.require "posix.sys.socket"
@@ -59,7 +58,7 @@ owd_data:set("owd_tables", {
 })
 
 -- The versioning value for this script
-local _VERSION = "0.0.1b3"
+local _VERSION = "0.0.1b4"
 
 local loglevel = {
     TRACE = {
@@ -102,10 +101,13 @@ local function logger(loglevel, message)
 end
 
 local bit = nil
+local bit_mod = nil
 if is_module_available("bit") then
     bit = lanes.require "bit"
+    bit_mod = "bit"
 elseif is_module_available("bit32") then
     bit = lanes.require "bit32"
+    bit_mod = "bit32"
 else
     logger(loglevel.FATAL, "No bitwise module found")
     os.exit(1, true)
@@ -802,16 +804,16 @@ local function conductor()
 
     local threads = {
         receiver = lanes.gen("*", {
-            required = {"bit32", "posix.sys.socket", "posix.time", "vstruct"}
+            required = {bit_mod, "posix.sys.socket", "posix.time", "vstruct"}
         }, ts_ping_receiver)(packet_id, reflector_type),
         baseliner = lanes.gen("*", {
-            required = {"bit32", "posix", "posix.time"}
+            required = {"posix", "posix.time"}
         }, baseline_calculator)(),
         regulator = lanes.gen("*", {
-            required = {"bit32", "posix", "posix.time"}
+            required = {"posix", "posix.time"}
         }, ratecontrol)(),
         pinger = lanes.gen("*", {
-            required = {"bit32", "posix.sys.socket", "posix.time", "vstruct"}
+            required = {bit_mod, "posix.sys.socket", "posix.time", "vstruct"}
         }, ts_ping_sender)(reflector_type, packet_id, tick_duration)
     }
     local join_timeout = 0.5
