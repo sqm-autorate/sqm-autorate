@@ -838,6 +838,12 @@ local function reflector_peer_selector()
             peers = new_peers
         })
 
+        -- Now reset the OWD baseline and recent tables since we have new peers
+        owd_data:set("owd_tables", {
+            baseline = {},
+            recent = {}
+        })
+
         nsleep(sleep_time_s, sleep_time_ns)
     end
 end
