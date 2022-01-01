@@ -678,7 +678,7 @@ local function ratecontrol()
                         next_dl_rate = 0.9 * cur_dl_rate * rx_load
                     end
                 end
-
+                logger(loglevel.INFO, "next_ul_rate " .. next_ul_rate .. " next_dl_rate " .. next_dl_rate)
                 next_ul_rate = math.floor(math.max(min_ul_rate, next_ul_rate))
                 next_dl_rate = math.floor(math.max(min_dl_rate, next_dl_rate))
 
