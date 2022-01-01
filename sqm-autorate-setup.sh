@@ -1,5 +1,11 @@
 #!/bin/sh
-set -v
+
+if [ -z "$1" ]
+then repo_root="https://raw.githubusercontent.com/Fail-Safe/sqm-autorate/testing/lua-threads"
+elif [ -z "$2" ]
+then repo_root="https://raw.githubusercontent.com/Fail-Safe/sqm-autorate/${1}"
+else repo_root="https://raw.githubusercontent.com/${1}/sqm-autorate/${2}"
+fi
 
 name="sqm-autorate"
 
@@ -8,13 +14,6 @@ config_file="sqm-autorate.config"
 service_file="sqm-autorate.service"
 lua_file="sqm-autorate.lua"
 autorate_root="/usr/lib/sqm-autorate"
-
-if [ "$1" && "$2"]
-then repo_root="https://raw.githubusercontent.com/${1}/sqm-autorate/${2}"
-elif "$1"
-then repo_root="https://raw.githubusercontent.com/Fail-Safe/sqm-autorate/${1}"
-else repo_root="https://raw.githubusercontent.com/Fail-Safe/sqm-autorate/testing/lua-threads"
-fi
 
 check_for_sqm() {
     # Check first to see if SQM is installed and if not, offer to install it...
@@ -99,12 +98,19 @@ if [ -f "$owrt_release_file" ]; then
             uci rename sqm-autorate.@network[0].receive_interface=download_interface
             uci rename sqm-autorate.@network[0].receive_kbits_base=download_kbits_base
             uci rename sqm-autorate.@network[0].receive_kbits_min=download_kbits_min
-            uci add sqm-autorate advanced_settings
-            t = $( uci -q get sqm-autorate.@network[0].hist_size )
-            if "${t}" ; then
-                uci delete sqm-autorate.@network[0].hist_size
-                uci set sqm-autorate.@advanced_settings[0].speed_hist_size="${t}"
+            uci -q add sqm-autorate advanced_settings 1> /dev/null
+            t=$( uci -q get sqm-autorate.@output[0].hist_size )
+            if [ -n "${t}" ] ; then
+                uci delete sqm-autorate.@output[0].hist_size
+                t=100
             fi
+            uci set sqm-autorate.@advanced_settings[0].speed_hist_size="${t}"
+            t=$( uci -q get sqm-autorate.@network[0].reflector_type )
+            if [ -n "${t}" ] ; then
+                uci delete sqm-autorate.@network[0].reflector_type
+                t=icmp
+            fi
+            uci set sqm-autorate.@advanced_settings[0].reflector_type="${t}"
             uci set sqm-autorate.@advanced_settings[0].rtt_delta_bufferbloat=15
             uci commit
         fi

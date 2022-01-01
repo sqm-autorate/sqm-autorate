@@ -166,7 +166,8 @@ local max_delta_owd = settings and tonumber(settings:get("sqm-autorate", "@advan
         -- 15 is good for networks with very variable RTT values, such as LTE and DOCIS/cable networks
         -- 5 might be appropriate for high speed and relatively stable networks such as fiber
 
-local reflector_type = settings and settings:get("sqm-autorate", "@network[0]", "reflector_type") or nil
+local reflector_type = settings and settings:get("sqm-autorate", "@advanced_settings[0]", "reflector_type") or "icmp"
+
 local reflector_array_v4 = {}
 local reflector_array_v6 = {}
 
