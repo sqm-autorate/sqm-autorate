@@ -201,7 +201,7 @@ if reflector_type == "icmp" then
 elseif reflector_type == "udp" then
     sock = assert(socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP), "Failed to create socket")
 else
-    logger(loglevel.FATAL, "Unknown reflector type specified. Cannot continue.")
+    logger(loglevel.FATAL, "Unknown reflector type '"..reflector_type.."' specified. Cannot continue.")
     os.exit(1, true)
 end
 
