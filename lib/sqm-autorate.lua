@@ -839,9 +839,11 @@ local function conductor()
 
     -- Shuffle the table
     tmp_reflectors = shuffle_table(tmp_reflectors)
+    if #tmp_reflectors < num_reflectors then
+        num_reflectors = #tmp_reflectors
+    end
     for i = 1, num_reflectors, 1 do
         reflector_array_v4[#reflector_array_v4 + 1] = tmp_reflectors[i]
-        print(tmp_reflectors[i])
     end
 
     -- Set a packet ID
