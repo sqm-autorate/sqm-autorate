@@ -144,8 +144,6 @@ local stats_file = settings and settings:get("sqm-autorate", "@output[0]", "stat
 local speedhist_file = settings and settings:get("sqm-autorate", "@output[0]", "speed_hist_file") or
                            "<HIST FILE NAME/PATH>"
 
-local histsize = settings and tonumber(settings:get("sqm-autorate", "@output[0]", "hist_size"), 10) or "<HISTORY SIZE>"
-
 use_loglevel = loglevel[string.upper(settings and settings:get("sqm-autorate", "@output[0]", "log_level") or "INFO")]
 
 ---------------------------- Begin Advanced User-Configurable Local Variables ----------------------------
@@ -159,6 +157,14 @@ local ul_if = settings and settings:get("sqm-autorate", "@network[0]", "upload_i
                   "<UPLOAD INTERFACE NAME>" -- upload interface
 local dl_if = settings and settings:get("sqm-autorate", "@network[0]", "download_interface") or
                   "<DOWNLOAD INTERFACE NAME>" -- download interface
+
+local histsize = settings and tonumber(settings:get("sqm-autorate", "@advanced_settings[0]", "speed_hist_size"), 10) or 100 -- the number of 'good' speeds to remember
+        -- reducing this value could result in the algorithm remembering too few speeds to truly stabilise
+        -- increasing this value could result in the algorithm taking too long to stabilise
+
+local max_delta_owd = settings and tonumber(settings:get("sqm-autorate", "@advanced_settings[0]", "rtt_delta_bufferbloat"), 10) or 15 -- increase from baseline RTT for detection of bufferbloat
+        -- 15 is good for networks with very variable RTT values, such as LTE and DOCIS/cable networks
+        -- 5 might be appropriate for high speed and relatively stable networks such as fiber
 
 local reflector_type = settings and settings:get("sqm-autorate", "@network[0]", "reflector_type") or nil
 local reflector_array_v4 = {}
@@ -175,8 +181,6 @@ else
                           "2001:19f0:6001:3de9:5400:03ff:febe:3f8e", "2a03:94e0:ffff:185:243:217:0:26",
                           "2a0d:5600:30:46::2", "2a00:1a28:1157:3ef::2"}
 end
-
-local max_delta_owd = 15 -- increase from baseline RTT for detection of bufferbloat
 
 ---------------------------- Begin Internal Local Variables ----------------------------
 

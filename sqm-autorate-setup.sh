@@ -87,8 +87,20 @@ if [ -f "$owrt_release_file" ]; then
         # transition section 1 - to be removed
         if grep -q -e 'receive' -e 'transmit' "/etc/config/$name" ; then
             echo ">>> Revising config option names..."
-            sed 's/receive/download/; s/transmit/upload/' "/etc/config/$name" > "/tmp/$name.config"
-            mv "/tmp/$name.config" "/etc/config/$name"
+            uci rename sqm-autorate.@network[0].transmit_interface=upload_interface
+            uci rename sqm-autorate.@network[0].transmit_kbits_base=upload_kbits_base
+            uci rename sqm-autorate.@network[0].transmit_kbits_min=upload_kbits_min
+            uci rename sqm-autorate.@network[0].receive_interface=download_interface
+            uci rename sqm-autorate.@network[0].receive_kbits_base=download_kbits_base
+            uci rename sqm-autorate.@network[0].receive_kbits_min=download_kbits_min
+            uci add sqm-autorate advanced_settings
+            t = $( uci -q get sqm-autorate.@network[0].hist_size )
+            if "${t}" ; then
+                uci delete sqm-autorate.@network[0].hist_size
+                uci set sqm-autorate.@advanced_settings[0].speed_hist_size="${t}"
+            fi
+            uci set sqm-autorate.@advanced_settings[0].rtt_delta_bufferbloat=15
+            uci commit
         fi
     fi
 fi
