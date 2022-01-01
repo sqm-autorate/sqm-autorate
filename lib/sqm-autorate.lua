@@ -803,11 +803,12 @@ local function reflector_peer_selector()
 
     -- Initial wait of several seconds to allow some OWD data to build up
     nsleep(3, 0)
+    logger(loglevel.INFO, "Reflector Pool Size " .. #reflector_pool)
     while true do
         -- Put all the pool members back into the peers for some re-baselining...
-        logger(loglevel.INFO, "Reflector Pool Size " .. #reflector_pool)
         reflector_data:set("reflector_tables", {
-            peers = reflector_pool
+            peers = reflector_pool,
+            pool = reflector_pool
         })
 
         -- Wait for 2 seconds to allow all reflectors to be re-baselined
@@ -843,7 +844,8 @@ local function reflector_peer_selector()
         end
 
         reflector_data:set("reflector_tables", {
-            peers = new_peers
+            peers = new_peers,
+            pool = reflector_pool
         })
 
         -- Now reset the OWD baseline and recent tables since we have new peers
