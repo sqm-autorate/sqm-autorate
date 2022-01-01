@@ -9,6 +9,9 @@
 --
 -- ** Recommended style guide: https://github.com/luarocks/lua-style-guide **
 --
+-- The versioning value for this script
+local _VERSION = "0.1.0b1"
+--
 -- Found this clever function here: https://stackoverflow.com/a/15434737
 -- This function will assist in compatibility given differences between OpenWrt, Turris OS, etc.
 local function is_module_available(name)
@@ -56,9 +59,6 @@ owd_data:set("owd_tables", {
     baseline = {},
     recent = {}
 })
-
--- The versioning value for this script
-local _VERSION = "0.0.1b4"
 
 local loglevel = {
     TRACE = {
