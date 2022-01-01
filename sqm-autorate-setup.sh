@@ -1,4 +1,5 @@
 #!/bin/sh
+set -v
 
 name="sqm-autorate"
 
@@ -8,7 +9,9 @@ service_file="sqm-autorate.service"
 lua_file="sqm-autorate.lua"
 autorate_root="/usr/lib/sqm-autorate"
 
-if "$1"
+if [ "$1" && "$2"]
+then repo_root="https://raw.githubusercontent.com/${1}/sqm-autorate/${2}"
+elif "$1"
 then repo_root="https://raw.githubusercontent.com/Fail-Safe/sqm-autorate/${1}"
 else repo_root="https://raw.githubusercontent.com/Fail-Safe/sqm-autorate/testing/lua-threads"
 fi
