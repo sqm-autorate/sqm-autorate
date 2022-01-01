@@ -635,7 +635,7 @@ local function ratecontrol()
 
             -- If we have no reflector peers to iterate over, don't attempt any rate changes.
             -- This will occur under normal operation when the reflector peers table is updated.
-            if not reflector_list then
+            if reflector_list then
                 for _, reflector_ip in ipairs(reflector_list) do
                     min_up_del = math.min(min_up_del,
                         owd_recent[reflector_ip].up_ewma - owd_baseline[reflector_ip].up_ewma)
