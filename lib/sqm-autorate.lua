@@ -588,7 +588,7 @@ local function ratecontrol()
                 min_up_del = math.min(min_up_del, owd_recent[k].up_ewma - val.up_ewma)
                 min_down_del = math.min(min_down_del, owd_recent[k].down_ewma - val.down_ewma)
 
-                logger(loglevel.INFO,
+                logger(loglevel.WARN,
                     "reflector: " .. k .. " min_up_del: " .. min_up_del .. "  min_down_del: " .. min_down_del)
             end
 
