@@ -822,6 +822,10 @@ local function conductor()
     end
     test_file:close()
 
+    -- Random seed
+    local nows, nowns = get_current_time()
+    math.randomseed(nowns)
+
     -- Load up the reflectors table
     local tmp_reflectors = {}
     if reflector_type == "icmp" then
@@ -839,10 +843,6 @@ local function conductor()
         reflector_array_v4[#reflector_array_v4 + 1] = tmp_reflectors[i]
         print(tmp_reflectors[i])
     end
-
-    -- Random seed
-    local nows, nowns = get_current_time()
-    math.randomseed(nowns)
 
     -- Set a packet ID
     local packet_id = cur_process_id + 32768
