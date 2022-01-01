@@ -589,7 +589,7 @@ local function ratecontrol()
                 min_down_del = math.min(min_down_del, owd_recent[k].down_ewma - val.down_ewma)
 
                 logger(loglevel.INFO,
-                    "reflector: " .. k .. "min_up_del: " .. min_up_del .. "  min_down_del: " .. min_down_del)
+                    "reflector: " .. k .. " min_up_del: " .. min_up_del .. "  min_down_del: " .. min_down_del)
             end
 
             local cur_rx_bytes = read_stats_file(rx_bytes_file)
