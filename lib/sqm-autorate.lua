@@ -837,7 +837,7 @@ local function conductor()
     tmp_reflectors = shuffle_table(tmp_reflectors)
     for i = 1, num_reflectors, 1 do
         reflector_array_v4[#reflector_array_v4 + 1] = tmp_reflectors[i]
-        print(i)
+        print(tmp_reflectors[i])
     end
 
     -- Random seed
