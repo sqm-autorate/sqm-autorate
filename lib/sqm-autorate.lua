@@ -10,7 +10,7 @@
 -- ** Recommended style guide: https://github.com/luarocks/lua-style-guide **
 --
 -- The versioning value for this script
-local _VERSION = "0.1.0b1"
+local _VERSION = "0.1.1b1"
 --
 -- Found this clever function here: https://stackoverflow.com/a/15434737
 -- This function will assist in compatibility given differences between OpenWrt, Turris OS, etc.
@@ -173,8 +173,6 @@ local dl_if = settings and settings:get("sqm-autorate", "@network[0]", "receive_
 local reflector_list_icmp = "reflectors-icmp.csv"
 local reflector_list_udp = "reflectors-udp.csv"
 local reflector_type = settings and settings:get("sqm-autorate", "@network[0]", "reflector_type") or nil
--- local reflector_array_v4 = {}
--- local reflector_array_v6 = {}
 
 local max_delta_owd = 15 -- increase from baseline RTT for detection of bufferbloat
 
@@ -189,7 +187,7 @@ end
 local num_reflectors = 5
 
 -- Time (in minutes) before re-selection of peers from the pool
-local peer_reselection_time = 2
+local peer_reselection_time = 1
 
 -- Bandwidth file paths
 local rx_bytes_path = nil
@@ -795,17 +793,20 @@ local function reflector_peer_selector()
     local sleep_time_ns = 0
     local sleep_time_s = peer_reselection_time * 60
 
+    local reflector_tables = reflector_data:get("reflector_tables")
+    local reflector_pool = reflector_tables["pool"]
+
     -- Wait for 5 seconds to allow all reflectors to be baselined
-    nsleep(3, 0)
+    nsleep(5, 0)
     while true do
         -- Put all the pool members back into the peers for some re-baselining...
-        local relfector_pool = reflector_data:get("reflector_tables")["pool"]
+        logger(loglevel.INFO, "Reflector Pool Size " .. #reflector_pool)
         reflector_data:set("reflector_tables", {
-            peers = relfector_pool
+            peers = reflector_pool
         })
 
         -- Wait for 5 seconds to allow all reflectors to be re-baselined
-        nsleep(3, 0)
+        nsleep(5, 0)
 
         local candidates = {}
 
