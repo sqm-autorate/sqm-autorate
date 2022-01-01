@@ -823,7 +823,7 @@ local function reflector_peer_selector()
             num_reflectors = #candidates
         end
         for i = 1, num_reflectors, 1 do
-            new_peers[#new_peers + 1] = candidates[i]
+            new_peers[#new_peers + 1] = candidates[i][2]
         end
 
         for i, v in ipairs(new_peers) do
