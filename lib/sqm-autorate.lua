@@ -811,8 +811,8 @@ local function reflector_peer_selector()
     local selector_sleep_time_ns = 0
     local selector_sleep_time_s = peer_reselection_time * 60
 
-    local baseline_sleep_time_ns = 0
-    local baseline_sleep_time_s = math.floor(tick_duration * 3.5)
+    local baseline_sleep_time_ns = math.floor(((tick_duration * math.pi) % 1) * 1e9)
+    local baseline_sleep_time_s = math.floor(tick_duration * math.pi)
 
     local reflector_tables = reflector_data:get("reflector_tables")
     local reflector_pool = reflector_tables["pool"]
