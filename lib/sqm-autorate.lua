@@ -620,12 +620,10 @@ local function ratecontrol()
             local owd_baseline = owd_tables["baseline"]
             local owd_recent = owd_tables["recent"]
 
-            -- If we have not baselines and recents to compare against, don't attempt any rate changes.
+            -- If we have no baselines and recents to compare against, don't attempt any rate changes.
             -- This will occur under normal operation when the reflector peers table is updated and the
             -- OWD baseline and recent tables are reset.
             if owd_baseline and owd_recent then
-
-                -- if #owd_baseline > 0 and #owd_recent > 0 then
                 local min_up_del = 1 / 0
                 local min_down_del = 1 / 0
 
@@ -651,15 +649,15 @@ local function ratecontrol()
 
                 if min_up_del < max_delta_owd and tx_load > .8 then
                     safe_ul_rates[nrate_up] = math.floor(cur_ul_rate * tx_load)
-                    local maxul = maximum(safe_ul_rates)
-                    next_ul_rate = cur_ul_rate * (1 + .1 * math.max(0, (1 - cur_ul_rate / maxul))) + 500
+                    local max_ul = maximum(safe_ul_rates)
+                    next_ul_rate = cur_ul_rate * (1 + .1 * math.max(0, (1 - cur_ul_rate / max_ul))) + 500
                     nrate_up = nrate_up + 1
                     nrate_up = nrate_up % histsize
                 end
                 if min_down_del < max_delta_owd and rx_load > .8 then
                     safe_dl_rates[nrate_down] = math.floor(cur_dl_rate * rx_load)
-                    local maxdl = maximum(safe_dl_rates)
-                    next_dl_rate = cur_dl_rate * (1 + .1 * math.max(0, (1 - cur_dl_rate / maxdl))) + 500
+                    local max_dl = maximum(safe_dl_rates)
+                    next_dl_rate = cur_dl_rate * (1 + .1 * math.max(0, (1 - cur_dl_rate / max_dl))) + 500
                     nrate_down = nrate_down + 1
                     nrate_down = nrate_down % histsize
                 end
@@ -803,17 +801,17 @@ local function reflector_peer_selector()
     local reflector_tables = reflector_data:get("reflector_tables")
     local reflector_pool = reflector_tables["pool"]
 
-    -- Wait for 5 seconds to allow all reflectors to be baselined
-    nsleep(5, 0)
     while true do
+        nsleep(sleep_time_s, sleep_time_ns)
+
         -- Put all the pool members back into the peers for some re-baselining...
         logger(loglevel.INFO, "Reflector Pool Size " .. #reflector_pool)
         reflector_data:set("reflector_tables", {
             peers = reflector_pool
         })
 
-        -- Wait for 5 seconds to allow all reflectors to be re-baselined
-        nsleep(5, 0)
+        -- Wait for 2 seconds to allow all reflectors to be re-baselined
+        nsleep(2, 0)
 
         local candidates = {}
 
@@ -855,8 +853,6 @@ local function reflector_peer_selector()
             baseline = {},
             recent = {}
         })
-
-        nsleep(sleep_time_s, sleep_time_ns)
     end
 end
 ---------------------------- End Local Functions ----------------------------
@@ -931,29 +927,33 @@ local function conductor()
 
     -- Load up the reflectors temp table
     local tmp_reflectors = {}
+    local pool_reflectors = {}
     if reflector_type == "icmp" then
         tmp_reflectors = load_reflector_list(reflector_list_icmp, "4")
+        pool_reflectors = load_reflector_list(reflector_list_icmp, "4")
     elseif reflector_type == "udp" then
         tmp_reflectors = load_reflector_list(reflector_list_udp, "4")
+        pool_reflectors = load_reflector_list(reflector_list_icmp, "4")
     else
         logger(loglevel.FATAL, "Unknown reflector type specified: " .. reflector_type)
         os.exit(1, true)
     end
 
+    -- Shuffle the table
+    local initial_peer_reflectors = {}
+    tmp_reflectors = shuffle_table(tmp_reflectors)
+    if #tmp_reflectors < num_reflectors then
+        num_reflectors = #tmp_reflectors
+    end
+    for i = 1, num_reflectors, 1 do
+        initial_peer_reflectors[#initial_peer_reflectors + 1] = tmp_reflectors[i]
+    end
+
     -- Load up the reflectors shared tables
     reflector_data:set("reflector_tables", {
-        peers = tmp_reflectors,
-        pool = tmp_reflectors
+        peers = initial_peer_reflectors,
+        pool = pool_reflectors
     })
-
-    -- Shuffle the table
-    -- tmp_reflectors = shuffle_table(tmp_reflectors)
-    -- if #tmp_reflectors < num_reflectors then
-    --     num_reflectors = #tmp_reflectors
-    -- end
-    -- for i = 1, num_reflectors, 1 do
-    --     reflector_array_v4[#reflector_array_v4 + 1] = tmp_reflectors[i]
-    -- end
 
     -- Set a packet ID
     local packet_id = cur_process_id + 32768
