@@ -1,0 +1,70 @@
+reflector_ip,ip_version,description
+94.140.14.14,4,AdGuard
+94.140.15.15,4,AdGuard
+2a10:50c0::ad1:ff,6,AdGuard
+2a10:50c0::ad2:ff,6,AdGuard
+94.140.14.15,4,AdGuard Family
+94.140.15.16,4,AdGuard Family
+2a10:50c0::bad1:ff,6,AdGuard Family
+2a10:50c0::bad2:ff,6,AdGuard Family
+94.140.14.140,4,AdGuard Unfiltered
+94.140.14.141,4,AdGuard Unfiltered
+2a10:50c0::1:ff,6,AdGuard Unfiltered
+2a10:50c0::2:ff,6,AdGuard Unfiltered
+205.171.3.65,4,CenturyLink/Level3
+205.171.2.65,4,CenturyLink/Level3
+185.228.168.9,4,CleanBrowsing
+185.228.169.9,4,CleanBrowsing
+2a0d:2a00:1::,6,CleanBrowsing
+2a0d:2a00:2::,6,CleanBrowsing
+185.228.168.168,4,CleanBrowsing
+185.228.169.168,4,CleanBrowsing
+185.228.168.10,4,CleanBrowsing
+185.228.169.11,4,CleanBrowsing
+2a0d:2a00:1::1,6,CleanBrowsing
+2a0d:2a00:2::1,6,CleanBrowsing
+2a0d:2a00:1::2,6,CleanBrowsing
+2a0d:2a00:2::2,6,CleanBrowsing
+8.26.56.26,4,Comodo
+8.20.247.20,4,Comodo
+84.200.69.80,4,DNS.WATCH
+84.200.70.40,4,DNS.WATCH
+46.227.200.54,4,FAELIX Anycast
+46.227.200.55,4,FAELIX Anycast
+45.33.97.5,4,FreeDNS
+37.235.1.177,4,FreeDNS
+74.82.42.42,4,Hurricane Electric
+194.242.2.2,4,Mullvad
+194.242.2.3,4,Mullvad
+193.19.108.2,4,Mullvad
+193.19.108.3,4,Mullvad
+2a07:e340::2,6,Mullvad
+2a07:e340::3,6,Mullvad
+208.67.222.222,4,OpenDNS
+208.67.220.220,4,OpenDNS
+2620:119:35::35,6,OpenDNS
+2620:119:53::53,6,OpenDNS
+208.67.222.123,4,OpenDNS Family
+208.67.220.123,4,OpenDNS Family
+2620:119:35::123,6,OpenDNS Family
+2620:119:53::123,6,OpenDNS Family
+208.67.222.2,4,OpenDNS Sbx
+208.67.220.2,4,OpenDNS Sbx
+2620:0:ccc::2,6,OpenDNS Sbx
+2620:0:ccd::2,6,OpenDNS Sbx
+159.89.120.99,4,OpenNIC
+134.195.4.2,4,OpenNIC
+2a05:dfc7:5::53,6,OpenNIC
+2a05:dfc7:5::5353,6,OpenNIC
+9.9.9.9,4,Quad9
+9.9.9.10,4,Quad9
+9.9.9.11,4,Quad9
+149.112.112.10,4,Quad9
+149.112.112.11,4,Quad9
+149.112.112.112,4,Quad9
+2620:fe::fe,6,Quad9
+2620:fe::9,6,Quad9
+2620:fe::11,6,Quad9
+2620:fe::fe:11,6,Quad9
+2620:fe::10,6,Quad9
+2620:fe::fe:10,6,Quad9

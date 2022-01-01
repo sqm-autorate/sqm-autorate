@@ -162,21 +162,11 @@ local ul_if = settings and settings:get("sqm-autorate", "@network[0]", "transmit
 local dl_if = settings and settings:get("sqm-autorate", "@network[0]", "receive_interface") or
                   "<DOWNLOAD INTERFACE NAME>" -- download interface
 
+local reflector_list_icmp = "reflectors-icmp.csv"
+local reflector_list_udp = "reflectors-udp.csv"
 local reflector_type = settings and settings:get("sqm-autorate", "@network[0]", "reflector_type") or nil
 local reflector_array_v4 = {}
 local reflector_array_v6 = {}
-
-if reflector_type == "icmp" then
-    reflector_array_v4 = {"46.227.200.54", "46.227.200.55", "194.242.2.2", "194.242.2.3", "149.112.112.10",
-                          "149.112.112.11", "149.112.112.112", "193.19.108.2", "193.19.108.3", "9.9.9.9", "9.9.9.10",
-                          "9.9.9.11"}
-else
-    reflector_array_v4 = {"65.21.108.153", "5.161.66.148", "216.128.149.82", "108.61.220.16", "185.243.217.26",
-                          "185.175.56.188", "176.126.70.119"}
-    reflector_array_v6 = {"2a01:4f9:c010:5469::1", "2a01:4ff:f0:2194::1", "2001:19f0:5c01:1bb6:5400:03ff:febe:3fae",
-                          "2001:19f0:6001:3de9:5400:03ff:febe:3f8e", "2a03:94e0:ffff:185:243:217:0:26",
-                          "2a0d:5600:30:46::2", "2a00:1a28:1157:3ef::2"}
-end
 
 local max_delta_owd = 15 -- increase from baseline RTT for detection of bufferbloat
 
@@ -207,6 +197,34 @@ socket.setsockopt(sock, socket.SOL_SOCKET, socket.SO_SNDTIMEO, 0, 500)
 ---------------------------- End Local Variables ----------------------------
 
 ---------------------------- Begin Local Functions ----------------------------
+
+local function load_reflector_list(file_path, ip_version)
+    ip_version = ip_version or "4"
+
+    local reflector_file = io.open(file_path)
+    if not reflector_file then
+        logger(loglevel.FATAL, "Could not open reflector file: '" .. file_path)
+        os.exit(1, true)
+        return nil
+    end
+
+    local reflectors = {}
+    local lines = reflector_file:lines()
+    for line in lines do
+        local tokens = {}
+        for token in string.gmatch(line, "([^,]+)") do -- Split the line on commas
+            tokens[#tokens + 1] = token
+        end
+        local ip = tokens[1]
+        local vers = tokens[2]
+        if ip_version == "46" or ip_version == "both" or ip_version == "all" then
+            reflectors[#reflectors + 1] = ip
+        elseif vers == ip_version then
+            reflectors[#reflectors + 1] = ip
+        end
+    end
+    return reflectors
+end
 
 local function a_else_b(a, b)
     if a then
@@ -790,6 +808,19 @@ local function conductor()
         os.exit(1, true)
     end
     test_file:close()
+
+    -- Load up the reflectors table
+    if reflector_type == "icmp" then
+        reflector_array_v4 = load_reflector_list(reflector_list_icmp, "4")
+    elseif reflector_type == "udp" then
+        reflector_array_v4 = load_reflector_list(reflector_list_udp, "4")
+    else
+        logger(loglevel.FATAL, "Unknown reflector type specified: " .. reflector_type)
+        os.exit(1, true)
+    end
+    for i, v in ipairs(reflector_array_v4) do
+        print(v)
+    end
 
     -- Random seed
     local nows, nowns = get_current_time()
