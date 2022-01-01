@@ -188,6 +188,9 @@ end
 -- Number of reflector peers to use from the pool
 local num_reflectors = 5
 
+-- Time (in minutes) before re-selection of peers from the pool
+local peer_reselection_time = 2
+
 -- Bandwidth file paths
 local rx_bytes_path = nil
 local tx_bytes_path = nil
@@ -547,11 +550,12 @@ local function ts_ping_sender(pkt_type, pkt_id, freq)
     while true do
         local reflector_tables = reflector_data:get("reflector_tables")
         local reflector_list = reflector_tables["peers"]
-        for _, reflector in ipairs(reflector_list) do
-            ping_func(reflector, pkt_id)
-            nsleep(sleep_time_s, sleep_time_ns)
+        if reflector_list then
+            for _, reflector in ipairs(reflector_list) do
+                ping_func(reflector, pkt_id)
+                nsleep(sleep_time_s, sleep_time_ns)
+            end
         end
-
     end
 
     logger(loglevel.TRACE, "Exiting ts_ping_sender()")
@@ -782,15 +786,15 @@ local function baseline_calculator()
 end
 
 local function rtt_compare(a, b)
-    return a[1] < b[1]
+    return a[2] < b[2] -- Index 2 is the RTT value
 end
 
 local function reflector_peer_selector()
     local sleep_time_ns = 0
-    local sleep_time_s = 600
+    local sleep_time_s = peer_reselection_time * 60
 
     -- Wait for 5 seconds to allow all reflectors to be baselined
-    nsleep(5, 0)
+    nsleep(3, 0)
     while true do
         -- Put all the pool members back into the peers for some re-baselining...
         local relfector_pool = reflector_data:get("reflector_tables")["pool"]
@@ -799,7 +803,7 @@ local function reflector_peer_selector()
         })
 
         -- Wait for 5 seconds to allow all reflectors to be re-baselined
-        nsleep(5, 0)
+        nsleep(3, 0)
 
         local candidates = {}
 
