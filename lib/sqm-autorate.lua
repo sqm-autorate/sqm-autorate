@@ -360,27 +360,29 @@ local function receive_icmp_pkt(pkt_id)
 
                 local reflector_tables = reflector_data:get("reflector_tables")
                 local reflector_list = reflector_tables["peers"]
-                local pos = get_table_position(reflector_list, sa.addr)
+                if reflector_list then
+                    local pos = get_table_position(reflector_list, sa.addr)
 
-                -- A pos > 0 indicates the current sa.addr is a known member of the reflector array
-                if (pos > 0 and src_pkt_id == pkt_id) then
-                    local stats = {
-                        reflector = sa.addr,
-                        original_ts = ts_resp[6],
-                        receive_ts = ts_resp[7],
-                        transmit_ts = ts_resp[8],
-                        rtt = time_after_midnight_ms - ts_resp[6],
-                        uplink_time = ts_resp[7] - ts_resp[6],
-                        downlink_time = time_after_midnight_ms - ts_resp[8]
-                    }
+                    -- A pos > 0 indicates the current sa.addr is a known member of the reflector array
+                    if (pos > 0 and src_pkt_id == pkt_id) then
+                        local stats = {
+                            reflector = sa.addr,
+                            original_ts = ts_resp[6],
+                            receive_ts = ts_resp[7],
+                            transmit_ts = ts_resp[8],
+                            rtt = time_after_midnight_ms - ts_resp[6],
+                            uplink_time = ts_resp[7] - ts_resp[6],
+                            downlink_time = time_after_midnight_ms - ts_resp[8]
+                        }
 
-                    logger(loglevel.DEBUG,
-                        "Reflector IP: " .. stats.reflector .. "  |  Current time: " .. time_after_midnight_ms ..
-                            "  |  TX at: " .. stats.original_ts .. "  |  RTT: " .. stats.rtt .. "  |  UL time: " ..
-                            stats.uplink_time .. "  |  DL time: " .. stats.downlink_time)
-                    logger(loglevel.TRACE, "Exiting receive_icmp_pkt() with stats return")
+                        logger(loglevel.DEBUG,
+                            "Reflector IP: " .. stats.reflector .. "  |  Current time: " .. time_after_midnight_ms ..
+                                "  |  TX at: " .. stats.original_ts .. "  |  RTT: " .. stats.rtt .. "  |  UL time: " ..
+                                stats.uplink_time .. "  |  DL time: " .. stats.downlink_time)
+                        logger(loglevel.TRACE, "Exiting receive_icmp_pkt() with stats return")
 
-                    return stats
+                        return stats
+                    end
                 end
             else
                 logger(loglevel.TRACE, "Exiting receive_icmp_pkt() with nil return due to wrong type")
