@@ -132,21 +132,19 @@ if settings then
 end
 
 ---------------------------- Begin Local Variables - External Settings ----------------------------
-local base_ul_rate = settings and tonumber(settings:get("sqm-autorate", "@network[0]", "transmit_kbits_base"), 10) or
+local base_ul_rate = settings and tonumber(settings:get("sqm-autorate", "@network[0]", "upload_kbits_base"), 10) or
                          "<STEADY STATE UPLOAD>" -- steady state bandwidth for upload
-local base_dl_rate = settings and tonumber(settings:get("sqm-autorate", "@network[0]", "receive_kbits_base"), 10) or
+local base_dl_rate = settings and tonumber(settings:get("sqm-autorate", "@network[0]", "download_kbits_base"), 10) or
                          "<STEADY STATE DOWNLOAD>" -- steady state bandwidth for download
 
-local min_ul_rate = settings and tonumber(settings:get("sqm-autorate", "@network[0]", "transmit_kbits_min"), 10) or
+local min_ul_rate = settings and tonumber(settings:get("sqm-autorate", "@network[0]", "upload_kbits_min"), 10) or
                         "<MIN UPLOAD RATE>" -- don't go below this many kbps
-local min_dl_rate = settings and tonumber(settings:get("sqm-autorate", "@network[0]", "receive_kbits_min"), 10) or
+local min_dl_rate = settings and tonumber(settings:get("sqm-autorate", "@network[0]", "download_kbits_min"), 10) or
                         "<MIN DOWNLOAD RATE>" -- don't go below this many kbps
 
 local stats_file = settings and settings:get("sqm-autorate", "@output[0]", "stats_file") or "<STATS FILE NAME/PATH>"
 local speedhist_file = settings and settings:get("sqm-autorate", "@output[0]", "speed_hist_file") or
                            "<HIST FILE NAME/PATH>"
-
-local histsize = settings and tonumber(settings:get("sqm-autorate", "@output[0]", "hist_size"), 10) or "<HISTORY SIZE>"
 
 use_loglevel = loglevel[string.upper(settings and settings:get("sqm-autorate", "@output[0]", "log_level") or "INFO")]
 
@@ -157,12 +155,21 @@ local tick_duration = 0.5 -- Frequency in seconds
 local min_change_interval = 0.5 -- don't change speeds unless this many seconds has passed since last change
 
 -- Interface names: leave empty to use values from SQM config or place values here to override SQM config
-local ul_if = settings and settings:get("sqm-autorate", "@network[0]", "transmit_interface") or
+local ul_if = settings and settings:get("sqm-autorate", "@network[0]", "upload_interface") or
                   "<UPLOAD INTERFACE NAME>" -- upload interface
-local dl_if = settings and settings:get("sqm-autorate", "@network[0]", "receive_interface") or
+local dl_if = settings and settings:get("sqm-autorate", "@network[0]", "download_interface") or
                   "<DOWNLOAD INTERFACE NAME>" -- download interface
 
-local reflector_type = settings and settings:get("sqm-autorate", "@network[0]", "reflector_type") or nil
+local histsize = settings and tonumber(settings:get("sqm-autorate", "@advanced_settings[0]", "speed_hist_size"), 10) or 100 -- the number of 'good' speeds to remember
+        -- reducing this value could result in the algorithm remembering too few speeds to truly stabilise
+        -- increasing this value could result in the algorithm taking too long to stabilise
+
+local max_delta_owd = settings and tonumber(settings:get("sqm-autorate", "@advanced_settings[0]", "rtt_delta_bufferbloat"), 10) or 15 -- increase from baseline RTT for detection of bufferbloat
+        -- 15 is good for networks with very variable RTT values, such as LTE and DOCIS/cable networks
+        -- 5 might be appropriate for high speed and relatively stable networks such as fiber
+
+local reflector_type = settings and settings:get("sqm-autorate", "@advanced_settings[0]", "reflector_type") or "icmp"
+
 local reflector_array_v4 = {}
 local reflector_array_v6 = {}
 
@@ -177,8 +184,6 @@ else
                           "2001:19f0:6001:3de9:5400:03ff:febe:3f8e", "2a03:94e0:ffff:185:243:217:0:26",
                           "2a0d:5600:30:46::2", "2a00:1a28:1157:3ef::2"}
 end
-
-local max_delta_owd = 15 -- increase from baseline RTT for detection of bufferbloat
 
 ---------------------------- Begin Internal Local Variables ----------------------------
 
@@ -198,7 +203,7 @@ if reflector_type == "icmp" then
 elseif reflector_type == "udp" then
     sock = assert(socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP), "Failed to create socket")
 else
-    logger(loglevel.FATAL, "Unknown reflector type specified. Cannot continue.")
+    logger(loglevel.FATAL, "Unknown reflector type '"..reflector_type.."' specified. Cannot continue.")
     os.exit(1, true)
 end
 
