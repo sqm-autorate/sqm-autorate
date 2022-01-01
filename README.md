@@ -12,7 +12,7 @@
 **High-level Notice**
 This script "learns" over time and the time it takes to "stabilize" is somewhere generally between 30-90 minutes, although this is subject to change as development continues. Do not assume something is wrong if you notice some initial latency spikes when first running this script. That is expected and will smooth out over time.
 
-In its current iteration this script also reacts harshly under conditions with high latency and low load, which can force the rates down to the minimum. If this applies to you please try to adjust the `max_delta_owd` variable to a higher value.
+In its current iteration this script also reacts harshly under conditions with high latency and low load, which can force the rates down to the minimum. If this applies to you please try to adjust the configuration advanced settings option `rtt_delta_bufferbloat` to a higher value.
 
 The functionality in this Lua version is a culmination of progressive iterations to the original shell version as introduced by @Lynx (OpenWrt Forum). Refer to the [Original Shell Version](#original-shell-version) (below) for details as to the original goal and theory.
 
@@ -79,11 +79,12 @@ Generally, configuration should be performed via the `/etc/config/sqm-autorate` 
 | network | receive_kbits_base | The highest speed in kbit/s at which bufferbloat typically is non-existent for inbound traffic on the given connection. This is used for reference in determining safe speeds via learning, but is not a hard floor or ceiling. | '10000' |
 | network | transmit_kbits_min | The absolute minimum outbound speed in kbits/s the autorate algorithm is allowed to fall back to in cases of extreme congestion. | '1500' |
 | network | receive_kbits_min | The absolute minimum inbound speed in kbits/s the autorate algorithm is allowed to fall back to in cases of extreme congestion. | '1500' |
-| network | reflector_type | This is intended for future use and details are TBD. | 'icmp' |
 | output | log_level | Used to set the highest level of logging verbosity. e.g. setting to 'INFO' will output all log levels at the set level or lower (in terms of verbosity). [Verbosity Options](#verbosity-options) | 'INFO' |
 | output | stats_file | The location to which the autorate OWD reflector stats will be written. | '/tmp/sqm-autorate.csv' |
 | output | speed_hist_file | The location to which autorate speed adjustment history will be written. | '/tmp/sqm-speedhist.csv' |
-| output | hist_size | The amount of "safe" speed history which the algorithm will maintain for reference during times of increased latency/congestion. | '100' |
+| advanced_settings | speed_hist_size | The amount of "safe" speed history which the algorithm will maintain for reference during times of increased latency/congestion. Set too high, the algorithm will take days or weeks to stabilise. Set too low, the algorithm may not have enough good values to stabilise on.  | '100' |
+| advanced_settings | rtt_delta_bufferbloat | The amount of increase in RTT that indicates bufferbloat. For high speed and relatively stable fiber connections, this can be reduced. For LTE and DOCIS/cable connections, the default should be correct. | 15 |
+| advanced_settings | reflector_type | This is intended for future use and details are TBD. | 'icmp' |
 
 Advanced users may override values (following comments) directly in `/usr/lib/sqm-autorate/sqm-autorate.lua` as comfort level dictates.
 
