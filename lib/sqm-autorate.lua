@@ -637,13 +637,15 @@ local function ratecontrol()
             -- This will occur under normal operation when the reflector peers table is updated.
             if reflector_list then
                 for _, reflector_ip in ipairs(reflector_list) do
-                    min_up_del = math.min(min_up_del,
-                        owd_recent[reflector_ip].up_ewma - owd_baseline[reflector_ip].up_ewma)
-                    min_down_del = math.min(min_down_del,
-                        owd_recent[reflector_ip].down_ewma - owd_baseline[reflector_ip].down_ewma)
+                    if owd_recent[reflector_ip] ~= nil and owd_baseline[reflector_ip] ~= nil then
+                        min_up_del = math.min(min_up_del,
+                            owd_recent[reflector_ip].up_ewma - owd_baseline[reflector_ip].up_ewma)
+                        min_down_del = math.min(min_down_del, owd_recent[reflector_ip].down_ewma -
+                            owd_baseline[reflector_ip].down_ewma)
 
-                    logger(loglevel.INFO, "reflector: " .. reflector_ip .. " min_up_del: " .. min_up_del ..
-                        "  min_down_del: " .. min_down_del)
+                        logger(loglevel.INFO, "reflector: " .. reflector_ip .. " min_up_del: " .. min_up_del ..
+                            "  min_down_del: " .. min_down_del)
+                    end
                 end
 
                 local cur_rx_bytes = read_stats_file(rx_bytes_file)
