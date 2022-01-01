@@ -6,7 +6,9 @@ owrt_release_file="/etc/os-release"
 config_file="sqm-autorate.config"
 service_file="sqm-autorate.service"
 lua_file="sqm-autorate.lua"
-autorate_root="/usr/lib/sqm-autorate"
+refl_icmp_file="reflectors-icmp.csv"
+refl_udp_file="reflectors-udp.csv"
+autorate_lib_path="/usr/lib/sqm-autorate"
 
 repo_root="https://raw.githubusercontent.com/Fail-Safe/sqm-autorate/testing/lua-threads"
 
@@ -43,6 +45,8 @@ if [ "$is_git_proj" = false ]; then
     curl -o "$config_file" "$repo_root/config/$config_file"
     curl -o "$service_file" "$repo_root/service/$service_file"
     curl -o "$lua_file" "$repo_root/lib/$lua_file"
+    curl -o "$refl_icmp_file" "$repo_root/lib/$refl_icmp_file"
+    curl -o "$refl_udp_file" "$repo_root/lib/$refl_udp_file"
 else
     echo "> Since this is a Git project, local files will be used and will be COPIED into place instead of MOVED..."
 fi
@@ -86,12 +90,16 @@ if [ -f "$owrt_release_file" ]; then
     fi
 fi
 
-echo ">>> Putting sqm-autorate Lua file into place..."
-mkdir -p "$autorate_root"
+echo ">>> Putting sqm-autorate lib files into place..."
+mkdir -p "$autorate_lib_path"
 if [ "$is_git_proj" = true ]; then
-    cp "./lib/$lua_file" "$autorate_root/$lua_file"
+    cp "./lib/$lua_file" "$autorate_lib_path/$lua_file"
+    cp "./lib/$refl_icmp_file" "$autorate_lib_path/$refl_icmp_file"
+    cp "./lib/$refl_udp_file" "$autorate_lib_path/$refl_udp_file"
 else
-    mv "./$lua_file" "$autorate_root/$lua_file"
+    mv "./$lua_file" "$autorate_lib_path/$lua_file"
+    mv "./$refl_icmp_file" "$autorate_lib_path/$refl_icmp_file"
+    mv "./$refl_udp_file" "$autorate_lib_path/$refl_udp_file"
 fi
 
 echo ">>> Putting service file into place..."
