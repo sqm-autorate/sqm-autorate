@@ -646,7 +646,7 @@ local function ratecontrol()
                 prev_tx_bytes = cur_tx_bytes
                 local next_ul_rate = cur_ul_rate
                 local next_dl_rate = cur_dl_rate
-
+                logger(loglevel.INFO, "min_up_del " .. min_up_del .. " min_down_del " .. min_down_del)
                 if min_up_del < max_delta_owd and tx_load > .8 then
                     safe_ul_rates[nrate_up] = math.floor(cur_ul_rate * tx_load)
                     local max_ul = maximum(safe_ul_rates)
