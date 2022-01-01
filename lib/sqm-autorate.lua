@@ -826,8 +826,8 @@ local function reflector_peer_selector()
             new_peers[#new_peers + 1] = candidates[i][1]
         end
 
-        for i, v in ipairs(new_peers) do
-            print(v)
+        for _, v in ipairs(new_peers) do
+            logger(loglevel.INFO, "New Selected Peer " .. v)
         end
 
         reflector_data:set("reflector_tables", {
