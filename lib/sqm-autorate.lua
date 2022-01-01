@@ -627,16 +627,15 @@ local function ratecontrol()
             local owd_baseline = owd_tables["baseline"]
             local owd_recent = owd_tables["recent"]
 
-            -- If we have no baselines and recents to compare against, don't attempt any rate changes.
-            -- This will occur under normal operation when the reflector peers table is updated and the
-            -- OWD baseline and recent tables are reset.
-            if owd_baseline and owd_recent then
-                local min_up_del = 1 / 0
-                local min_down_del = 1 / 0
+            local min_up_del = 1 / 0
+            local min_down_del = 1 / 0
 
-                local reflector_tables = reflector_data:get("reflector_tables")
-                local reflector_list = reflector_tables["peers"]
+            local reflector_tables = reflector_data:get("reflector_tables")
+            local reflector_list = reflector_tables["peers"]
 
+            -- If we have no reflector peers to iterate over, don't attempt any rate changes.
+            -- This will occur under normal operation when the reflector peers table is updated.
+            if not reflector_list then
                 for _, reflector_ip in ipairs(reflector_list) do
                     min_up_del = math.min(min_up_del,
                         owd_recent[reflector_ip].up_ewma - owd_baseline[reflector_ip].up_ewma)
