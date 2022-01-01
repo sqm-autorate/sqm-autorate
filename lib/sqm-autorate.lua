@@ -170,8 +170,8 @@ local ul_if = settings and settings:get("sqm-autorate", "@network[0]", "transmit
 local dl_if = settings and settings:get("sqm-autorate", "@network[0]", "receive_interface") or
                   "<DOWNLOAD INTERFACE NAME>" -- download interface
 
-local reflector_list_icmp = "reflectors-icmp.csv"
-local reflector_list_udp = "reflectors-udp.csv"
+local reflector_list_icmp = "/usr/lib/sqm-autorate/reflectors-icmp.csv"
+local reflector_list_udp = "/usr/lib/sqm-autorate/reflectors-udp.csv"
 local reflector_type = settings and settings:get("sqm-autorate", "@network[0]", "reflector_type") or nil
 
 local max_delta_owd = 15 -- increase from baseline RTT for detection of bufferbloat
