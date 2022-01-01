@@ -763,6 +763,10 @@ local function conductor()
     print("Starting sqm-autorate.lua v" .. _VERSION)
     logger(loglevel.TRACE, "Entered conductor()")
 
+    -- Random seed
+    local nows, nowns = get_current_time()
+    math.randomseed(nowns)
+
     -- Figure out the interfaces in play here
     -- if ul_if == "" then
     --     ul_if = settings and settings:get("sqm", "@queue[0]", "interface")
@@ -821,10 +825,6 @@ local function conductor()
         os.exit(1, true)
     end
     test_file:close()
-
-    -- Random seed
-    local nows, nowns = get_current_time()
-    math.randomseed(nowns)
 
     -- Load up the reflectors table
     local tmp_reflectors = {}
