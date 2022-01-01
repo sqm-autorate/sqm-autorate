@@ -177,6 +177,9 @@ if type(cur_process_id) == "table" then
     cur_process_id = cur_process_id["pid"]
 end
 
+-- Number of reflectors to use from the pool
+local num_reflectors = 10
+
 -- Bandwidth file paths
 local rx_bytes_path = nil
 local tx_bytes_path = nil
@@ -292,6 +295,15 @@ local function get_table_len(tbl)
         count = count + 1
     end
     return count
+end
+
+local function shuffle_table(tbl)
+    -- Fisher-Yates shuffle
+    for i = #tbl, 2, -1 do
+        local j = math.random(i)
+        tbl[i], tbl[j] = tbl[j], tbl[i]
+    end
+    return tbl
 end
 
 local function maximum(table)
@@ -588,7 +600,7 @@ local function ratecontrol()
                 min_up_del = math.min(min_up_del, owd_recent[k].up_ewma - val.up_ewma)
                 min_down_del = math.min(min_down_del, owd_recent[k].down_ewma - val.down_ewma)
 
-                logger(loglevel.WARN,
+                logger(loglevel.INFO,
                     "reflector: " .. k .. " min_up_del: " .. min_up_del .. "  min_down_del: " .. min_down_del)
             end
 
@@ -811,16 +823,21 @@ local function conductor()
     test_file:close()
 
     -- Load up the reflectors table
+    local tmp_reflectors = {}
     if reflector_type == "icmp" then
-        reflector_array_v4 = load_reflector_list(reflector_list_icmp, "4")
+        tmp_reflectors = load_reflector_list(reflector_list_icmp, "4")
     elseif reflector_type == "udp" then
-        reflector_array_v4 = load_reflector_list(reflector_list_udp, "4")
+        tmp_reflectors = load_reflector_list(reflector_list_udp, "4")
     else
         logger(loglevel.FATAL, "Unknown reflector type specified: " .. reflector_type)
         os.exit(1, true)
     end
-    for i, v in ipairs(reflector_array_v4) do
-        print(v)
+
+    -- Shuffle the table
+    tmp_reflectors = shuffle_table(tmp_reflectors)
+    for i = 1, num_reflectors, 1 do
+        reflector_array_v4[#reflector_array_v4 + 1] = tmp_reflectors[i]
+        print(i)
     end
 
     -- Random seed
