@@ -3,6 +3,6 @@
 test.bin
 Manifest.toml
 Project.toml
-/*.png
-/*.gif
-/*.csv
+julia/*.png
+julia/*.gif
+julia/*.csv
