@@ -532,13 +532,14 @@ end
 
 local function ts_ping_sender(pkt_type, pkt_id, freq)
     logger(loglevel.TRACE, "Entered ts_ping_sender() with values: " .. freq .. " | " .. pkt_type .. " | " .. pkt_id)
+
     local reflector_tables = reflector_data:get("reflector_tables")
     local reflector_list = reflector_tables["peers"]
     local ff = (freq / #reflector_list)
     local sleep_time_ns = math.floor((ff % 1) * 1e9)
     local sleep_time_s = math.floor(ff)
-    local ping_func = nil
 
+    local ping_func = nil
     if pkt_type == "icmp" then
         ping_func = send_icmp_pkt
     elseif pkt_type == "udp" then
@@ -550,7 +551,13 @@ local function ts_ping_sender(pkt_type, pkt_id, freq)
     while true do
         local reflector_tables = reflector_data:get("reflector_tables")
         local reflector_list = reflector_tables["peers"]
+
         if reflector_list then
+            -- Update sleep time based on number of peers
+            ff = (freq / #reflector_list)
+            sleep_time_ns = math.floor((ff % 1) * 1e9)
+            sleep_time_s = math.floor(ff)
+
             for _, reflector in ipairs(reflector_list) do
                 ping_func(reflector, pkt_id)
                 nsleep(sleep_time_s, sleep_time_ns)
