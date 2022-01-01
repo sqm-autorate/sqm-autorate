@@ -802,14 +802,17 @@ local function rtt_compare(a, b)
 end
 
 local function reflector_peer_selector()
-    local sleep_time_ns = 0
-    local sleep_time_s = peer_reselection_time * 60
+    local selector_sleep_time_ns = 0
+    local selector_sleep_time_s = peer_reselection_time * 60
+
+    local baseline_sleep_time_ns = 0
+    local baseline_sleep_time_s = math.floor(tick_duration * 3.5)
 
     local reflector_tables = reflector_data:get("reflector_tables")
     local reflector_pool = reflector_tables["pool"]
 
     -- Initial wait of several seconds to allow some OWD data to build up
-    nsleep(3, 0)
+    nsleep(baseline_sleep_time_s, baseline_sleep_time_ns)
     logger(loglevel.INFO, "Reflector Pool Size " .. #reflector_pool)
     while true do
         -- Put all the pool members back into the peers for some re-baselining...
@@ -818,8 +821,8 @@ local function reflector_peer_selector()
             pool = reflector_pool
         })
 
-        -- Wait for 2 seconds to allow all reflectors to be re-baselined
-        nsleep(2, 0)
+        -- Wait for several seconds to allow all reflectors to be re-baselined
+        nsleep(baseline_sleep_time_s, baseline_sleep_time_ns)
 
         local candidates = {}
 
@@ -863,7 +866,7 @@ local function reflector_peer_selector()
             recent = {}
         })
 
-        nsleep(sleep_time_s, sleep_time_ns)
+        nsleep(selector_sleep_time_s, selector_sleep_time_ns)
     end
 end
 ---------------------------- End Local Functions ----------------------------
