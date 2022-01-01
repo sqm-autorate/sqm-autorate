@@ -355,7 +355,8 @@ local function receive_icmp_pkt(pkt_id)
                 local time_after_midnight_ms = get_time_after_midnight_ms()
                 local src_pkt_id = ts_resp[4]
 
-                local reflector_list = reflector_data:get("reflectors_table")["peers"]
+                local reflectors_table = reflector_data:get("reflectors_table")
+                local reflector_list = reflectors_table["peers"]
                 local pos = get_table_position(reflector_list, sa.addr)
 
                 -- A pos > 0 indicates the current sa.addr is a known member of the reflector array
@@ -405,7 +406,8 @@ local function receive_udp_pkt(pkt_id)
 
         local time_after_midnight_ms = get_time_after_midnight_ms()
         local src_pkt_id = ts_resp[4]
-        local reflector_list = reflector_data:get("reflector_tables")["peers"]
+        local reflectors_table = reflector_data:get("reflectors_table")
+        local reflector_list = reflectors_table["peers"]
         local pos = get_table_position(reflector_list, sa.addr)
 
         -- A pos > 0 indicates the current sa.addr is a known member of the reflector array
@@ -527,7 +529,8 @@ end
 
 local function ts_ping_sender(pkt_type, pkt_id, freq)
     logger(loglevel.TRACE, "Entered ts_ping_sender() with values: " .. freq .. " | " .. pkt_type .. " | " .. pkt_id)
-    local reflector_list = reflector_data:get("reflector_tables")["peers"]
+    local reflectors_table = reflector_data:get("reflectors_table")
+    local reflector_list = reflectors_table["peers"]
     local ff = (freq / #reflector_list)
     local sleep_time_ns = math.floor((ff % 1) * 1e9)
     local sleep_time_s = math.floor(ff)
@@ -542,7 +545,8 @@ local function ts_ping_sender(pkt_type, pkt_id, freq)
     end
 
     while true do
-        local reflector_list = reflector_data:get("reflector_tables")["peers"]
+        local reflectors_table = reflector_data:get("reflectors_table")
+        local reflector_list = reflectors_table["peers"]
         for _, reflector in ipairs(reflector_list) do
             ping_func(reflector, pkt_id)
             nsleep(sleep_time_s, sleep_time_ns)
