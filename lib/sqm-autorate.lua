@@ -801,9 +801,9 @@ local function reflector_peer_selector()
     local reflector_tables = reflector_data:get("reflector_tables")
     local reflector_pool = reflector_tables["pool"]
 
+    -- Initial wait of several seconds to allow some OWD data to build up
+    nsleep(3, 0)
     while true do
-        nsleep(sleep_time_s, sleep_time_ns)
-
         -- Put all the pool members back into the peers for some re-baselining...
         logger(loglevel.INFO, "Reflector Pool Size " .. #reflector_pool)
         reflector_data:set("reflector_tables", {
@@ -853,6 +853,8 @@ local function reflector_peer_selector()
             baseline = {},
             recent = {}
         })
+
+        nsleep(sleep_time_s, sleep_time_ns)
     end
 end
 ---------------------------- End Local Functions ----------------------------
