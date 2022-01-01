@@ -44,20 +44,28 @@ local time = lanes.require "posix.time"
 local vstruct = lanes.require "vstruct"
 
 -- The stats_queue is intended to be a true FIFO queue.
--- The purpose of the queue is to hold the processed timestamp
--- packets that are returned to us and this holds them for OWD
--- processing.
+-- The purpose of the queue is to hold the processed timestamp packets that are
+-- returned to us and this holds them for OWD processing.
 local stats_queue = lanes.linda()
 
 -- The owd_data construct is not intended to be used as a queue.
--- Instead, it is just a method for sharing the OWD tables between
--- multiple threads. Calls against this construct will be get()/set()
--- to reinforce the intent that this is not a queue. This holds two
--- separate tables which are owd_baseline and owd_recent.
+-- Instead, it is used as a method for sharing the OWD tables between multiple threads.
+-- Calls against this construct will be get()/set() to reinforce the intent that this
+-- is not a queue. This holds two separate tables which are baseline and recent.
 local owd_data = lanes.linda()
 owd_data:set("owd_tables", {
     baseline = {},
     recent = {}
+})
+
+-- The relfector_data construct is not intended to be used as a queue.
+-- Instead, is is used as a method for sharing the reflector tables between multiple threads.
+-- Calls against this construct will be get()/set() to reinforce the intent that this
+-- is not a queue. This holds two separate tables which are peers and pool.
+local reflector_data = lanes.linda()
+reflector_data:set("reflector_tables", {
+    peers = {},
+    pool = {}
 })
 
 local loglevel = {
@@ -177,8 +185,8 @@ if type(cur_process_id) == "table" then
     cur_process_id = cur_process_id["pid"]
 end
 
--- Number of reflectors to use from the pool
-local num_reflectors = 10
+-- Number of reflector peers to use from the pool
+local num_reflectors = 5
 
 -- Bandwidth file paths
 local rx_bytes_path = nil
@@ -227,6 +235,13 @@ local function load_reflector_list(file_path, ip_version)
         end
     end
     return reflectors
+end
+
+local function baseline_reflector_list(tbl)
+    for _, v in ipairs(tbl) do
+        local rtt
+
+    end
 end
 
 local function a_else_b(a, b)
@@ -756,6 +771,63 @@ local function baseline_calculator()
         end
     end
 end
+
+local function rtt_compare(a, b)
+    return a[1] < b[1]
+end
+
+local function reflector_peer_selector()
+    local sleep_time_ns = 0
+    local sleep_time_s = 600
+
+    -- Wait for 5 seconds to allow all reflectors to be baselined
+    nsleep(5, 0)
+    while true do
+        -- Put all the pool members back into the peers for some re-baselining...
+        local relfector_pool = reflector_data:get("reflector_tables")["pool"]
+        reflector_data:set("reflector_tables", {
+            peers = relfector_pool
+        })
+
+        -- Wait for 5 seconds to allow all reflectors to be re-baselined
+        nsleep(5, 0)
+
+        local candidates = {}
+
+        local owd_tables = owd_data:get("owd_tables")
+        local owd_recent = owd_tables["recent"]
+
+        for k, val in pairs(owd_recent) do
+            local up_del = owd_recent[k].up_ewma
+            local down_del = owd_recent[k].down_ewma
+            local rtt = up_del + down_del
+
+            candidates[#candidates + 1] = {k, rtt}
+            logger(loglevel.INFO, "reflector: " .. k .. " rtt: " .. rtt)
+        end
+
+        -- Sort the candidates table now by ascending RTT
+        table.sort(candidates, rtt_compare)
+
+        local new_peers = {}
+        if #candidates < num_reflectors then
+            num_reflectors = #candidates
+        end
+        for i = 1, num_reflectors, 1 do
+            new_peers[#new_peers + 1] = candidates[i]
+        end
+
+        for i, v in ipairs(new_peers) do
+            print(v)
+        end
+
+        reflector_data:set("reflector_tables", {
+            peers = new_peers
+        })
+
+        nsleep(sleep_time_s, sleep_time_ns)
+    end
+end
 ---------------------------- End Local Functions ----------------------------
 
 ---------------------------- Begin Conductor ----------------------------
@@ -826,7 +898,7 @@ local function conductor()
     end
     test_file:close()
 
-    -- Load up the reflectors table
+    -- Load up the reflectors temp table
     local tmp_reflectors = {}
     if reflector_type == "icmp" then
         tmp_reflectors = load_reflector_list(reflector_list_icmp, "4")
@@ -837,14 +909,20 @@ local function conductor()
         os.exit(1, true)
     end
 
+    -- Load up the reflectors shared tables
+    reflector_data:set("reflector_tables", {
+        peers = tmp_reflectors,
+        pool = tmp_reflectors
+    })
+
     -- Shuffle the table
-    tmp_reflectors = shuffle_table(tmp_reflectors)
-    if #tmp_reflectors < num_reflectors then
-        num_reflectors = #tmp_reflectors
-    end
-    for i = 1, num_reflectors, 1 do
-        reflector_array_v4[#reflector_array_v4 + 1] = tmp_reflectors[i]
-    end
+    -- tmp_reflectors = shuffle_table(tmp_reflectors)
+    -- if #tmp_reflectors < num_reflectors then
+    --     num_reflectors = #tmp_reflectors
+    -- end
+    -- for i = 1, num_reflectors, 1 do
+    --     reflector_array_v4[#reflector_array_v4 + 1] = tmp_reflectors[i]
+    -- end
 
     -- Set a packet ID
     local packet_id = cur_process_id + 32768
