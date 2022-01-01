@@ -173,8 +173,8 @@ local dl_if = settings and settings:get("sqm-autorate", "@network[0]", "receive_
 local reflector_list_icmp = "reflectors-icmp.csv"
 local reflector_list_udp = "reflectors-udp.csv"
 local reflector_type = settings and settings:get("sqm-autorate", "@network[0]", "reflector_type") or nil
-local reflector_array_v4 = {}
-local reflector_array_v6 = {}
+-- local reflector_array_v4 = {}
+-- local reflector_array_v6 = {}
 
 local max_delta_owd = 15 -- increase from baseline RTT for detection of bufferbloat
 
@@ -354,7 +354,9 @@ local function receive_icmp_pkt(pkt_id)
                 local ts_resp = vstruct.read("> 2*u1 3*u2 3*u4", string.sub(data, hdr_len + 1, #data))
                 local time_after_midnight_ms = get_time_after_midnight_ms()
                 local src_pkt_id = ts_resp[4]
-                local pos = get_table_position(reflector_array_v4, sa.addr)
+
+                local reflector_list = reflector_data:get("reflectors_table")["peers"]
+                local pos = get_table_position(reflector_list, sa.addr)
 
                 -- A pos > 0 indicates the current sa.addr is a known member of the reflector array
                 if (pos > 0 and src_pkt_id == pkt_id) then
@@ -403,7 +405,8 @@ local function receive_udp_pkt(pkt_id)
 
         local time_after_midnight_ms = get_time_after_midnight_ms()
         local src_pkt_id = ts_resp[4]
-        local pos = get_table_position(reflector_array_v4, sa.addr)
+        local reflector_list = reflector_data:get("reflector_tables")["peers"]
+        local pos = get_table_position(reflector_list, sa.addr)
 
         -- A pos > 0 indicates the current sa.addr is a known member of the reflector array
         if (pos > 0 and src_pkt_id == pkt_id) then
@@ -524,7 +527,8 @@ end
 
 local function ts_ping_sender(pkt_type, pkt_id, freq)
     logger(loglevel.TRACE, "Entered ts_ping_sender() with values: " .. freq .. " | " .. pkt_type .. " | " .. pkt_id)
-    local ff = (freq / #reflector_array_v4)
+    local reflector_list = reflector_data:get("reflector_tables")["peers"]
+    local ff = (freq / #reflector_list)
     local sleep_time_ns = math.floor((ff % 1) * 1e9)
     local sleep_time_s = math.floor(ff)
     local ping_func = nil
@@ -538,7 +542,8 @@ local function ts_ping_sender(pkt_type, pkt_id, freq)
     end
 
     while true do
-        for _, reflector in ipairs(reflector_array_v4) do
+        local reflector_list = reflector_data:get("reflector_tables")["peers"]
+        for _, reflector in ipairs(reflector_list) do
             ping_func(reflector, pkt_id)
             nsleep(sleep_time_s, sleep_time_ns)
         end
@@ -943,7 +948,10 @@ local function conductor()
         }, ratecontrol)(),
         pinger = lanes.gen("*", {
             required = {bit_mod, "posix.sys.socket", "posix.time", "vstruct"}
-        }, ts_ping_sender)(reflector_type, packet_id, tick_duration)
+        }, ts_ping_sender)(reflector_type, packet_id, tick_duration),
+        selector = lanes.gen("*", {
+            required = {"posix", "posix.time"}
+        }, reflector_peer_selector)()
     }
     local join_timeout = 0.5
 
