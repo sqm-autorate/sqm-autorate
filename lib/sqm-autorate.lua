@@ -634,12 +634,17 @@ local function ratecontrol()
                 local min_up_del = 1 / 0
                 local min_down_del = 1 / 0
 
-                for k, val in pairs(owd_baseline) do
-                    min_up_del = math.min(min_up_del, owd_recent[k].up_ewma - val.up_ewma)
-                    min_down_del = math.min(min_down_del, owd_recent[k].down_ewma - val.down_ewma)
+                local reflector_tables = reflector_data:get("reflector_tables")
+                local reflector_list = reflector_tables["peers"]
 
-                    logger(loglevel.INFO,
-                        "reflector: " .. k .. " min_up_del: " .. min_up_del .. "  min_down_del: " .. min_down_del)
+                for _, reflector_ip in ipairs(reflector_list) do
+                    min_up_del = math.min(min_up_del,
+                        owd_recent[reflector_ip].up_ewma - owd_baseline[reflector_ip].up_ewma)
+                    min_down_del = math.min(min_down_del,
+                        owd_recent[reflector_ip].down_ewma - owd_baseline[reflector_ip].down_ewma)
+
+                    logger(loglevel.INFO, "reflector: " .. reflector_ip .. " min_up_del: " .. min_up_del ..
+                        "  min_down_del: " .. min_down_del)
                 end
 
                 local cur_rx_bytes = read_stats_file(rx_bytes_file)
