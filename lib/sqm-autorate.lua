@@ -927,32 +927,28 @@ local function conductor()
 
     -- Load up the reflectors temp table
     local tmp_reflectors = {}
-    local pool_reflectors = {}
     if reflector_type == "icmp" then
         tmp_reflectors = load_reflector_list(reflector_list_icmp, "4")
-        pool_reflectors = load_reflector_list(reflector_list_icmp, "4")
     elseif reflector_type == "udp" then
         tmp_reflectors = load_reflector_list(reflector_list_udp, "4")
-        pool_reflectors = load_reflector_list(reflector_list_icmp, "4")
     else
         logger(loglevel.FATAL, "Unknown reflector type specified: " .. reflector_type)
         os.exit(1, true)
     end
 
     -- Shuffle the table
-    local initial_peer_reflectors = {}
-    tmp_reflectors = shuffle_table(tmp_reflectors)
-    if #tmp_reflectors < num_reflectors then
-        num_reflectors = #tmp_reflectors
-    end
-    for i = 1, num_reflectors, 1 do
-        initial_peer_reflectors[#initial_peer_reflectors + 1] = tmp_reflectors[i]
-    end
+    -- tmp_reflectors = shuffle_table(tmp_reflectors)
+    -- if #tmp_reflectors < num_reflectors then
+    --     num_reflectors = #tmp_reflectors
+    -- end
+    -- for i = 1, num_reflectors, 1 do
+    --     initial_peer_reflectors[#initial_peer_reflectors + 1] = tmp_reflectors[i]
+    -- end
 
     -- Load up the reflectors shared tables
     reflector_data:set("reflector_tables", {
-        peers = initial_peer_reflectors,
-        pool = pool_reflectors
+        peers = tmp_reflectors,
+        pool = tmp_reflectors
     })
 
     -- Set a packet ID
