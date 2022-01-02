@@ -865,8 +865,10 @@ local function reflector_peer_selector()
         -- Now we will just limit the candidates down to 2 * num_reflectors
         local num_reflectors = num_reflectors
         local candidate_pool_num = 2 * num_reflectors
-        for i = candidate_pool_num + 1, #candidates, 1 do
-            candidates[i] = nil
+        if candidate_pool_num < #candidates then
+            for i = candidate_pool_num + 1, #candidates, 1 do
+                candidates[i] = nil
+            end
         end
         for i, v in ipairs(candidates) do
             logger(loglevel.INFO, "Fastest candidate " .. i .. ": " .. v[1] .. " - RTT: " .. v[2])
