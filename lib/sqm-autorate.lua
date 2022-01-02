@@ -132,6 +132,12 @@ if settings then
 end
 
 ---------------------------- Begin Local Variables - External Settings ----------------------------
+-- Interface names: leave empty to use values from SQM config or place values here to override SQM config
+local ul_if = settings and settings:get("sqm-autorate", "@network[0]", "upload_interface") or
+                  "<UPLOAD INTERFACE NAME>" -- upload interface
+local dl_if = settings and settings:get("sqm-autorate", "@network[0]", "download_interface") or
+                  "<DOWNLOAD INTERFACE NAME>" -- download interface
+
 local base_ul_rate = settings and tonumber(settings:get("sqm-autorate", "@network[0]", "upload_kbits_base"), 10) or
                          "<STEADY STATE UPLOAD>" -- steady state bandwidth for upload
 local base_dl_rate = settings and tonumber(settings:get("sqm-autorate", "@network[0]", "download_kbits_base"), 10) or
@@ -154,12 +160,6 @@ local enable_verbose_baseline_output = false
 local tick_duration = 0.5 -- Frequency in seconds
 local min_change_interval = 0.5 -- don't change speeds unless this many seconds has passed since last change
 
--- Interface names: leave empty to use values from SQM config or place values here to override SQM config
-local ul_if = settings and settings:get("sqm-autorate", "@network[0]", "upload_interface") or
-                  "<UPLOAD INTERFACE NAME>" -- upload interface
-local dl_if = settings and settings:get("sqm-autorate", "@network[0]", "download_interface") or
-                  "<DOWNLOAD INTERFACE NAME>" -- download interface
-
 local histsize = settings and tonumber(settings:get("sqm-autorate", "@advanced_settings[0]", "speed_hist_size"), 10) or 100 -- the number of 'good' speeds to remember
         -- reducing this value could result in the algorithm remembering too few speeds to truly stabilise
         -- increasing this value could result in the algorithm taking too long to stabilise
@@ -167,6 +167,15 @@ local histsize = settings and tonumber(settings:get("sqm-autorate", "@advanced_s
 local max_delta_owd = settings and tonumber(settings:get("sqm-autorate", "@advanced_settings[0]", "rtt_delta_bufferbloat"), 10) or 15 -- increase from baseline RTT for detection of bufferbloat
         -- 15 is good for networks with very variable RTT values, such as LTE and DOCIS/cable networks
         -- 5 might be appropriate for high speed and relatively stable networks such as fiber
+
+local high_load_level = settings and tonumber(settings:get("sqm-autorate", "@advanced_settings[0]", "high_load_level"), 10) or 0.8
+if high_load_level > 0.95 then
+    high_load_level = 0.95
+elseif high_load_level < 0.67 then
+    high_load_level = 0.67
+end
+
+local linear_increment = settings and tonumber(settings:get("sqm-autorate", "@advanced_settings[0]", "linear_increment_kbits"), 10) or 500 -- the increment size to apply when the algorithm is linear
 
 local reflector_type = settings and settings:get("sqm-autorate", "@advanced_settings[0]", "reflector_type") or "icmp"
 
@@ -590,17 +599,17 @@ local function ratecontrol()
             local next_ul_rate = cur_ul_rate
             local next_dl_rate = cur_dl_rate
 
-            if min_up_del < max_delta_owd and tx_load > .8 then
+            if min_up_del < max_delta_owd and tx_load > high_load_level then
                 safe_ul_rates[nrate_up] = math.floor(cur_ul_rate * tx_load)
                 local maxul = maximum(safe_ul_rates)
-                next_ul_rate = cur_ul_rate * (1 + .1 * math.max(0, (1 - cur_ul_rate / maxul))) + 500
+                next_ul_rate = cur_ul_rate * (1 + .1 * math.max(0, (1 - cur_ul_rate / maxul))) + linear_increment
                 nrate_up = nrate_up + 1
                 nrate_up = nrate_up % histsize
             end
-            if min_down_del < max_delta_owd and rx_load > .8 then
+            if min_down_del < max_delta_owd and rx_load > high_load_level then
                 safe_dl_rates[nrate_down] = math.floor(cur_dl_rate * rx_load)
                 local maxdl = maximum(safe_dl_rates)
-                next_dl_rate = cur_dl_rate * (1 + .1 * math.max(0, (1 - cur_dl_rate / maxdl))) + 500
+                next_dl_rate = cur_dl_rate * (1 + .1 * math.max(0, (1 - cur_dl_rate / maxdl))) + linear_increment
                 nrate_down = nrate_down + 1
                 nrate_down = nrate_down % histsize
             end
