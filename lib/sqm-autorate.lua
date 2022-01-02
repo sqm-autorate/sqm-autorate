@@ -864,14 +864,6 @@ local function reflector_peer_selector()
             pool = reflector_pool
         })
 
-        -- Now reset the OWD baseline and recent tables since we have new peers
-        -- local owd_tables = owd_data:get("owd_tables")
-        -- local owd_recent = owd_tables["recent"]
-        -- owd_data:set("owd_tables", {
-        --     baseline = {},
-        --     recent = {}
-        -- })
-
         nsleep(selector_sleep_time_s, selector_sleep_time_ns)
     end
 end
@@ -955,15 +947,6 @@ local function conductor()
         logger(loglevel.FATAL, "Unknown reflector type specified: " .. reflector_type)
         os.exit(1, true)
     end
-
-    -- Shuffle the table
-    -- tmp_reflectors = shuffle_table(tmp_reflectors)
-    -- if #tmp_reflectors < num_reflectors then
-    --     num_reflectors = #tmp_reflectors
-    -- end
-    -- for i = 1, num_reflectors, 1 do
-    --     initial_peer_reflectors[#initial_peer_reflectors + 1] = tmp_reflectors[i]
-    -- end
 
     -- Load up the reflectors shared tables
     reflector_data:set("reflector_tables", {
