@@ -856,7 +856,7 @@ local function reflector_peer_selector()
             local rtt = up_del + down_del
 
             candidates[#candidates + 1] = {k, rtt}
-            logger(loglevel.INFO, "reflector: " .. k .. " rtt: " .. rtt)
+            logger(loglevel.INFO, "Candidate reflector: " .. k .. " RTT: " .. rtt)
         end
 
         -- Sort the candidates table now by ascending RTT
