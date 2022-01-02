@@ -868,6 +868,9 @@ local function reflector_peer_selector()
         for i = candidate_pool_num + 1, #candidates, 1 do
             candidates[i] = nil
         end
+        for i, v in ipairs(candidates) do
+            logger(loglevel.INFO, "Fastest peer " .. i .. ": " .. v)
+        end
 
         -- Shuffle the deck so we avoid overwhelming good reflectors
         candidates = shuffle_table(candidates)
