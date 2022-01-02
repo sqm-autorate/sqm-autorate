@@ -187,7 +187,7 @@ end
 local num_reflectors = 5
 
 -- Time (in minutes) before re-selection of peers from the pool
-local peer_reselection_time = 1
+local peer_reselection_time = 15
 
 -- Bandwidth file paths
 local rx_bytes_path = nil
