@@ -255,9 +255,10 @@ end
 
 local function nsleep(s, ns)
     -- nanosleep requires integers
+    local floor = math.floor
     time.nanosleep({
-        tv_sec = math.floor(s),
-        tv_nsec = math.floor(((s % 1.0) * 1e9) + ns)
+        tv_sec = floor(s),
+        tv_nsec = floor(((s % 1.0) * 1e9) + ns)
     })
 end
 
@@ -315,17 +316,19 @@ end
 
 local function shuffle_table(tbl)
     -- Fisher-Yates shuffle
+    local random = math.random
     for i = #tbl, 2, -1 do
-        local j = math.random(i)
+        local j = random(i)
         tbl[i], tbl[j] = tbl[j], tbl[i]
     end
     return tbl
 end
 
 local function maximum(table)
+    local max = math.max
     local m = -1 / 0
     for _, v in pairs(table) do
-        m = math.max(v, m)
+        m = max(v, m)
     end
     return m
 end
@@ -401,6 +404,8 @@ end
 local function receive_udp_pkt(pkt_id)
     logger(loglevel.TRACE, "Entered receive_udp_pkt() with value: " .. pkt_id)
 
+    local floor = math.floor
+
     -- Read UDP TS reply
     local data, sa = socket.recvfrom(sock, 100) -- An IPv4 ICMP reply should be ~56bytes. This value may need tweaking.
 
@@ -415,9 +420,9 @@ local function receive_udp_pkt(pkt_id)
 
         -- A pos > 0 indicates the current sa.addr is a known member of the reflector array
         if (pos > 0 and src_pkt_id == pkt_id) then
-            local originate_ts = (ts_resp[6] % 86400 * 1000) + (math.floor(ts_resp[7] / 1000000))
-            local receive_ts = (ts_resp[8] % 86400 * 1000) + (math.floor(ts_resp[9] / 1000000))
-            local transmit_ts = (ts_resp[10] % 86400 * 1000) + (math.floor(ts_resp[11] / 1000000))
+            local originate_ts = (ts_resp[6] % 86400 * 1000) + (floor(ts_resp[7] / 1000000))
+            local receive_ts = (ts_resp[8] % 86400 * 1000) + (floor(ts_resp[9] / 1000000))
+            local transmit_ts = (ts_resp[10] % 86400 * 1000) + (floor(ts_resp[11] / 1000000))
 
             local stats = {
                 reflector = sa.addr,
@@ -533,11 +538,13 @@ end
 local function ts_ping_sender(pkt_type, pkt_id, freq)
     logger(loglevel.TRACE, "Entered ts_ping_sender() with values: " .. freq .. " | " .. pkt_type .. " | " .. pkt_id)
 
+    local floor = math.floor
+
     local reflector_tables = reflector_data:get("reflector_tables")
     local reflector_list = reflector_tables["peers"]
     local ff = (freq / #reflector_list)
-    local sleep_time_ns = math.floor((ff % 1) * 1e9)
-    local sleep_time_s = math.floor(ff)
+    local sleep_time_ns = floor((ff % 1) * 1e9)
+    local sleep_time_s = floor(ff)
 
     local ping_func = nil
     if pkt_type == "icmp" then
@@ -555,8 +562,8 @@ local function ts_ping_sender(pkt_type, pkt_id, freq)
         if reflector_list then
             -- Update sleep time based on number of peers
             ff = (freq / #reflector_list)
-            sleep_time_ns = math.floor((ff % 1) * 1e9)
-            sleep_time_s = math.floor(ff)
+            sleep_time_ns = floor((ff % 1) * 1e9)
+            sleep_time_s = floor(ff)
 
             for _, reflector in ipairs(reflector_list) do
                 ping_func(reflector, pkt_id)
@@ -575,8 +582,13 @@ local function read_stats_file(file)
 end
 
 local function ratecontrol()
-    local sleep_time_ns = math.floor((min_change_interval % 1) * 1e9)
-    local sleep_time_s = math.floor(min_change_interval)
+    local floor = math.floor
+    local max = math.max
+    local min = math.min
+    local random = math.random
+
+    local sleep_time_ns = floor((min_change_interval % 1) * 1e9)
+    local sleep_time_s = floor(min_change_interval)
 
     local start_s, start_ns = get_current_time() -- first time we entered this loop, times will be relative to this seconds value to preserve precision
     local lastchg_s, lastchg_ns = get_current_time()
@@ -602,8 +614,8 @@ local function ratecontrol()
     local safe_dl_rates = {}
     local safe_ul_rates = {}
     for i = 0, histsize - 1, 1 do
-        safe_dl_rates[i] = (math.random() * 0.2 + 0.75) * (base_dl_rate)
-        safe_ul_rates[i] = (math.random() * 0.2 + 0.75) * (base_ul_rate)
+        safe_dl_rates[i] = (random() * 0.2 + 0.75) * (base_dl_rate)
+        safe_ul_rates[i] = (random() * 0.2 + 0.75) * (base_ul_rate)
     end
 
     local nrate_up = 0
@@ -638,10 +650,10 @@ local function ratecontrol()
             if reflector_list then
                 for _, reflector_ip in ipairs(reflector_list) do
                     if owd_recent[reflector_ip] ~= nil and owd_baseline[reflector_ip] ~= nil then
-                        min_up_del = math.min(min_up_del,
+                        min_up_del = min(min_up_del,
                             owd_recent[reflector_ip].up_ewma - owd_baseline[reflector_ip].up_ewma)
-                        min_down_del = math.min(min_down_del, owd_recent[reflector_ip].down_ewma -
-                            owd_baseline[reflector_ip].down_ewma)
+                        min_down_del = min(min_down_del,
+                            owd_recent[reflector_ip].down_ewma - owd_baseline[reflector_ip].down_ewma)
 
                         logger(loglevel.INFO, "reflector: " .. reflector_ip .. " min_up_del: " .. min_up_del ..
                             "  min_down_del: " .. min_down_del)
@@ -661,39 +673,37 @@ local function ratecontrol()
                 local next_dl_rate = cur_dl_rate
                 logger(loglevel.INFO, "min_up_del " .. min_up_del .. " min_down_del " .. min_down_del)
                 if min_up_del < max_delta_owd and tx_load > .8 then
-                    safe_ul_rates[nrate_up] = math.floor(cur_ul_rate * tx_load)
+                    safe_ul_rates[nrate_up] = floor(cur_ul_rate * tx_load)
                     local max_ul = maximum(safe_ul_rates)
-                    next_ul_rate = cur_ul_rate * (1 + .1 * math.max(0, (1 - cur_ul_rate / max_ul))) + 500
+                    next_ul_rate = cur_ul_rate * (1 + .1 * max(0, (1 - cur_ul_rate / max_ul))) + 500
                     nrate_up = nrate_up + 1
                     nrate_up = nrate_up % histsize
                 end
                 if min_down_del < max_delta_owd and rx_load > .8 then
-                    safe_dl_rates[nrate_down] = math.floor(cur_dl_rate * rx_load)
+                    safe_dl_rates[nrate_down] = floor(cur_dl_rate * rx_load)
                     local max_dl = maximum(safe_dl_rates)
-                    next_dl_rate = cur_dl_rate * (1 + .1 * math.max(0, (1 - cur_dl_rate / max_dl))) + 500
+                    next_dl_rate = cur_dl_rate * (1 + .1 * max(0, (1 - cur_dl_rate / max_dl))) + 500
                     nrate_down = nrate_down + 1
                     nrate_down = nrate_down % histsize
                 end
 
                 if min_up_del > max_delta_owd then
                     if #safe_ul_rates > 0 then
-                        next_ul_rate = math.min(0.9 * cur_ul_rate * tx_load,
-                            safe_ul_rates[math.random(#safe_ul_rates) - 1])
+                        next_ul_rate = min(0.9 * cur_ul_rate * tx_load, safe_ul_rates[random(#safe_ul_rates) - 1])
                     else
                         next_ul_rate = 0.9 * cur_ul_rate * tx_load
                     end
                 end
                 if min_down_del > max_delta_owd then
                     if #safe_dl_rates > 0 then
-                        next_dl_rate = math.min(0.9 * cur_dl_rate * rx_load,
-                            safe_dl_rates[math.random(#safe_dl_rates) - 1])
+                        next_dl_rate = min(0.9 * cur_dl_rate * rx_load, safe_dl_rates[random(#safe_dl_rates) - 1])
                     else
                         next_dl_rate = 0.9 * cur_dl_rate * rx_load
                     end
                 end
                 logger(loglevel.INFO, "next_ul_rate " .. next_ul_rate .. " next_dl_rate " .. next_dl_rate)
-                next_ul_rate = math.floor(math.max(min_ul_rate, next_ul_rate))
-                next_dl_rate = math.floor(math.max(min_dl_rate, next_dl_rate))
+                next_ul_rate = floor(max(min_ul_rate, next_ul_rate))
+                next_dl_rate = floor(max(min_dl_rate, next_dl_rate))
 
                 -- TC modification
                 if next_dl_rate ~= cur_dl_rate then
@@ -733,6 +743,8 @@ local function ratecontrol()
 end
 
 local function baseline_calculator()
+    local min = math.min
+
     local slow_factor = .9
     local fast_factor = .2
 
@@ -773,9 +785,9 @@ local function baseline_calculator()
                                                             (1 - fast_factor) * time_data.downlink_time
 
             -- when baseline is above the recent, set equal to recent, so we track down more quickly
-            owd_baseline[time_data.reflector].up_ewma = math.min(owd_baseline[time_data.reflector].up_ewma,
+            owd_baseline[time_data.reflector].up_ewma = min(owd_baseline[time_data.reflector].up_ewma,
                 owd_recent[time_data.reflector].up_ewma)
-            owd_baseline[time_data.reflector].down_ewma = math.min(owd_baseline[time_data.reflector].down_ewma,
+            owd_baseline[time_data.reflector].down_ewma = min(owd_baseline[time_data.reflector].down_ewma,
                 owd_recent[time_data.reflector].down_ewma)
 
             -- Set the values back into the shared tables
@@ -808,11 +820,14 @@ local function rtt_compare(a, b)
 end
 
 local function reflector_peer_selector()
+    local floor = math.floor
+    local pi = math.pi
+
     local selector_sleep_time_ns = 0
     local selector_sleep_time_s = peer_reselection_time * 60
 
-    local baseline_sleep_time_ns = math.floor(((tick_duration * math.pi) % 1) * 1e9)
-    local baseline_sleep_time_s = math.floor(tick_duration * math.pi)
+    local baseline_sleep_time_ns = floor(((tick_duration * pi) % 1) * 1e9)
+    local baseline_sleep_time_s = floor(tick_duration * pi)
 
     local reflector_tables = reflector_data:get("reflector_tables")
     local reflector_pool = reflector_tables["pool"]
@@ -847,6 +862,16 @@ local function reflector_peer_selector()
         -- Sort the candidates table now by ascending RTT
         table.sort(candidates, rtt_compare)
 
+        -- Now we will just limit the candidates down to 2 * num_reflectors
+        local num_reflectors = num_reflectors
+        local candidate_pool_num = 2 * num_reflectors
+        for i = candidate_pool_num + 1, #candidates, 1 do
+            candidates[i] = nil
+        end
+
+        -- Shuffle the deck so we avoid overwhelming good reflectors
+        candidates = shuffle_table(candidates)
+
         local new_peers = {}
         if #candidates < num_reflectors then
             num_reflectors = #candidates
@@ -856,7 +881,7 @@ local function reflector_peer_selector()
         end
 
         for _, v in ipairs(new_peers) do
-            logger(loglevel.INFO, "New Selected Peer " .. v)
+            logger(loglevel.INFO, "New selected peer: " .. v)
         end
 
         reflector_data:set("reflector_tables", {
