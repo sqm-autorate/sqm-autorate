@@ -68,3 +68,145 @@ reflector_ip,ip_version,description
 2620:fe::fe:11,6,Quad9
 2620:fe::10,6,Quad9
 2620:fe::fe:10,6,Quad9
+176.9.93.198,4,dnsforge.de
+176.9.1.117,4,dnsforge.de
+104.236.210.29,4,DNSReactor
+37.235.1.174,4,FreeDNS
+81.218.119.1,4,GreenTeamDNS
+194.8.57.12,4,Nuernberg Internet Exchange (N-IX)
+51.89.30.51,4,PublicDNS.eu
+51.89.93.25,4,PublicDNS.eu
+2001:41d0:701:1100:0:0:0:39cc,6,PublicDNS.eu
+130.59.31.248,4,SWITCH
+130.59.31.251,4,SWITCH
+2001:620:0:ff::2,6,SWITCH
+2001:620:0:ff::3,6,SWITCH
+185.49.141.37,4,GetDNS
+2a04:b900:0:100::37,6,GetDNS
+158.64.1.29,4,Restena Foundation
+2001:a18:1::29,6,Restena Foundation
+89.234.186.112,4,Neutopia
+2a00:5884:8209::2,6,Neutopia
+185.95.218.42,4,Digitale Gesellschaft Schweiz
+185.95.218.43,4,Digitale Gesellschaft Schweiz
+2a05:fc84::42,6,Digitale Gesellschaft Schweiz
+2a05:fc84::43,6,Digitale Gesellschaft Schweiz
+140.238.215.192,4,post-factum
+199.58.81.218,4,CMRG DNS
+2001:470:1c:76d::53,6,CMRG DNS
+146.255.56.98,4,Foundation for Applied Privacy
+2a01:4f8:c0c:83ed::1,6,Foundation for Applied Privacy
+185.222.222.222,4,dns.sb
+185.184.222.222,4,dns.sb
+2a09::,6,dns.sb
+2a09::1,6,dns.sb
+5.1.66.255,4,Freifunk München e.V.
+5.1.66.255,4,Freifunk München e.V.
+2001:678:e68:f000::,6,Freifunk München e.V.
+2001:678:e68:f000::,6,Freifunk München e.V.
+80.80.80.80,4,Freenom World
+80.80.81.81,4,Freenom World
+80.67.169.12,4,French Data Network (FDN)
+80.67.169.40,4,French Data Network (FDN)
+2001:910:800::12,6,French Data Network (FDN)
+2001:910:800::40,6,French Data Network (FDN)
+2001:470:20::2,6,Hurricane Electric
+217.24.255.134,4,Albtelecom Sh.a.
+213.163.127.229,4,Telekomi i Kosoves SH.A.
+85.94.178.198,4,ANDORRA TELECOM SAU
+186.148.128.86,4,ETERNET S.R.L.
+190.151.144.21,4,Lima Video Cable S.A. (Cabletel)
+200.45.184.43,4,Telecom Argentina S.A.
+179.60.232.10,4,WICORP SA
+170.210.83.110,4,Red de Interconexion Universitaria
+190.57.234.194,4,Gigared S.A.
+186.153.180.148,4,Telecom Argentina S.A.
+81.16.8.110,4,Ucom CJSC
+45.133.105.123,4,GNC-Alfa CJSC
+61.8.0.113,4,Telstra Corporation Ltd
+103.224.162.40,4,Ezi-Web
+139.130.4.4,4,Telstra Corporation Ltd
+139.134.5.51,4,Telstra Corporation Ltd
+139.134.2.190,4,Telstra Corporation Ltd
+203.50.2.71,4,Telstra Corporation Ltd
+37.235.1.174,4,ANEXIA Internetdienstleistungs GmbH
+37.235.1.177,4,ANEXIA Internetdienstleistungs GmbH
+83.137.41.8,4,nemox.net Informationstechnologie OG
+83.137.41.9,4,nemox.net Informationstechnologie OG
+194.36.144.87,4,netcup GmbH
+188.118.227.21,4,Hutchison Drei Austria GmbH
+83.218.176.140,4,myNet GmbH
+85.132.85.85,4,Delta Telecom Ltd
+45.250.253.222,4,New Generation Internet Services Limited
+103.77.188.18,4,NETSCOPE
+103.77.188.19,4,NETSCOPE
+103.80.1.2,4,SS Online
+103.153.154.2,4,Pabna Cable Vision Dot Net
+114.130.5.5,4,Tire-1 IP Transit Provider of Bangladesh
+114.130.5.6,4,Tire-1 IP Transit Provider of Bangladesh
+103.146.221.20,4,Kloud Technologies Limited
+103.146.221.21,4,Kloud Technologies Limited
+115.127.19.129,4,BRACNet Limited
+115.127.19.137,4,BRACNet Limited
+103.113.200.10,4,National University
+177.131.114.86,4,ACESSOLINE TELECOMUNICACOES LTDA
+177.66.203.10,4,Downup Telecomunicacoes e servico LTDA
+177.184.131.180,4,SOBRALNET SERVICOS E TELECOMUNICACOES LTDA - ME
+186.194.224.82,4,R&R PROVEDOR DE INTERNET LTDA
+186.225.194.29,4,Pannet Serviços On Line Ltda
+189.42.239.34,4,CLARO S.A.
+200.99.138.94,4,TELEFÔNICA BRASIL S.A
+200.99.138.103,4,TELEFÔNICA BRASIL S.A
+200.167.191.114,4,CLARO S.A.
+200.169.8.1,4,Century Telecom Ltda
+141.0.102.202,4,Altibox AS
+62.97.223.62,4,BKK Digitek AS
+217.18.206.12,4,EVRY NORGE AS
+217.18.206.22,4,EVRY NORGE AS
+195.204.130.85,4,GLOBALCONNECT AS
+81.175.38.1,4,GLOBALCONNECT AS
+46.182.19.48,4,Martin Prager trading as NbIServ
+82.96.64.2,4,Probe Networks
+84.200.69.80,4,diva-e Datacenters GmbH
+94.247.43.254,4,OpenNIC
+195.10.195.195,4,meerfarbig GmbH & Co. KG
+84.200.70.40,4,diva-e Datacenters GmbH
+194.172.160.4,4,Baumann Technologie GmbH
+185.233.106.232,4,netcup GmbH
+185.233.107.4,4,netcup GmbH
+141.1.1.1,4,Vodafone Group PLC
+141.1.27.249,4,Vodafone Group PLC
+176.103.130.130,4,Serveroid LLC
+176.103.130.131,4,Serveroid LLC
+80.243.64.67,4,PJSC Vimpelcom
+195.218.133.88,4,PJSC Vimpelcom
+83.69.120.1,4,PJSC Vimpelcom
+46.16.229.223,4,JSC Elektrosvyaz
+193.183.98.66,4,Prometeus di Daniela Agro
+212.19.96.2,4,Leonet4cloud srl
+217.12.181.97,4,IRIDEOS S.P.A.
+62.149.128.4,4,Aruba S.p.A.
+62.149.132.2,4,Aruba S.p.A.
+85.47.198.82,4,Telecom Italia S.p.A.
+202.136.162.11,4,ASN - NTT SINGAPORE PTE LTD
+51.79.144.245,4,OVH SAS
+61.46.244.211,4,Jupiter Telecommunications Co. Ltd.
+1.33.184.173,4,NTT PC Communications Inc.
+1.33.184.116,4,NTT PC Communications Inc.
+1.33.184.174,4,NTT PC Communications Inc.
+1.33.184.108,4,NTT PC Communications Inc.
+1.33.184.220,4,NTT PC Communications Inc.
+1.33.184.230,4,NTT PC Communications Inc.
+1.33.184.158,4,NTT PC Communications Inc.
+80.67.169.12,4,Association Gitoyen
+62.212.113.125,4,Nerim SAS
+185.30.211.154,4,ENTREPRISE DECIMA SARL
+87.240.90.128,4,KERTEL SAS
+45.77.61.165,4,The Constant Company LLC
+178.62.57.141,4,DigitalOcean LLC
+194.145.240.6,4,M247 Ltd
+195.27.1.1,4,Vodafone Group PLC
+81.17.66.13,4,South West Communications Group Ltd
+87.117.196.200,4,IOMART CLOUD SERVICES LIMITED
+213.123.251.87,4,British Telecommunications PLC
+81.149.21.254,4,British Telecommunications PLC
