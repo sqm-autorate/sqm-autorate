@@ -869,7 +869,7 @@ local function reflector_peer_selector()
             candidates[i] = nil
         end
         for i, v in ipairs(candidates) do
-            logger(loglevel.INFO, "Fastest peer " .. i .. ": " .. v)
+            logger(loglevel.INFO, "Fastest peer " .. i .. ": " .. v[1] .. " - RTT: " .. v[2])
         end
 
         -- Shuffle the deck so we avoid overwhelming good reflectors
