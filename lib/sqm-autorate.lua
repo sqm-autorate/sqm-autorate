@@ -834,7 +834,7 @@ local function conductor()
             if err and err ~= "timeout" then
                 print('Something went wrong in the ' .. name .. ' thread')
                 print(err)
-                exit(1)
+                os.exit(1, true)
             end
         end
     end
