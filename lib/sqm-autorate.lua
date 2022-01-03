@@ -874,7 +874,7 @@ local function reflector_peer_selector()
             peerhash[nextcandidate] = 1
         end
         for k, v in pairs(peerhash) do
-            insert(next_peers, k)
+            next_peers[#next_peers + 1] = k
         end
         -- Put all the pool members back into the peers for some re-baselining...
         reflector_data:set("reflector_tables", {
