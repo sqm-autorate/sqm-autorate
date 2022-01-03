@@ -859,7 +859,7 @@ local function reflector_peer_selector()
 
     -- Initial wait of several seconds to allow some OWD data to build up
     nsleep(baseline_sleep_time_s, baseline_sleep_time_ns)
-    logger(loglevel.INFO, "Reflector Pool Size: " .. #reflector_pool)
+    
     while true do
         local peerhash = {} -- a hash table of next peers, to ensure uniqueness
         local next_peers = {} -- an array of next peers
@@ -1052,6 +1052,8 @@ local function conductor()
         logger(loglevel.FATAL, "Unknown reflector type specified: " .. reflector_type)
         os.exit(1, true)
     end
+
+    logger(loglevel.INFO, "Reflector Pool Size: " .. #tmp_reflectors)
 
     -- Load up the reflectors shared tables
     reflector_data:set("reflector_tables", {
