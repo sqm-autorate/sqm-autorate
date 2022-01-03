@@ -58,7 +58,7 @@ owd_data:set("owd_tables", {
 })
 
 -- The versioning value for this script
-local _VERSION = "0.0.1b6"
+local _VERSION = "0.0.1b7"
 
 local loglevel = {
     TRACE = {
@@ -653,6 +653,8 @@ local function ratecontrol()
 
                 lastchg_s = lastchg_s - start_s
                 lastchg_t = lastchg_s + lastchg_ns / 1e9
+            else
+                logger(loglevel.WARN, "One or both stats files could not be read. Skipping rate control algorithm.")
             end
         end
 
