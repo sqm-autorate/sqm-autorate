@@ -890,15 +890,12 @@ local function reflector_peer_selector()
         local owd_tables = owd_data:get("owd_tables")
         local owd_recent = owd_tables["recent"]
 
-        for k, val in pairs(owd_recent) do
-            local up_del = owd_recent[k].up_ewma
-            local down_del = owd_recent[k].down_ewma
+        for i, peer in ipairs(next_peers) do
+            local up_del = owd_recent[peer].up_ewma
+            local down_del = owd_recent[peer].down_ewma
             local rtt = up_del + down_del
-
-            if get_table_position(next_peers, k) > 0 then
-                candidates[#candidates + 1] = {k, rtt}
-                logger(loglevel.INFO, "Candidate reflector: " .. k .. " RTT: " .. rtt)
-            end
+            candidates[#candidates + 1] = {peer, rtt}
+            logger(loglevel.INFO, "Candidate reflector: " .. peer .. " RTT: " .. rtt)
         end
 
         -- Sort the candidates table now by ascending RTT
