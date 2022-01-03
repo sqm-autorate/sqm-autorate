@@ -981,7 +981,6 @@ local function conductor()
             nsleep(retry_time, 0)
             test_file = io.open(rx_bytes_path)
             if test_file then
-                logger(loglevel.INFO, "Rx stats file found! Continuing...")
                 break
             end
         end
@@ -992,6 +991,7 @@ local function conductor()
         end
     end
     test_file:close()
+    logger(loglevel.INFO, "Rx stats file found! Continuing...")
 
     test_file = io.open(tx_bytes_path)
     if not test_file then
@@ -1006,7 +1006,6 @@ local function conductor()
             nsleep(retry_time, 0)
             test_file = io.open(tx_bytes_path)
             if test_file then
-                logger(loglevel.INFO, "Tx stats file found! Continuing...")
                 break
             end
         end
@@ -1017,6 +1016,7 @@ local function conductor()
         end
     end
     test_file:close()
+    logger(loglevel.INFO, "Tx stats file found! Continuing...")
 
     -- Load up the reflectors temp table
     local tmp_reflectors = {}
