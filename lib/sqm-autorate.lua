@@ -895,8 +895,10 @@ local function reflector_peer_selector()
             local down_del = owd_recent[k].down_ewma
             local rtt = up_del + down_del
 
-            candidates[#candidates + 1] = {k, rtt}
-            logger(loglevel.INFO, "Candidate reflector: " .. k .. " RTT: " .. rtt)
+            if get_table_position(next_peers, k) > 0 then
+                candidates[#candidates + 1] = {k, rtt}
+                logger(loglevel.INFO, "Candidate reflector: " .. k .. " RTT: " .. rtt)
+            end
         end
 
         -- Sort the candidates table now by ascending RTT
