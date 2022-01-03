@@ -849,6 +849,7 @@ end
 local function reflector_peer_selector()
     local floor = math.floor
     local pi = math.pi
+    local random = math.random
 
     local selector_sleep_time_ns = 0
     local selector_sleep_time_s = peer_reselection_time * 60
@@ -863,9 +864,21 @@ local function reflector_peer_selector()
     nsleep(baseline_sleep_time_s, baseline_sleep_time_ns)
     logger(loglevel.INFO, "Reflector Pool Size: " .. #reflector_pool)
     while true do
+        local peerhash = {} -- a hash table of next peers, to ensure uniqueness
+        local next_peers = {} -- an array of next peers
+        for k,v in pairs(reflector_tables["peers"]) do -- include all current peers
+            peerhash[v] = 1
+        end
+        for i=1:20 do -- add 20 at random, but 
+            local nextcandidate = reflector_pool[random(#reflector_pool)]
+            peerhash[nextcandidate] = 1
+        end
+        for k,v in pairs(peerhash) do
+            insert(next_peers,k)
+        end
         -- Put all the pool members back into the peers for some re-baselining...
         reflector_data:set("reflector_tables", {
-            peers = reflector_pool,
+            peers = next_peers,
             pool = reflector_pool
         })
 
