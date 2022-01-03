@@ -857,15 +857,15 @@ local function reflector_peer_selector()
     local baseline_sleep_time_ns = floor(((tick_duration * pi) % 1) * 1e9)
     local baseline_sleep_time_s = floor(tick_duration * pi)
 
-    local reflector_tables = reflector_data:get("reflector_tables")
-    local reflector_pool = reflector_tables["pool"]
-
     -- Initial wait of several seconds to allow some OWD data to build up
     nsleep(baseline_sleep_time_s, baseline_sleep_time_ns)
     logger(loglevel.INFO, "Reflector Pool Size: " .. #reflector_pool)
     while true do
         local peerhash = {} -- a hash table of next peers, to ensure uniqueness
         local next_peers = {} -- an array of next peers
+        local reflector_tables = reflector_data:get("reflector_tables")
+        local reflector_pool = reflector_tables["pool"]
+    
         for k, v in pairs(reflector_tables["peers"]) do -- include all current peers
             peerhash[v] = 1
         end
