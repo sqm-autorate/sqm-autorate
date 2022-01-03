@@ -835,7 +835,7 @@ local function baseline_calculator()
                     local up_ewma = a_else_b(val.up_ewma, "?")
                     local down_ewma = a_else_b(val.down_ewma, "?")
                     logger(loglevel.INFO,
-                        "Reflector " .. ref .. " up baseline = " .. up_ewma .. " down baseline = " .. down_ewma)
+                        "Reflector " .. ref .. "recent up baseline = " .. up_ewma .. "recent down baseline = " .. down_ewma)
                 end
             end
         end
