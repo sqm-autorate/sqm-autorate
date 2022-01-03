@@ -662,7 +662,7 @@ local function ratecontrol()
             -- This will occur under normal operation when the reflector peers table is updated.
             if reflector_list then
 	       for _, reflector_ip in ipairs(reflector_list) do
-		  if owd_recent[reflector_ip].last_receive_time_s > now_abstime - 3 then
+		  if owd_recent[reflector_ip].last_receive_time_s > now_abstime - 5*tick_duration then
 		  -- only consider this data if it's less than 3 seconds old
                     if owd_recent[reflector_ip] ~= nil and owd_baseline[reflector_ip] ~= nil then
                         min_up_del = min(min_up_del,
