@@ -866,8 +866,8 @@ local function reflector_peer_selector()
     while true do
         local peerhash = {} -- a hash table of next peers, to ensure uniqueness
         local next_peers = {} -- an array of next peers
-        for k, v in pairs(reflector_tables["peers"]) do -- include all current peers
-            peerhash[v] = 1
+        for _, k in ipairs(reflector_tables["peers"]) do -- include all current peers
+            peerhash[k] = 1
         end
         for i = 1, 20, 1 do -- add 20 at random, but
             local nextcandidate = reflector_pool[random(#reflector_pool)]
