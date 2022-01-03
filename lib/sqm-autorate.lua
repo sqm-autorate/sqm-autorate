@@ -10,7 +10,7 @@
 -- ** Recommended style guide: https://github.com/luarocks/lua-style-guide **
 --
 -- The versioning value for this script
-local _VERSION = "0.1.2"
+local _VERSION = "0.1.3"
 --
 -- Found this clever function here: https://stackoverflow.com/a/15434737
 -- This function will assist in compatibility given differences between OpenWrt, Turris OS, etc.
@@ -670,72 +670,79 @@ local function ratecontrol()
 
                 local cur_rx_bytes = read_stats_file(rx_bytes_file)
                 local cur_tx_bytes = read_stats_file(tx_bytes_file)
-                t_prev_bytes = t_cur_bytes
-                t_cur_bytes = now_t
 
-                local rx_load = (8 / 1000) * (cur_rx_bytes - prev_rx_bytes) / (t_cur_bytes - t_prev_bytes) / cur_dl_rate
-                local tx_load = (8 / 1000) * (cur_tx_bytes - prev_tx_bytes) / (t_cur_bytes - t_prev_bytes) / cur_ul_rate
-                prev_rx_bytes = cur_rx_bytes
-                prev_tx_bytes = cur_tx_bytes
-                local next_ul_rate = cur_ul_rate
-                local next_dl_rate = cur_dl_rate
-                logger(loglevel.INFO, "min_up_del " .. min_up_del .. " min_down_del " .. min_down_del)
-                if min_up_del < max_delta_owd and tx_load > .8 then
-                    safe_ul_rates[nrate_up] = floor(cur_ul_rate * tx_load)
-                    local max_ul = maximum(safe_ul_rates)
-                    next_ul_rate = cur_ul_rate * (1 + .1 * max(0, (1 - cur_ul_rate / max_ul))) + 500
-                    nrate_up = nrate_up + 1
-                    nrate_up = nrate_up % histsize
-                end
-                if min_down_del < max_delta_owd and rx_load > .8 then
-                    safe_dl_rates[nrate_down] = floor(cur_dl_rate * rx_load)
-                    local max_dl = maximum(safe_dl_rates)
-                    next_dl_rate = cur_dl_rate * (1 + .1 * max(0, (1 - cur_dl_rate / max_dl))) + 500
-                    nrate_down = nrate_down + 1
-                    nrate_down = nrate_down % histsize
-                end
+                if cur_rx_bytes and cur_tx_bytes then
+                    t_prev_bytes = t_cur_bytes
+                    t_cur_bytes = now_t
 
-                if min_up_del > max_delta_owd then
-                    if #safe_ul_rates > 0 then
-                        next_ul_rate = min(0.9 * cur_ul_rate * tx_load, safe_ul_rates[random(#safe_ul_rates) - 1])
-                    else
-                        next_ul_rate = 0.9 * cur_ul_rate * tx_load
+                    local rx_load = (8 / 1000) * (cur_rx_bytes - prev_rx_bytes) / (t_cur_bytes - t_prev_bytes) /
+                                        cur_dl_rate
+                    local tx_load = (8 / 1000) * (cur_tx_bytes - prev_tx_bytes) / (t_cur_bytes - t_prev_bytes) /
+                                        cur_ul_rate
+                    prev_rx_bytes = cur_rx_bytes
+                    prev_tx_bytes = cur_tx_bytes
+                    local next_ul_rate = cur_ul_rate
+                    local next_dl_rate = cur_dl_rate
+                    logger(loglevel.INFO, "min_up_del " .. min_up_del .. " min_down_del " .. min_down_del)
+                    if min_up_del < max_delta_owd and tx_load > .8 then
+                        safe_ul_rates[nrate_up] = floor(cur_ul_rate * tx_load)
+                        local max_ul = maximum(safe_ul_rates)
+                        next_ul_rate = cur_ul_rate * (1 + .1 * max(0, (1 - cur_ul_rate / max_ul))) + 500
+                        nrate_up = nrate_up + 1
+                        nrate_up = nrate_up % histsize
                     end
-                end
-                if min_down_del > max_delta_owd then
-                    if #safe_dl_rates > 0 then
-                        next_dl_rate = min(0.9 * cur_dl_rate * rx_load, safe_dl_rates[random(#safe_dl_rates) - 1])
-                    else
-                        next_dl_rate = 0.9 * cur_dl_rate * rx_load
+                    if min_down_del < max_delta_owd and rx_load > .8 then
+                        safe_dl_rates[nrate_down] = floor(cur_dl_rate * rx_load)
+                        local max_dl = maximum(safe_dl_rates)
+                        next_dl_rate = cur_dl_rate * (1 + .1 * max(0, (1 - cur_dl_rate / max_dl))) + 500
+                        nrate_down = nrate_down + 1
+                        nrate_down = nrate_down % histsize
                     end
+
+                    if min_up_del > max_delta_owd then
+                        if #safe_ul_rates > 0 then
+                            next_ul_rate = min(0.9 * cur_ul_rate * tx_load, safe_ul_rates[random(#safe_ul_rates) - 1])
+                        else
+                            next_ul_rate = 0.9 * cur_ul_rate * tx_load
+                        end
+                    end
+                    if min_down_del > max_delta_owd then
+                        if #safe_dl_rates > 0 then
+                            next_dl_rate = min(0.9 * cur_dl_rate * rx_load, safe_dl_rates[random(#safe_dl_rates) - 1])
+                        else
+                            next_dl_rate = 0.9 * cur_dl_rate * rx_load
+                        end
+                    end
+                    logger(loglevel.INFO, "next_ul_rate " .. next_ul_rate .. " next_dl_rate " .. next_dl_rate)
+                    next_ul_rate = floor(max(min_ul_rate, next_ul_rate))
+                    next_dl_rate = floor(max(min_dl_rate, next_dl_rate))
+
+                    -- TC modification
+                    if next_dl_rate ~= cur_dl_rate then
+                        update_cake_bandwidth(dl_if, next_dl_rate)
+                    end
+                    if next_ul_rate ~= cur_ul_rate then
+                        update_cake_bandwidth(ul_if, next_ul_rate)
+                    end
+
+                    cur_dl_rate = next_dl_rate
+                    cur_ul_rate = next_ul_rate
+
+                    logger(loglevel.DEBUG,
+                        string.format("%d,%d,%f,%f,%f,%f,%d,%d\n", lastchg_s, lastchg_ns, rx_load, tx_load,
+                            min_down_del, min_up_del, cur_dl_rate, cur_ul_rate))
+
+                    lastchg_s, lastchg_ns = get_current_time()
+
+                    -- output to log file before doing delta on the time
+                    csv_fd:write(string.format("%d,%d,%f,%f,%f,%f,%d,%d\n", lastchg_s, lastchg_ns, rx_load, tx_load,
+                        min_down_del, min_up_del, cur_dl_rate, cur_ul_rate))
+
+                    lastchg_s = lastchg_s - start_s
+                    lastchg_t = lastchg_s + lastchg_ns / 1e9
+                else
+                    logger(loglevel.WARN, "One or both stats files could not be read. Skipping rate control algorithm.")
                 end
-                logger(loglevel.INFO, "next_ul_rate " .. next_ul_rate .. " next_dl_rate " .. next_dl_rate)
-                next_ul_rate = floor(max(min_ul_rate, next_ul_rate))
-                next_dl_rate = floor(max(min_dl_rate, next_dl_rate))
-
-                -- TC modification
-                if next_dl_rate ~= cur_dl_rate then
-                    update_cake_bandwidth(dl_if, next_dl_rate)
-                end
-                if next_ul_rate ~= cur_ul_rate then
-                    update_cake_bandwidth(ul_if, next_ul_rate)
-                end
-
-                cur_dl_rate = next_dl_rate
-                cur_ul_rate = next_ul_rate
-
-                logger(loglevel.DEBUG,
-                    string.format("%d,%d,%f,%f,%f,%f,%d,%d\n", lastchg_s, lastchg_ns, rx_load, tx_load, min_down_del,
-                        min_up_del, cur_dl_rate, cur_ul_rate))
-
-                lastchg_s, lastchg_ns = get_current_time()
-
-                -- output to log file before doing delta on the time
-                csv_fd:write(string.format("%d,%d,%f,%f,%f,%f,%d,%d\n", lastchg_s, lastchg_ns, rx_load, tx_load,
-                    min_down_del, min_up_del, cur_dl_rate, cur_ul_rate))
-
-                lastchg_s = lastchg_s - start_s
-                lastchg_t = lastchg_s + lastchg_ns / 1e9
             end
         end
 
@@ -963,15 +970,51 @@ local function conductor()
     -- Test for existent stats files
     local test_file = io.open(rx_bytes_path)
     if not test_file then
-        logger(loglevel.FATAL, "Could not open stats file: " .. rx_bytes_path)
-        os.exit(1, true)
+        -- Let's wait and retry a few times before failing hard. These files typically
+        -- take some time to be generated following a reboot.
+        local retries = 12
+        local retry_time = 5 -- secs
+        for i = 1, retries, 1 do
+            logger(loglevel.WARN,
+                "Rx stats file not yet available. Will retry again in " .. retry_time .. " seconds. (Attempt " .. i ..
+                    " of " .. retries .. ")")
+            nsleep(retry_time, 0)
+            test_file = io.open(rx_bytes_path)
+            if test_file then
+                logger(loglevel.INFO, "Rx stats file found! Continuing...")
+                break
+            end
+        end
+
+        if not test_file then
+            logger(loglevel.FATAL, "Could not open stats file: " .. rx_bytes_path)
+            os.exit(1, true)
+        end
     end
     test_file:close()
 
     test_file = io.open(tx_bytes_path)
     if not test_file then
-        logger(loglevel.FATAL, "Could not open stats file: " .. tx_bytes_path)
-        os.exit(1, true)
+        -- Let's wait and retry a few times before failing hard. These files typically
+        -- take some time to be generated following a reboot.
+        local retries = 12
+        local retry_time = 5 -- secs
+        for i = 1, retries, 1 do
+            logger(loglevel.WARN,
+                "Tx stats file not yet available. Will retry again in " .. retry_time .. " seconds. (Attempt " .. i ..
+                    " of " .. retries .. ")")
+            nsleep(retry_time, 0)
+            test_file = io.open(tx_bytes_path)
+            if test_file then
+                logger(loglevel.INFO, "Tx stats file found! Continuing...")
+                break
+            end
+        end
+
+        if not test_file then
+            logger(loglevel.FATAL, "Could not open stats file: " .. tx_bytes_path)
+            os.exit(1, true)
+        end
     end
     test_file:close()
 
