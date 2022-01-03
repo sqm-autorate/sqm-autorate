@@ -8,6 +8,7 @@
 - Ping Receiver
 - Baseline Calculator
 - Rate Controller
+- Reflector Selector
 
 **High-level Notice**
 This script "learns" over time and the time it takes to "stabilize" is somewhere generally between 30-90 minutes, although this is subject to change as development continues. Do not assume something is wrong if you notice some initial latency spikes when first running this script. That is expected and will smooth out over time.
