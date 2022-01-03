@@ -10,7 +10,7 @@
 -- ** Recommended style guide: https://github.com/luarocks/lua-style-guide **
 --
 -- The versioning value for this script
-local _VERSION = "0.1.4"
+local _VERSION = "0.1.5"
 --
 -- Found this clever function here: https://stackoverflow.com/a/15434737
 -- This function will assist in compatibility given differences between OpenWrt, Turris OS, etc.
@@ -679,7 +679,7 @@ local function ratecontrol()
                 local cur_rx_bytes = read_stats_file(rx_bytes_file)
                 local cur_tx_bytes = read_stats_file(tx_bytes_file)
 
-                if cur_rx_bytes and cur_tx_bytes and min_up_del < 1/0 and min_down_del < 1/0 then
+                if cur_rx_bytes and cur_tx_bytes and min_up_del < 1 / 0 and min_down_del < 1 / 0 then
                     t_prev_bytes = t_cur_bytes
                     t_cur_bytes = now_t
 
@@ -866,15 +866,15 @@ local function reflector_peer_selector()
     while true do
         local peerhash = {} -- a hash table of next peers, to ensure uniqueness
         local next_peers = {} -- an array of next peers
-        for k,v in pairs(reflector_tables["peers"]) do -- include all current peers
+        for k, v in pairs(reflector_tables["peers"]) do -- include all current peers
             peerhash[v] = 1
         end
-        for i=1:20 do -- add 20 at random, but 
+        for i = 1, 20, 1 do -- add 20 at random, but
             local nextcandidate = reflector_pool[random(#reflector_pool)]
             peerhash[nextcandidate] = 1
         end
-        for k,v in pairs(peerhash) do
-            insert(next_peers,k)
+        for k, v in pairs(peerhash) do
+            insert(next_peers, k)
         end
         -- Put all the pool members back into the peers for some re-baselining...
         reflector_data:set("reflector_tables", {
