@@ -679,7 +679,7 @@ local function ratecontrol()
                 local cur_rx_bytes = read_stats_file(rx_bytes_file)
                 local cur_tx_bytes = read_stats_file(tx_bytes_file)
 
-                if cur_rx_bytes and cur_tx_bytes then
+                if cur_rx_bytes and cur_tx_bytes and min_up_del < 1/0 and min_down_del < 1/0 then
                     t_prev_bytes = t_cur_bytes
                     t_cur_bytes = now_t
 
