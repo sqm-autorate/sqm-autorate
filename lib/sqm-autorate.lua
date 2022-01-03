@@ -365,6 +365,7 @@ local function receive_icmp_pkt(pkt_id)
             if (string.byte(data, hdr_len + 1) == 14) then
                 local ts_resp = vstruct.read("> 2*u1 3*u2 3*u4", string.sub(data, hdr_len + 1, #data))
                 local time_after_midnight_ms = get_time_after_midnight_ms()
+                local secs, nsecs = get_current_time()
                 local src_pkt_id = ts_resp[4]
 
                 local reflector_tables = reflector_data:get("reflector_tables")
@@ -381,7 +382,8 @@ local function receive_icmp_pkt(pkt_id)
                             transmit_ts = ts_resp[8],
                             rtt = time_after_midnight_ms - ts_resp[6],
                             uplink_time = ts_resp[7] - ts_resp[6],
-                            downlink_time = time_after_midnight_ms - ts_resp[8]
+                            downlink_time = time_after_midnight_ms - ts_resp[8],
+                            last_receive_time_s = secs + nsecs / 1e9
                         }
 
                         logger(loglevel.DEBUG,
@@ -421,6 +423,7 @@ local function receive_udp_pkt(pkt_id)
         local ts_resp = vstruct.read("> 2*u1 3*u2 6*u4", data)
 
         local time_after_midnight_ms = get_time_after_midnight_ms()
+        local secs, nsecs = get_current_time()
         local src_pkt_id = ts_resp[4]
         local reflector_tables = reflector_data:get("reflector_tables")
         local reflector_list = reflector_tables["peers"]
@@ -439,7 +442,8 @@ local function receive_udp_pkt(pkt_id)
                 transmit_ts = transmit_ts,
                 rtt = time_after_midnight_ms - originate_ts,
                 uplink_time = receive_ts - originate_ts,
-                downlink_time = time_after_midnight_ms - transmit_ts
+                downlink_time = time_after_midnight_ms - transmit_ts,
+                last_receive_time_s = secs + nsecs / 1e9
             }
 
             logger(loglevel.DEBUG,
@@ -637,6 +641,7 @@ local function ratecontrol()
 
     while true do
         local now_s, now_ns = get_current_time()
+        local now_abstime = now_s + now_ns / 1e9
         now_s = now_s - start_s
         local now_t = now_s + now_ns / 1e9
         if now_t - lastchg_t > min_change_interval then
@@ -657,14 +662,17 @@ local function ratecontrol()
             -- This will occur under normal operation when the reflector peers table is updated.
             if reflector_list then
                 for _, reflector_ip in ipairs(reflector_list) do
-                    if owd_recent[reflector_ip] ~= nil and owd_baseline[reflector_ip] ~= nil then
-                        min_up_del = min(min_up_del,
-                            owd_recent[reflector_ip].up_ewma - owd_baseline[reflector_ip].up_ewma)
-                        min_down_del = min(min_down_del,
-                            owd_recent[reflector_ip].down_ewma - owd_baseline[reflector_ip].down_ewma)
+                    -- only consider this data if it's less than 3 seconds old
+	                if owd_recent[reflector_ip] ~= nil and owd_baseline[reflector_ip] ~= nil and
+                        owd_recent[reflector_ip].last_receive_time_s ~= nil and
+                        owd_recent[reflector_ip].last_receive_time_s > now_abstime - 5 * tick_duration then
+                            min_up_del = min(min_up_del,
+                                owd_recent[reflector_ip].up_ewma - owd_baseline[reflector_ip].up_ewma)
+                            min_down_del = min(min_down_del, owd_recent[reflector_ip].down_ewma -
+                                owd_baseline[reflector_ip].down_ewma)
 
-                        logger(loglevel.INFO, "reflector: " .. reflector_ip .. " min_up_del: " .. min_up_del ..
-                            "  min_down_del: " .. min_down_del)
+                            logger(loglevel.INFO, "reflector: " .. reflector_ip .. " min_up_del: " .. min_up_del ..
+                                "  min_down_del: " .. min_down_del)
                     end
                 end
 
@@ -790,6 +798,8 @@ local function baseline_calculator()
                 owd_recent[time_data.reflector].down_ewma = time_data.downlink_time
             end
 
+            owd_baseline[time_data.reflector].last_receive_time_s = time_data.last_receive_time_s
+            owd_recent[time_data.reflector].last_receive_time_s = time_data.last_receive_time_s
             owd_baseline[time_data.reflector].up_ewma = owd_baseline[time_data.reflector].up_ewma * slow_factor +
                                                             (1 - slow_factor) * time_data.uplink_time
             owd_recent[time_data.reflector].up_ewma = owd_recent[time_data.reflector].up_ewma * fast_factor +
@@ -1069,7 +1079,7 @@ local function conductor()
             if err and err ~= "timeout" then
                 print('Something went wrong in the ' .. name .. ' thread')
                 print(err)
-                exit(1)
+                os.exit(1, true)
             end
         end
     end
