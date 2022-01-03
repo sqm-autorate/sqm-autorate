@@ -58,7 +58,7 @@ owd_data:set("owd_tables", {
 })
 
 -- The versioning value for this script
-local _VERSION = "0.0.1b5"
+local _VERSION = "0.0.1b6"
 
 local loglevel = {
     TRACE = {
