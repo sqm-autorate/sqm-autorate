@@ -58,7 +58,7 @@ owd_data:set("owd_tables", {
 })
 
 -- The versioning value for this script
-local _VERSION = "0.0.1b4"
+local _VERSION = "0.0.1b5"
 
 local loglevel = {
     TRACE = {
@@ -248,6 +248,14 @@ local function dec_to_hex(number, digits)
     return string.format(str_fmt, bit.band(number, bit_mask))
 end
 
+-- This exists because the "bit" version of bnot() differs from the "bit32" version
+-- of bnot(). This mimics the behavior of the "bit32" version and will therefore be
+-- used for both "bit" and "bit32" execution.
+local function bnot(data)
+    local MOD = 2 ^ 32
+    return (-1 - data) % MOD
+end
+
 local function calculate_checksum(data)
     local checksum = 0
     for i = 1, #data - 1, 2 do
@@ -256,7 +264,7 @@ local function calculate_checksum(data)
     if bit.rshift(checksum, 16) then
         checksum = bit.band(checksum, 0xffff) + bit.rshift(checksum, 16)
     end
-    return bit.bnot(checksum)
+    return bnot(checksum)
 end
 
 local function get_table_position(tbl, item)
