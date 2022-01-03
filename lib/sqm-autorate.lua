@@ -10,7 +10,7 @@
 -- ** Recommended style guide: https://github.com/luarocks/lua-style-guide **
 --
 -- The versioning value for this script
-local _VERSION = "0.1.3"
+local _VERSION = "0.1.4"
 --
 -- Found this clever function here: https://stackoverflow.com/a/15434737
 -- This function will assist in compatibility given differences between OpenWrt, Turris OS, etc.
@@ -663,16 +663,16 @@ local function ratecontrol()
             if reflector_list then
                 for _, reflector_ip in ipairs(reflector_list) do
                     -- only consider this data if it's less than 3 seconds old
-	                if owd_recent[reflector_ip] ~= nil and owd_baseline[reflector_ip] ~= nil and
+                    if owd_recent[reflector_ip] ~= nil and owd_baseline[reflector_ip] ~= nil and
                         owd_recent[reflector_ip].last_receive_time_s ~= nil and
                         owd_recent[reflector_ip].last_receive_time_s > now_abstime - 5 * tick_duration then
-                            min_up_del = min(min_up_del,
-                                owd_recent[reflector_ip].up_ewma - owd_baseline[reflector_ip].up_ewma)
-                            min_down_del = min(min_down_del, owd_recent[reflector_ip].down_ewma -
-                                owd_baseline[reflector_ip].down_ewma)
+                        min_up_del = min(min_up_del,
+                            owd_recent[reflector_ip].up_ewma - owd_baseline[reflector_ip].up_ewma)
+                        min_down_del = min(min_down_del,
+                            owd_recent[reflector_ip].down_ewma - owd_baseline[reflector_ip].down_ewma)
 
-                            logger(loglevel.INFO, "reflector: " .. reflector_ip .. " min_up_del: " .. min_up_del ..
-                                "  min_down_del: " .. min_down_del)
+                        logger(loglevel.INFO, "reflector: " .. reflector_ip .. " min_up_del: " .. min_up_del ..
+                            "  min_down_del: " .. min_down_del)
                     end
                 end
 
@@ -695,14 +695,16 @@ local function ratecontrol()
                     if min_up_del < max_delta_owd and tx_load > .8 then
                         safe_ul_rates[nrate_up] = floor(cur_ul_rate * tx_load)
                         local max_ul = maximum(safe_ul_rates)
-                        next_ul_rate = cur_ul_rate * (1 + .1 * max(0, (1 - cur_ul_rate / max_ul))) + (base_ul_rate * 0.03)
+                        next_ul_rate = cur_ul_rate * (1 + .1 * max(0, (1 - cur_ul_rate / max_ul))) +
+                                           (base_ul_rate * 0.03)
                         nrate_up = nrate_up + 1
                         nrate_up = nrate_up % histsize
                     end
                     if min_down_del < max_delta_owd and rx_load > .8 then
                         safe_dl_rates[nrate_down] = floor(cur_dl_rate * rx_load)
                         local max_dl = maximum(safe_dl_rates)
-                        next_dl_rate = cur_dl_rate * (1 + .1 * max(0, (1 - cur_dl_rate / max_dl))) + (base_dl_rate * 0.03)
+                        next_dl_rate = cur_dl_rate * (1 + .1 * max(0, (1 - cur_dl_rate / max_dl))) +
+                                           (base_dl_rate * 0.03)
                         nrate_down = nrate_down + 1
                         nrate_down = nrate_down % histsize
                     end

@@ -15,16 +15,10 @@ reflector_ip,ip_version,description
 205.171.2.65,4,CenturyLink/Level3
 185.228.168.9,4,CleanBrowsing
 185.228.169.9,4,CleanBrowsing
-2a0d:2a00:1::,6,CleanBrowsing
-2a0d:2a00:2::,6,CleanBrowsing
 185.228.168.168,4,CleanBrowsing
 185.228.169.168,4,CleanBrowsing
 185.228.168.10,4,CleanBrowsing
 185.228.169.11,4,CleanBrowsing
-2a0d:2a00:1::1,6,CleanBrowsing
-2a0d:2a00:2::1,6,CleanBrowsing
-2a0d:2a00:1::2,6,CleanBrowsing
-2a0d:2a00:2::2,6,CleanBrowsing
 8.26.56.26,4,Comodo
 8.20.247.20,4,Comodo
 84.200.69.80,4,DNS.WATCH
@@ -38,8 +32,6 @@ reflector_ip,ip_version,description
 194.242.2.3,4,Mullvad
 193.19.108.2,4,Mullvad
 193.19.108.3,4,Mullvad
-2a07:e340::2,6,Mullvad
-2a07:e340::3,6,Mullvad
 208.67.222.222,4,OpenDNS
 208.67.220.220,4,OpenDNS
 2620:119:35::35,6,OpenDNS
@@ -50,8 +42,6 @@ reflector_ip,ip_version,description
 2620:119:53::123,6,OpenDNS Family
 208.67.222.2,4,OpenDNS Sbx
 208.67.220.2,4,OpenDNS Sbx
-2620:0:ccc::2,6,OpenDNS Sbx
-2620:0:ccd::2,6,OpenDNS Sbx
 159.89.120.99,4,OpenNIC
 134.195.4.2,4,OpenNIC
 2a05:dfc7:5::53,6,OpenNIC
@@ -63,7 +53,6 @@ reflector_ip,ip_version,description
 149.112.112.11,4,Quad9
 149.112.112.112,4,Quad9
 2620:fe::fe,6,Quad9
-2620:fe::9,6,Quad9
 2620:fe::11,6,Quad9
 2620:fe::fe:11,6,Quad9
 2620:fe::10,6,Quad9
@@ -79,14 +68,11 @@ reflector_ip,ip_version,description
 2001:41d0:701:1100:0:0:0:39cc,6,PublicDNS.eu
 130.59.31.248,4,SWITCH
 130.59.31.251,4,SWITCH
-2001:620:0:ff::2,6,SWITCH
-2001:620:0:ff::3,6,SWITCH
 185.49.141.37,4,GetDNS
 2a04:b900:0:100::37,6,GetDNS
 158.64.1.29,4,Restena Foundation
 2001:a18:1::29,6,Restena Foundation
 89.234.186.112,4,Neutopia
-2a00:5884:8209::2,6,Neutopia
 185.95.218.42,4,Digitale Gesellschaft Schweiz
 185.95.218.43,4,Digitale Gesellschaft Schweiz
 2a05:fc84::42,6,Digitale Gesellschaft Schweiz
@@ -95,22 +81,16 @@ reflector_ip,ip_version,description
 199.58.81.218,4,CMRG DNS
 2001:470:1c:76d::53,6,CMRG DNS
 146.255.56.98,4,Foundation for Applied Privacy
-2a01:4f8:c0c:83ed::1,6,Foundation for Applied Privacy
 185.222.222.222,4,dns.sb
 185.184.222.222,4,dns.sb
-2a09::,6,dns.sb
-2a09::1,6,dns.sb
 5.1.66.255,4,Freifunk München e.V.
 5.1.66.255,4,Freifunk München e.V.
-2001:678:e68:f000::,6,Freifunk München e.V.
-2001:678:e68:f000::,6,Freifunk München e.V.
 80.80.80.80,4,Freenom World
 80.80.81.81,4,Freenom World
 80.67.169.12,4,French Data Network (FDN)
 80.67.169.40,4,French Data Network (FDN)
 2001:910:800::12,6,French Data Network (FDN)
 2001:910:800::40,6,French Data Network (FDN)
-2001:470:20::2,6,Hurricane Electric
 217.24.255.134,4,Albtelecom Sh.a.
 213.163.127.229,4,Telekomi i Kosoves SH.A.
 85.94.178.198,4,ANDORRA TELECOM SAU
@@ -210,3 +190,24 @@ reflector_ip,ip_version,description
 87.117.196.200,4,IOMART CLOUD SERVICES LIMITED
 213.123.251.87,4,British Telecommunications PLC
 81.149.21.254,4,British Telecommunications PLC
+196.21.247.1,4,TENET (The UNINET Project)
+89.140.69.49,4,VODAFONE ONO S.A.
+62.97.123.107,4,COLT Technology Services Group Limited
+194.177.210.210,4,National Infrastructures for Research and Technology S.A.
+168.126.63.1,4,Korea Telecom
+121.254.134.99,4,LG DACOM Corporation
+203.239.131.1,4,ELIMNET INC.
+202.57.32.49,4,A Multihomed ISP Company
+81.17.31.34,4,Private Layer INC
+79.141.82.250,4,NTD SA
+80.254.77.39,4,Monzoon Networks AG
+85.93.212.2,4,Visual Online S.A.
+196.223.158.58,4,MAX NET FOR INTERNET SERVICES
+89.150.195.195,4,Media Network i Halmstad AB
+130.244.126.100,4,TELE2
+87.96.144.179,4,A3 Sverige AB
+146.247.80.144,4,A3 Sverige AB
+46.246.29.69,4,GleSYS AB
+203.210.237.165,4,VNPT Corp
+113.190.253.229,4,VNPT Corp
+119.29.29.29,4,Shenzhen Tencent Computer Systems Company Limited
