@@ -9,6 +9,9 @@
 --
 -- ** Recommended style guide: https://github.com/luarocks/lua-style-guide **
 --
+-- The versioning value for this script
+local _VERSION = "0.2.1"
+--
 -- Found this clever function here: https://stackoverflow.com/a/15434737
 -- This function will assist in compatibility given differences between OpenWrt, Turris OS, etc.
 local function is_module_available(name)
@@ -41,24 +44,29 @@ local time = lanes.require "posix.time"
 local vstruct = lanes.require "vstruct"
 
 -- The stats_queue is intended to be a true FIFO queue.
--- The purpose of the queue is to hold the processed timestamp
--- packets that are returned to us and this holds them for OWD
--- processing.
+-- The purpose of the queue is to hold the processed timestamp packets that are
+-- returned to us and this holds them for OWD processing.
 local stats_queue = lanes.linda()
 
 -- The owd_data construct is not intended to be used as a queue.
--- Instead, it is just a method for sharing the OWD tables between
--- multiple threads. Calls against this construct will be get()/set()
--- to reinforce the intent that this is not a queue. This holds two
--- separate tables which are owd_baseline and owd_recent.
+-- Instead, it is used as a method for sharing the OWD tables between multiple threads.
+-- Calls against this construct will be get()/set() to reinforce the intent that this
+-- is not a queue. This holds two separate tables which are baseline and recent.
 local owd_data = lanes.linda()
 owd_data:set("owd_tables", {
     baseline = {},
     recent = {}
 })
 
--- The versioning value for this script
-local _VERSION = "0.0.1b7"
+-- The relfector_data construct is not intended to be used as a queue.
+-- Instead, is is used as a method for sharing the reflector tables between multiple threads.
+-- Calls against this construct will be get()/set() to reinforce the intent that this
+-- is not a queue. This holds two separate tables which are peers and pool.
+local reflector_data = lanes.linda()
+reflector_data:set("reflector_tables", {
+    peers = {},
+    pool = {}
+})
 
 local loglevel = {
     TRACE = {
@@ -162,21 +170,9 @@ local ul_if = settings and settings:get("sqm-autorate", "@network[0]", "transmit
 local dl_if = settings and settings:get("sqm-autorate", "@network[0]", "receive_interface") or
                   "<DOWNLOAD INTERFACE NAME>" -- download interface
 
+local reflector_list_icmp = "/usr/lib/sqm-autorate/reflectors-icmp.csv"
+local reflector_list_udp = "/usr/lib/sqm-autorate/reflectors-udp.csv"
 local reflector_type = settings and settings:get("sqm-autorate", "@network[0]", "reflector_type") or nil
-local reflector_array_v4 = {}
-local reflector_array_v6 = {}
-
-if reflector_type == "icmp" then
-    reflector_array_v4 = {"46.227.200.54", "46.227.200.55", "194.242.2.2", "194.242.2.3", "149.112.112.10",
-                          "149.112.112.11", "149.112.112.112", "193.19.108.2", "193.19.108.3", "9.9.9.9", "9.9.9.10",
-                          "9.9.9.11"}
-else
-    reflector_array_v4 = {"65.21.108.153", "5.161.66.148", "216.128.149.82", "108.61.220.16", "185.243.217.26",
-                          "185.175.56.188", "176.126.70.119"}
-    reflector_array_v6 = {"2a01:4f9:c010:5469::1", "2a01:4ff:f0:2194::1", "2001:19f0:5c01:1bb6:5400:03ff:febe:3fae",
-                          "2001:19f0:6001:3de9:5400:03ff:febe:3f8e", "2a03:94e0:ffff:185:243:217:0:26",
-                          "2a0d:5600:30:46::2", "2a00:1a28:1157:3ef::2"}
-end
 
 local max_delta_owd = 15 -- increase from baseline RTT for detection of bufferbloat
 
@@ -187,6 +183,12 @@ if type(cur_process_id) == "table" then
     cur_process_id = cur_process_id["pid"]
 end
 
+-- Number of reflector peers to use from the pool
+local num_reflectors = 5
+
+-- Time (in minutes) before re-selection of peers from the pool
+local peer_reselection_time = 15
+
 -- Bandwidth file paths
 local rx_bytes_path = nil
 local tx_bytes_path = nil
@@ -196,7 +198,11 @@ local sock
 if reflector_type == "icmp" then
     sock = assert(socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP), "Failed to create socket")
 elseif reflector_type == "udp" then
-    sock = assert(socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP), "Failed to create socket")
+    print("UDP support is not available at this time. Please set your 'reflector_type' setting to 'icmp'.")
+    os.exit(1, true)
+
+    -- Hold for later use
+    -- sock = assert(socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP), "Failed to create socket")
 else
     logger(loglevel.FATAL, "Unknown reflector type specified. Cannot continue.")
     os.exit(1, true)
@@ -208,6 +214,41 @@ socket.setsockopt(sock, socket.SOL_SOCKET, socket.SO_SNDTIMEO, 0, 500)
 
 ---------------------------- Begin Local Functions ----------------------------
 
+local function load_reflector_list(file_path, ip_version)
+    ip_version = ip_version or "4"
+
+    local reflector_file = io.open(file_path)
+    if not reflector_file then
+        logger(loglevel.FATAL, "Could not open reflector file: '" .. file_path)
+        os.exit(1, true)
+        return nil
+    end
+
+    local reflectors = {}
+    local lines = reflector_file:lines()
+    for line in lines do
+        local tokens = {}
+        for token in string.gmatch(line, "([^,]+)") do -- Split the line on commas
+            tokens[#tokens + 1] = token
+        end
+        local ip = tokens[1]
+        local vers = tokens[2]
+        if ip_version == "46" or ip_version == "both" or ip_version == "all" then
+            reflectors[#reflectors + 1] = ip
+        elseif vers == ip_version then
+            reflectors[#reflectors + 1] = ip
+        end
+    end
+    return reflectors
+end
+
+local function baseline_reflector_list(tbl)
+    for _, v in ipairs(tbl) do
+        local rtt
+
+    end
+end
+
 local function a_else_b(a, b)
     if a then
         return a
@@ -218,9 +259,10 @@ end
 
 local function nsleep(s, ns)
     -- nanosleep requires integers
+    local floor = math.floor
     time.nanosleep({
-        tv_sec = math.floor(s),
-        tv_nsec = math.floor(((s % 1.0) * 1e9) + ns)
+        tv_sec = floor(s),
+        tv_nsec = floor(((s % 1.0) * 1e9) + ns)
     })
 end
 
@@ -284,10 +326,21 @@ local function get_table_len(tbl)
     return count
 end
 
+local function shuffle_table(tbl)
+    -- Fisher-Yates shuffle
+    local random = math.random
+    for i = #tbl, 2, -1 do
+        local j = random(i)
+        tbl[i], tbl[j] = tbl[j], tbl[i]
+    end
+    return tbl
+end
+
 local function maximum(table)
+    local max = math.max
     local m = -1 / 0
     for _, v in pairs(table) do
-        m = math.max(v, m)
+        m = max(v, m)
     end
     return m
 end
@@ -316,28 +369,35 @@ local function receive_icmp_pkt(pkt_id)
             if (string.byte(data, hdr_len + 1) == 14) then
                 local ts_resp = vstruct.read("> 2*u1 3*u2 3*u4", string.sub(data, hdr_len + 1, #data))
                 local time_after_midnight_ms = get_time_after_midnight_ms()
+                local secs, nsecs = get_current_time()
                 local src_pkt_id = ts_resp[4]
-                local pos = get_table_position(reflector_array_v4, sa.addr)
 
-                -- A pos > 0 indicates the current sa.addr is a known member of the reflector array
-                if (pos > 0 and src_pkt_id == pkt_id) then
-                    local stats = {
-                        reflector = sa.addr,
-                        original_ts = ts_resp[6],
-                        receive_ts = ts_resp[7],
-                        transmit_ts = ts_resp[8],
-                        rtt = time_after_midnight_ms - ts_resp[6],
-                        uplink_time = ts_resp[7] - ts_resp[6],
-                        downlink_time = time_after_midnight_ms - ts_resp[8]
-                    }
+                local reflector_tables = reflector_data:get("reflector_tables")
+                local reflector_list = reflector_tables["peers"]
+                if reflector_list then
+                    local pos = get_table_position(reflector_list, sa.addr)
 
-                    logger(loglevel.DEBUG,
-                        "Reflector IP: " .. stats.reflector .. "  |  Current time: " .. time_after_midnight_ms ..
-                            "  |  TX at: " .. stats.original_ts .. "  |  RTT: " .. stats.rtt .. "  |  UL time: " ..
-                            stats.uplink_time .. "  |  DL time: " .. stats.downlink_time)
-                    logger(loglevel.TRACE, "Exiting receive_icmp_pkt() with stats return")
+                    -- A pos > 0 indicates the current sa.addr is a known member of the reflector array
+                    if (pos > 0 and src_pkt_id == pkt_id) then
+                        local stats = {
+                            reflector = sa.addr,
+                            original_ts = ts_resp[6],
+                            receive_ts = ts_resp[7],
+                            transmit_ts = ts_resp[8],
+                            rtt = time_after_midnight_ms - ts_resp[6],
+                            uplink_time = ts_resp[7] - ts_resp[6],
+                            downlink_time = time_after_midnight_ms - ts_resp[8],
+                            last_receive_time_s = secs + nsecs / 1e9
+                        }
 
-                    return stats
+                        logger(loglevel.DEBUG,
+                            "Reflector IP: " .. stats.reflector .. "  |  Current time: " .. time_after_midnight_ms ..
+                                "  |  TX at: " .. stats.original_ts .. "  |  RTT: " .. stats.rtt .. "  |  UL time: " ..
+                                stats.uplink_time .. "  |  DL time: " .. stats.downlink_time)
+                        logger(loglevel.TRACE, "Exiting receive_icmp_pkt() with stats return")
+
+                        return stats
+                    end
                 end
             else
                 logger(loglevel.TRACE, "Exiting receive_icmp_pkt() with nil return due to wrong type")
@@ -358,6 +418,8 @@ end
 local function receive_udp_pkt(pkt_id)
     logger(loglevel.TRACE, "Entered receive_udp_pkt() with value: " .. pkt_id)
 
+    local floor = math.floor
+
     -- Read UDP TS reply
     local data, sa = socket.recvfrom(sock, 100) -- An IPv4 ICMP reply should be ~56bytes. This value may need tweaking.
 
@@ -365,14 +427,17 @@ local function receive_udp_pkt(pkt_id)
         local ts_resp = vstruct.read("> 2*u1 3*u2 6*u4", data)
 
         local time_after_midnight_ms = get_time_after_midnight_ms()
+        local secs, nsecs = get_current_time()
         local src_pkt_id = ts_resp[4]
-        local pos = get_table_position(reflector_array_v4, sa.addr)
+        local reflector_tables = reflector_data:get("reflector_tables")
+        local reflector_list = reflector_tables["peers"]
+        local pos = get_table_position(reflector_list, sa.addr)
 
         -- A pos > 0 indicates the current sa.addr is a known member of the reflector array
         if (pos > 0 and src_pkt_id == pkt_id) then
-            local originate_ts = (ts_resp[6] % 86400 * 1000) + (math.floor(ts_resp[7] / 1000000))
-            local receive_ts = (ts_resp[8] % 86400 * 1000) + (math.floor(ts_resp[9] / 1000000))
-            local transmit_ts = (ts_resp[10] % 86400 * 1000) + (math.floor(ts_resp[11] / 1000000))
+            local originate_ts = (ts_resp[6] % 86400 * 1000) + (floor(ts_resp[7] / 1000000))
+            local receive_ts = (ts_resp[8] % 86400 * 1000) + (floor(ts_resp[9] / 1000000))
+            local transmit_ts = (ts_resp[10] % 86400 * 1000) + (floor(ts_resp[11] / 1000000))
 
             local stats = {
                 reflector = sa.addr,
@@ -381,7 +446,8 @@ local function receive_udp_pkt(pkt_id)
                 transmit_ts = transmit_ts,
                 rtt = time_after_midnight_ms - originate_ts,
                 uplink_time = receive_ts - originate_ts,
-                downlink_time = time_after_midnight_ms - transmit_ts
+                downlink_time = time_after_midnight_ms - transmit_ts,
+                last_receive_time_s = secs + nsecs / 1e9
             }
 
             logger(loglevel.DEBUG,
@@ -487,11 +553,16 @@ end
 
 local function ts_ping_sender(pkt_type, pkt_id, freq)
     logger(loglevel.TRACE, "Entered ts_ping_sender() with values: " .. freq .. " | " .. pkt_type .. " | " .. pkt_id)
-    local ff = (freq / #reflector_array_v4)
-    local sleep_time_ns = math.floor((ff % 1) * 1e9)
-    local sleep_time_s = math.floor(ff)
-    local ping_func = nil
 
+    local floor = math.floor
+
+    local reflector_tables = reflector_data:get("reflector_tables")
+    local reflector_list = reflector_tables["peers"]
+    local ff = (freq / #reflector_list)
+    local sleep_time_ns = floor((ff % 1) * 1e9)
+    local sleep_time_s = floor(ff)
+
+    local ping_func = nil
     if pkt_type == "icmp" then
         ping_func = send_icmp_pkt
     elseif pkt_type == "udp" then
@@ -501,11 +572,20 @@ local function ts_ping_sender(pkt_type, pkt_id, freq)
     end
 
     while true do
-        for _, reflector in ipairs(reflector_array_v4) do
-            ping_func(reflector, pkt_id)
-            nsleep(sleep_time_s, sleep_time_ns)
-        end
+        local reflector_tables = reflector_data:get("reflector_tables")
+        local reflector_list = reflector_tables["peers"]
 
+        if reflector_list then
+            -- Update sleep time based on number of peers
+            ff = (freq / #reflector_list)
+            sleep_time_ns = floor((ff % 1) * 1e9)
+            sleep_time_s = floor(ff)
+
+            for _, reflector in ipairs(reflector_list) do
+                ping_func(reflector, pkt_id)
+                nsleep(sleep_time_s, sleep_time_ns)
+            end
+        end
     end
 
     logger(loglevel.TRACE, "Exiting ts_ping_sender()")
@@ -518,8 +598,13 @@ local function read_stats_file(file)
 end
 
 local function ratecontrol()
-    local sleep_time_ns = math.floor((min_change_interval % 1) * 1e9)
-    local sleep_time_s = math.floor(min_change_interval)
+    local floor = math.floor
+    local max = math.max
+    local min = math.min
+    local random = math.random
+
+    local sleep_time_ns = floor((min_change_interval % 1) * 1e9)
+    local sleep_time_s = floor(min_change_interval)
 
     local start_s, start_ns = get_current_time() -- first time we entered this loop, times will be relative to this seconds value to preserve precision
     local lastchg_s, lastchg_ns = get_current_time()
@@ -545,8 +630,8 @@ local function ratecontrol()
     local safe_dl_rates = {}
     local safe_ul_rates = {}
     for i = 0, histsize - 1, 1 do
-        safe_dl_rates[i] = (math.random() * 0.2 + 0.75) * (base_dl_rate)
-        safe_ul_rates[i] = (math.random() * 0.2 + 0.75) * (base_ul_rate)
+        safe_dl_rates[i] = (random() * 0.2 + 0.75) * (base_dl_rate)
+        safe_ul_rates[i] = (random() * 0.2 + 0.75) * (base_ul_rate)
     end
 
     local nrate_up = 0
@@ -560,6 +645,7 @@ local function ratecontrol()
 
     while true do
         local now_s, now_ns = get_current_time()
+        local now_abstime = now_s + now_ns / 1e9
         now_s = now_s - start_s
         local now_t = now_s + now_ns / 1e9
         if now_t - lastchg_t > min_change_interval then
@@ -570,91 +656,109 @@ local function ratecontrol()
             local owd_baseline = owd_tables["baseline"]
             local owd_recent = owd_tables["recent"]
 
-            -- if #owd_baseline > 0 and #owd_recent > 0 then
-            local min_up_del = 1 / 0
-            local min_down_del = 1 / 0
+            local reflector_tables = reflector_data:get("reflector_tables")
+            local reflector_list = reflector_tables["peers"]
 
-            for k, val in pairs(owd_baseline) do
-                min_up_del = math.min(min_up_del, owd_recent[k].up_ewma - val.up_ewma)
-                min_down_del = math.min(min_down_del, owd_recent[k].down_ewma - val.down_ewma)
+            -- If we have no reflector peers to iterate over, don't attempt any rate changes.
+            -- This will occur under normal operation when the reflector peers table is updated.
+            if reflector_list then
+                local up_del = {}
+                local down_del = {}
+                for _, reflector_ip in ipairs(reflector_list) do
+                    -- only consider this data if it's less than 2 * tick_duration seconds old
+                    if owd_recent[reflector_ip] ~= nil and owd_baseline[reflector_ip] ~= nil and
+                        owd_recent[reflector_ip].last_receive_time_s ~= nil and
+                        owd_recent[reflector_ip].last_receive_time_s > now_abstime - 2 * tick_duration then
+                        table.insert(up_del, owd_recent[reflector_ip].up_ewma - owd_baseline[reflector_ip].up_ewma)
+                        table.insert(down_del, owd_recent[reflector_ip].down_ewma - owd_baseline[reflector_ip].down_ewma)
 
-                logger(loglevel.INFO, "min_up_del: " .. min_up_del .. "  min_down_del: " .. min_down_del)
-            end
-
-            local cur_rx_bytes = read_stats_file(rx_bytes_file)
-            local cur_tx_bytes = read_stats_file(tx_bytes_file)
-
-            if cur_rx_bytes and cur_tx_bytes then
-                t_prev_bytes = t_cur_bytes
-                t_cur_bytes = now_t
-
-                local rx_load = (8 / 1000) * (cur_rx_bytes - prev_rx_bytes) / (t_cur_bytes - t_prev_bytes) / cur_dl_rate
-                local tx_load = (8 / 1000) * (cur_tx_bytes - prev_tx_bytes) / (t_cur_bytes - t_prev_bytes) / cur_ul_rate
-                prev_rx_bytes = cur_rx_bytes
-                prev_tx_bytes = cur_tx_bytes
-                local next_ul_rate = cur_ul_rate
-                local next_dl_rate = cur_dl_rate
-
-                if min_up_del < max_delta_owd and tx_load > .8 then
-                    safe_ul_rates[nrate_up] = math.floor(cur_ul_rate * tx_load)
-                    local maxul = maximum(safe_ul_rates)
-                    next_ul_rate = cur_ul_rate * (1 + .1 * math.max(0, (1 - cur_ul_rate / maxul))) + 500
-                    nrate_up = nrate_up + 1
-                    nrate_up = nrate_up % histsize
-                end
-                if min_down_del < max_delta_owd and rx_load > .8 then
-                    safe_dl_rates[nrate_down] = math.floor(cur_dl_rate * rx_load)
-                    local maxdl = maximum(safe_dl_rates)
-                    next_dl_rate = cur_dl_rate * (1 + .1 * math.max(0, (1 - cur_dl_rate / maxdl))) + 500
-                    nrate_down = nrate_down + 1
-                    nrate_down = nrate_down % histsize
-                end
-
-                if min_up_del > max_delta_owd then
-                    if #safe_ul_rates > 0 then
-                        next_ul_rate = math.min(0.9 * cur_ul_rate * tx_load,
-                            safe_ul_rates[math.random(#safe_ul_rates) - 1])
-                    else
-                        next_ul_rate = 0.9 * cur_ul_rate * tx_load
+                        logger(loglevel.INFO, "reflector: " .. reflector_ip .. " delay: " .. up_del[#up_del] ..
+                            "  down_del: " .. down_del[#down_del])
                     end
                 end
-                if min_down_del > max_delta_owd then
-                    if #safe_dl_rates > 0 then
-                        next_dl_rate = math.min(0.9 * cur_dl_rate * rx_load,
-                            safe_dl_rates[math.random(#safe_dl_rates) - 1])
-                    else
-                        next_dl_rate = 0.9 * cur_dl_rate * rx_load
+                table.sort(up_del)
+                table.sort(down_del)
+
+                local up_del_stat = a_else_b(up_del[3], up_del[1])
+                local down_del_stat = a_else_b(down_del[3], down_del[1])
+
+                local cur_rx_bytes = read_stats_file(rx_bytes_file)
+                local cur_tx_bytes = read_stats_file(tx_bytes_file)
+
+                if cur_rx_bytes and cur_tx_bytes and up_del_stat and down_del_stat then
+                    t_prev_bytes = t_cur_bytes
+                    t_cur_bytes = now_t
+
+                    local rx_load = (8 / 1000) * (cur_rx_bytes - prev_rx_bytes) / (t_cur_bytes - t_prev_bytes) /
+                                        cur_dl_rate
+                    local tx_load = (8 / 1000) * (cur_tx_bytes - prev_tx_bytes) / (t_cur_bytes - t_prev_bytes) /
+                                        cur_ul_rate
+                    prev_rx_bytes = cur_rx_bytes
+                    prev_tx_bytes = cur_tx_bytes
+                    local next_ul_rate = cur_ul_rate
+                    local next_dl_rate = cur_dl_rate
+                    logger(loglevel.INFO, "up_del_stat " .. up_del_stat .. " down_del_stat " .. down_del_stat)
+                    if up_del_stat and up_del_stat < max_delta_owd and tx_load > .8 then
+                        safe_ul_rates[nrate_up] = floor(cur_ul_rate * tx_load)
+                        local max_ul = maximum(safe_ul_rates)
+                        next_ul_rate = cur_ul_rate * (1 + .1 * max(0, (1 - cur_ul_rate / max_ul))) +
+                                           (base_ul_rate * 0.03)
+                        nrate_up = nrate_up + 1
+                        nrate_up = nrate_up % histsize
                     end
+                    if down_del_stat and down_del_stat < max_delta_owd and rx_load > .8 then
+                        safe_dl_rates[nrate_down] = floor(cur_dl_rate * rx_load)
+                        local max_dl = maximum(safe_dl_rates)
+                        next_dl_rate = cur_dl_rate * (1 + .1 * max(0, (1 - cur_dl_rate / max_dl))) +
+                                           (base_dl_rate * 0.03)
+                        nrate_down = nrate_down + 1
+                        nrate_down = nrate_down % histsize
+                    end
+
+                    if up_del_stat > max_delta_owd then
+                        if #safe_ul_rates > 0 then
+                            next_ul_rate = min(0.9 * cur_ul_rate * tx_load, safe_ul_rates[random(#safe_ul_rates) - 1])
+                        else
+                            next_ul_rate = 0.9 * cur_ul_rate * tx_load
+                        end
+                    end
+                    if down_del_stat > max_delta_owd then
+                        if #safe_dl_rates > 0 then
+                            next_dl_rate = min(0.9 * cur_dl_rate * rx_load, safe_dl_rates[random(#safe_dl_rates) - 1])
+                        else
+                            next_dl_rate = 0.9 * cur_dl_rate * rx_load
+                        end
+                    end
+                    logger(loglevel.INFO, "next_ul_rate " .. next_ul_rate .. " next_dl_rate " .. next_dl_rate)
+                    next_ul_rate = floor(max(min_ul_rate, next_ul_rate))
+                    next_dl_rate = floor(max(min_dl_rate, next_dl_rate))
+
+                    -- TC modification
+                    if next_dl_rate ~= cur_dl_rate then
+                        update_cake_bandwidth(dl_if, next_dl_rate)
+                    end
+                    if next_ul_rate ~= cur_ul_rate then
+                        update_cake_bandwidth(ul_if, next_ul_rate)
+                    end
+
+                    cur_dl_rate = next_dl_rate
+                    cur_ul_rate = next_ul_rate
+
+                    logger(loglevel.DEBUG,
+                        string.format("%d,%d,%f,%f,%f,%f,%d,%d\n", lastchg_s, lastchg_ns, rx_load, tx_load,
+                            down_del_stat, up_del_stat, cur_dl_rate, cur_ul_rate))
+
+                    lastchg_s, lastchg_ns = get_current_time()
+
+                    -- output to log file before doing delta on the time
+                    csv_fd:write(string.format("%d,%d,%f,%f,%f,%f,%d,%d\n", lastchg_s, lastchg_ns, rx_load, tx_load,
+                        down_del_stat, up_del_stat, cur_dl_rate, cur_ul_rate))
+
+                    lastchg_s = lastchg_s - start_s
+                    lastchg_t = lastchg_s + lastchg_ns / 1e9
+                else
+                    logger(loglevel.WARN, "One or both stats files could not be read. Skipping rate control algorithm.")
                 end
-
-                next_ul_rate = math.floor(math.max(min_ul_rate, next_ul_rate))
-                next_dl_rate = math.floor(math.max(min_dl_rate, next_dl_rate))
-
-                -- TC modification
-                if next_dl_rate ~= cur_dl_rate then
-                    update_cake_bandwidth(dl_if, next_dl_rate)
-                end
-                if next_ul_rate ~= cur_ul_rate then
-                    update_cake_bandwidth(ul_if, next_ul_rate)
-                end
-
-                cur_dl_rate = next_dl_rate
-                cur_ul_rate = next_ul_rate
-
-                logger(loglevel.DEBUG,
-                    string.format("%d,%d,%f,%f,%f,%f,%d,%d\n", lastchg_s, lastchg_ns, rx_load, tx_load, min_down_del,
-                        min_up_del, cur_dl_rate, cur_ul_rate))
-
-                lastchg_s, lastchg_ns = get_current_time()
-
-                -- output to log file before doing delta on the time
-                csv_fd:write(string.format("%d,%d,%f,%f,%f,%f,%d,%d\n", lastchg_s, lastchg_ns, rx_load, tx_load,
-                    min_down_del, min_up_del, cur_dl_rate, cur_ul_rate))
-
-                lastchg_s = lastchg_s - start_s
-                lastchg_t = lastchg_s + lastchg_ns / 1e9
-            else
-                logger(loglevel.WARN, "One or both stats files could not be read. Skipping rate control algorithm.")
             end
         end
 
@@ -670,6 +774,8 @@ local function ratecontrol()
 end
 
 local function baseline_calculator()
+    local min = math.min
+
     local slow_factor = .9
     local fast_factor = .2
 
@@ -700,6 +806,8 @@ local function baseline_calculator()
                 owd_recent[time_data.reflector].down_ewma = time_data.downlink_time
             end
 
+            owd_baseline[time_data.reflector].last_receive_time_s = time_data.last_receive_time_s
+            owd_recent[time_data.reflector].last_receive_time_s = time_data.last_receive_time_s
             owd_baseline[time_data.reflector].up_ewma = owd_baseline[time_data.reflector].up_ewma * slow_factor +
                                                             (1 - slow_factor) * time_data.uplink_time
             owd_recent[time_data.reflector].up_ewma = owd_recent[time_data.reflector].up_ewma * fast_factor +
@@ -710,9 +818,9 @@ local function baseline_calculator()
                                                             (1 - fast_factor) * time_data.downlink_time
 
             -- when baseline is above the recent, set equal to recent, so we track down more quickly
-            owd_baseline[time_data.reflector].up_ewma = math.min(owd_baseline[time_data.reflector].up_ewma,
+            owd_baseline[time_data.reflector].up_ewma = min(owd_baseline[time_data.reflector].up_ewma,
                 owd_recent[time_data.reflector].up_ewma)
-            owd_baseline[time_data.reflector].down_ewma = math.min(owd_baseline[time_data.reflector].down_ewma,
+            owd_baseline[time_data.reflector].down_ewma = min(owd_baseline[time_data.reflector].down_ewma,
                 owd_recent[time_data.reflector].down_ewma)
 
             -- Set the values back into the shared tables
@@ -732,11 +840,110 @@ local function baseline_calculator()
                 for ref, val in pairs(owd_recent) do
                     local up_ewma = a_else_b(val.up_ewma, "?")
                     local down_ewma = a_else_b(val.down_ewma, "?")
-                    logger(loglevel.INFO,
-                        "Reflector " .. ref .. " up baseline = " .. up_ewma .. " down baseline = " .. down_ewma)
+                    logger(loglevel.INFO, "Reflector " .. ref .. "recent up baseline = " .. up_ewma ..
+                        "recent down baseline = " .. down_ewma)
                 end
             end
         end
+    end
+end
+
+local function rtt_compare(a, b)
+    return a[2] < b[2] -- Index 2 is the RTT value
+end
+
+local function reflector_peer_selector()
+    local floor = math.floor
+    local pi = math.pi
+    local random = math.random
+
+    local selector_sleep_time_ns = 0
+    local selector_sleep_time_s = peer_reselection_time * 60
+
+    local baseline_sleep_time_ns = floor(((tick_duration * pi) % 1) * 1e9)
+    local baseline_sleep_time_s = floor(tick_duration * pi)
+
+    -- Initial wait of several seconds to allow some OWD data to build up
+    nsleep(baseline_sleep_time_s, baseline_sleep_time_ns)
+
+    while true do
+        local peerhash = {} -- a hash table of next peers, to ensure uniqueness
+        local next_peers = {} -- an array of next peers
+        local reflector_tables = reflector_data:get("reflector_tables")
+        local reflector_pool = reflector_tables["pool"]
+
+        for k, v in pairs(reflector_tables["peers"]) do -- include all current peers
+            peerhash[v] = 1
+        end
+        for i = 1, 20, 1 do -- add 20 at random, but
+            local nextcandidate = reflector_pool[random(#reflector_pool)]
+            peerhash[nextcandidate] = 1
+        end
+        for k, v in pairs(peerhash) do
+            next_peers[#next_peers + 1] = k
+        end
+        -- Put all the pool members back into the peers for some re-baselining...
+        reflector_data:set("reflector_tables", {
+            peers = next_peers,
+            pool = reflector_pool
+        })
+
+        -- Wait for several seconds to allow all reflectors to be re-baselined
+        nsleep(baseline_sleep_time_s, baseline_sleep_time_ns)
+
+        local candidates = {}
+
+        local owd_tables = owd_data:get("owd_tables")
+        local owd_recent = owd_tables["recent"]
+
+        for i, peer in ipairs(next_peers) do
+            if owd_recent[peer] then
+                local up_del = owd_recent[peer].up_ewma
+                local down_del = owd_recent[peer].down_ewma
+                local rtt = up_del + down_del
+                candidates[#candidates + 1] = {peer, rtt}
+                logger(loglevel.INFO, "Candidate reflector: " .. peer .. " RTT: " .. rtt)
+            else
+                logger(loglevel.INFO, "No data found from candidate reflector: " .. peer .. " - skipping")
+            end
+        end
+
+        -- Sort the candidates table now by ascending RTT
+        table.sort(candidates, rtt_compare)
+
+        -- Now we will just limit the candidates down to 2 * num_reflectors
+        local num_reflectors = num_reflectors
+        local candidate_pool_num = 2 * num_reflectors
+        if candidate_pool_num < #candidates then
+            for i = candidate_pool_num + 1, #candidates, 1 do
+                candidates[i] = nil
+            end
+        end
+        for i, v in ipairs(candidates) do
+            logger(loglevel.INFO, "Fastest candidate " .. i .. ": " .. v[1] .. " - RTT: " .. v[2])
+        end
+
+        -- Shuffle the deck so we avoid overwhelming good reflectors
+        candidates = shuffle_table(candidates)
+
+        local new_peers = {}
+        if #candidates < num_reflectors then
+            num_reflectors = #candidates
+        end
+        for i = 1, num_reflectors, 1 do
+            new_peers[#new_peers + 1] = candidates[i][1]
+        end
+
+        for _, v in ipairs(new_peers) do
+            logger(loglevel.INFO, "New selected peer: " .. v)
+        end
+
+        reflector_data:set("reflector_tables", {
+            peers = new_peers,
+            pool = reflector_pool
+        })
+
+        nsleep(selector_sleep_time_s, selector_sleep_time_ns)
     end
 end
 ---------------------------- End Local Functions ----------------------------
@@ -745,6 +952,10 @@ end
 local function conductor()
     print("Starting sqm-autorate.lua v" .. _VERSION)
     logger(loglevel.TRACE, "Entered conductor()")
+
+    -- Random seed
+    local nows, nowns = get_current_time()
+    math.randomseed(nowns)
 
     -- Figure out the interfaces in play here
     -- if ul_if == "" then
@@ -804,7 +1015,6 @@ local function conductor()
             nsleep(retry_time, 0)
             test_file = io.open(rx_bytes_path)
             if test_file then
-                logger(loglevel.INFO, "Rx stats file found! Continuing...")
                 break
             end
         end
@@ -815,6 +1025,7 @@ local function conductor()
         end
     end
     test_file:close()
+    logger(loglevel.INFO, "Rx stats file found! Continuing...")
 
     test_file = io.open(tx_bytes_path)
     if not test_file then
@@ -829,7 +1040,6 @@ local function conductor()
             nsleep(retry_time, 0)
             test_file = io.open(tx_bytes_path)
             if test_file then
-                logger(loglevel.INFO, "Tx stats file found! Continuing...")
                 break
             end
         end
@@ -840,10 +1050,26 @@ local function conductor()
         end
     end
     test_file:close()
+    logger(loglevel.INFO, "Tx stats file found! Continuing...")
 
-    -- Random seed
-    local nows, nowns = get_current_time()
-    math.randomseed(nowns)
+    -- Load up the reflectors temp table
+    local tmp_reflectors = {}
+    if reflector_type == "icmp" then
+        tmp_reflectors = load_reflector_list(reflector_list_icmp, "4")
+    elseif reflector_type == "udp" then
+        tmp_reflectors = load_reflector_list(reflector_list_udp, "4")
+    else
+        logger(loglevel.FATAL, "Unknown reflector type specified: " .. reflector_type)
+        os.exit(1, true)
+    end
+
+    logger(loglevel.INFO, "Reflector Pool Size: " .. #tmp_reflectors)
+
+    -- Load up the reflectors shared tables
+    reflector_data:set("reflector_tables", {
+        peers = tmp_reflectors,
+        pool = tmp_reflectors
+    })
 
     -- Set a packet ID
     local packet_id = cur_process_id + 32768
@@ -864,7 +1090,10 @@ local function conductor()
         }, ratecontrol)(),
         pinger = lanes.gen("*", {
             required = {bit_mod, "posix.sys.socket", "posix.time", "vstruct"}
-        }, ts_ping_sender)(reflector_type, packet_id, tick_duration)
+        }, ts_ping_sender)(reflector_type, packet_id, tick_duration),
+        selector = lanes.gen("*", {
+            required = {"posix", "posix.time"}
+        }, reflector_peer_selector)()
     }
     local join_timeout = 0.5
 

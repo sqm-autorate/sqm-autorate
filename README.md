@@ -8,6 +8,7 @@
 - Ping Receiver
 - Baseline Calculator
 - Rate Controller
+- Reflector Selector
 
 **High-level Notice**
 This script "learns" over time and the time it takes to "stabilize" is somewhere generally between 30-90 minutes, although this is subject to change as development continues. Do not assume something is wrong if you notice some initial latency spikes when first running this script. That is expected and will smooth out over time.
@@ -129,15 +130,15 @@ service sqm-autorate enable && service sqm-autorate start
 
 #### View of Processes
 
-A properly running instance of sqm-autorate will indicate six total threads when viewed (in a thread-enabled view) `htop`. Here is an example:
+A properly running instance of sqm-autorate will indicate seven total threads when viewed (in a thread-enabled view) `htop`. Here is an example:
 
 ![Image of Htop Process View](/.readme/htop-example.png)
 
 Alternatively, in the absense of `htop`, one can find the same detail with this command:
 
 ```bash
-# cat /proc/$(ps | grep '[sqm]-autorate.lua' | cut -d' ' -f1)/status | grep 'Threads'
-Threads:    6
+# cat /proc/$(ps | grep '[sqm]-autorate.lua' | awk '{print $1}')/status | grep 'Threads'
+Threads:    7
 ```
 
 #### Verbosity Options

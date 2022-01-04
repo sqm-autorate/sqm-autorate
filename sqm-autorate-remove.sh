@@ -1,7 +1,7 @@
 #!/bin/sh
 
 name="sqm-autorate"
-autorate_root="/usr/lib/sqm-autorate"
+autorate_lib_path="/usr/lib/sqm-autorate"
 
 echo ">>> Disabling and stopping service..."
 /etc/init.d/"$name" disable
@@ -10,7 +10,7 @@ sleep 3
 echo ">>> Removing service file..."
 rm -f /etc/init.d/"$name"
 echo ">>> Removing sqm-autorate lib directory..."
-rm -rf "$autorate_root"
+rm -rf "$autorate_lib_path"
 echo ">>> Removing config file..."
 rm -f /etc/config/"$name"
 
