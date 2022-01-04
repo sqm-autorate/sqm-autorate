@@ -34,7 +34,10 @@ Details can be found here:
 1. Install the **SQM QoS** package (from the LuCI web GUI) or `opkg install sqm-scripts` from the command line
 2. Configure [SQM for your WAN link,](https://openwrt.org/docs/guide-user/network/traffic-shaping/sqm) setting its interface, download and upload speeds, and
 checking the **Enable** box.
-In the **Queue Discipline** tab, select _cake_ and _piece\_of\_cake.qos_
+In the **Queue Discipline** tab, select _cake_ and _piece\_of\_cake.qos._
+If you have some kind of DSL connection, read the
+**Link Layer Adaptation** section of the 
+[SQM HOWTO.](https://openwrt.org/docs/guide-user/network/traffic-shaping/sqm)
 3. Run the following command to run the setup script that downloads and installed the required files and packages:
 
    ```bash
