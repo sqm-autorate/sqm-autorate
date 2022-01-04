@@ -1,6 +1,111 @@
 # CAKE with Adaptive Bandwidth - "autorate"
 
-## Lua Threads
+## About autorate
+**autorate** is a program that automatically adapts the
+CAKE Smart Queue Management (SQM) bandwidth settings
+by measuring traffic load and RTT times.
+This is designed for variable bandwidth connections such as LTE,
+and is not intended for use on connections that have a
+stable, fixed bandwidth.
+
+CAKE is an algorithm that manages the buffering of data
+being sent/received by an OpenWrt router so that no more
+data is queued than is necessary,
+minimizing the latency ("bufferbloat")
+and improving the responsiveness of a network.
+
+### Requirements
+
+This _sqm-autorate_ program is written primarily for OpenWrt 21.02.
+The current developers are not against extending it for OpenWrt 19.07,
+however it is not the priority as none run 19.07.
+If it runs, that's great.
+If it doesn't run and someone works out why, and how to fix it,
+that's great as well.
+If they supply patches for the good of the project, that's even better!
+
+_For Testers, Jan 2022:_ For those people running OpenWrt snapshot builds,
+a patch is required for Lua Lanes.
+Details can be found here:
+[https://github.com/Fail-Safe/sqm-autorate/issues/32#issuecomment-1002584519](https://github.com/Fail-Safe/sqm-autorate/issues/32#issuecomment-1002584519)
+
+### Installation
+
+1. Install the **SQM QoS** package (from the LuCI web GUI) or `opkg install sqm-scripts` from the command line
+2. Configure [SQM for your WAN link,](https://openwrt.org/docs/guide-user/network/traffic-shaping/sqm) setting its interface, download and upload speeds, and
+checking the **Enable** box.
+In the **Queue Discipline** tab, select _cake_ and _piece\_of\_cake.qos._
+If you have some kind of DSL connection, read the
+**Link Layer Adaptation** section of the 
+[SQM HOWTO.](https://openwrt.org/docs/guide-user/network/traffic-shaping/sqm)
+3. Run the following command to run the setup script that downloads and installed the required files and packages:
+
+   ```bash
+   sh -c "$(wget -q -O- https://raw.githubusercontent.com/Fail-Safe/sqm-autorate/testing/lua-threads/sqm-autorate-setup.sh)"
+   ```
+4. When the setup script completes, run these commands to 
+start and enable the _sqm-autorate_ service that runs continually:
+
+   ```
+   service sqm-autorate enable && service sqm-autorate start
+   ``` 
+   
+### A Request to Testers
+
+Please post your overall experience on this
+[OpenWrt Forum thread.](https://forum.openwrt.org/t/cake-w-adaptive-bandwidth/108848/312)
+Your feedback will help improve the script for the benefit of others.
+
+Bug reports and/or feature requests [should be added on Github](https://github.com/Fail-Safe/sqm-autorate/issues/new/choose) to allow for proper prioritization and tracking.
+
+Read on to learn more about how the _sqm-autorate_ algorithm works,
+and the [More Details](#More_Details) section for troubleshooting.
+
+## What to expect
+
+In normal operation, _sqm-autorate_ monitors the utilization and latency
+of the wide area interface,
+and adjusts the parameters to the CAKE algorithm to maximize throughput
+while minimizing latency.
+
+On fixed speed connections from the ISP, _sqm_autorate_ won't make much difference.
+However, on varying speed links, such as LTE modems or even
+cable modems where the traffic rates vary widely by time of day,
+_sqm_autorate_ can continually adjust the parameters so that you
+get the fastest speed available, while keeping latency low.
+
+**Note:** This script "learns" over time and takes 
+somewhere between 30-90 minutes to "stabilize".
+You can expect some
+initial latency spikes when first running this script.
+These will smooth out over time.
+
+### Why is _sqm-autorate_ necessary?
+
+The CAKE algorithm does a good job of managing latency for
+fixed upload and download bandwidth settings,
+that is for ISPs that offer relatively constant speed links.
+Variable bandwidth connections present a challenge because
+the actual bandwidth at any given moment is not known.
+
+In the past, people using CAKE generally picked
+a compromise bandwidth setting,
+a setting lower than the maximum speed available from the ISP.
+This compromise is hardly ideal:
+it meant lost bandwidth in exchange for latency control.
+If the compromise setting is too low,
+the connection is unnecessarily throttled back
+to the compromise setting (yellow);
+if the setting is too high, CAKE will still buffer
+too much data (green) and induce unwanted latency.
+(See the image below.)
+
+With _sqm-autorate_, the CAKE settings are adjusted for current conditions,
+keeping latency low while always giving the maximum available throughput.
+
+![Image of Bandwidth Compromise](.readme/Bandwidth-Compromise.png)
+
+## About the Lua implementation
 
 **sqm-autorate.lua** is a Lua implementation of an SQM auto-rate algorithm and it employs multiple [preemptive] threads to perform the following high-level actions in parallel:
 
@@ -10,14 +115,15 @@
 - Rate Controller
 - Reflector Selector
 
-**High-level Notice**
-This script "learns" over time and the time it takes to "stabilize" is somewhere generally between 30-90 minutes, although this is subject to change as development continues. Do not assume something is wrong if you notice some initial latency spikes when first running this script. That is expected and will smooth out over time.
+_For Test builds, Jan 2022:_ In its current iteration this script can react poorly under conditions with high latency and low load, which can force the rates down to the minimum.
+If this happens to you, please try to adjust the
+`max_delta_owd` variable to a higher value.
 
-In its current iteration this script also reacts harshly under conditions with high latency and low load, which can force the rates down to the minimum. If this applies to you please try to adjust the `max_delta_owd` variable to a higher value.
-
-The functionality in this Lua version is a culmination of progressive iterations to the original shell version as introduced by @Lynx (OpenWrt Forum). Refer to the [Original Shell Version](#original-shell-version) (below) for details as to the original goal and theory.
+The functionality in this Lua version is a culmination of progressive iterations to the original shell version as introduced by @Lynx (OpenWrt Forum). ~~Refer to the [Original Shell Version](#original-shell-version) (below) for details as to the original goal and theory.~~
 
 ### Lua Threads Algorithm
+
+_**THIS DESCRIPTION PROBABLY NEEDS CONSIDERABLE REVIEW**_
 
 Per @dlakelan (OpenWrt Forum):
 > When the load gets near to the current max in any direction, and latency hasn't increased, then it reacts by opening the throttle according to a formula that I'm still tweaking, but it starts out exponentially and then slows to linear. When it bumps the speed up it puts the old speed into a database of samples of known good speeds. When it hits latency increase then it throttles town the speed by grabbing a random known good speed, and ensuring that's at least less than 0.9 times the current speed. Most of the time the latency increase goes away immediately, and it begins to rise again.
@@ -32,34 +138,24 @@ Per @dlakelan (OpenWrt Forum):
 
 ### Algorithm In Action
 
-Examples of the algorithm in action over time:
+Examples of the algorithm in action over time.
 
-![Down Convergence](/.readme/9e03cf98b1a0d42248c19b615f6ede593beebc35.gif)
+_Needs better narrative to explain these charts,
+and possibly new charts showing new axis labels._
 
-![Up Convergence](/.readme/5a82f679066f7479efda59fbaea11390d0e6d1bb.gif)
+![Down Convergence](.readme/9e03cf98b1a0d42248c19b615f6ede593beebc35.gif)
 
-![Fraction of Down Delay](/.readme/7ef21e89d37447bf05fde1ea4ba89a4b4b74e1f9.png)
+![Up Convergence](.readme/5a82f679066f7479efda59fbaea11390d0e6d1bb.gif)
 
-![Fraction of Up Delay](/.readme/6104d5c3f849d07b00f55590ceab2363ef0ce1e2.png)
+![Fraction of Down Delay](.readme/7ef21e89d37447bf05fde1ea4ba89a4b4b74e1f9.png)
 
-### Requirements
+![Fraction of Up Delay](.readme/6104d5c3f849d07b00f55590ceab2363ef0ce1e2.png)
 
-Lua sqm-autorate is written for OpenWrt 21.02 first and foremost. The current developers are not against extending it for OpenWrt 19.07, however it is not the priority as none run 19.07. If it runs, that's great. If it doesn't run and someone works out why, and how to fix it, that's great as well. If they supply patches for the good of the project, that's even better!
-
-For those running OpenWrt snapshot builds, a patch is required for Lua Lanes. Details can be found here: https://github.com/Fail-Safe/sqm-autorate/issues/32#issuecomment-1002584519
-
-### Installation
-
-Run the following setup script to download the required operational files and prequisites:
-
-```bash
-sh -c "$(wget -q -O- https://raw.githubusercontent.com/Fail-Safe/sqm-autorate/testing/lua-threads/sqm-autorate-setup.sh)"
-```
+## More Details
 
 ### Removal
 
-Not that you will ever want to uninstall this autorate tool...
-
+_(We hope that you will never want to uninstall this autorate tool, but if you want to...)_
 Run the following removal script to remove the operational files:
 
 ```bash
@@ -88,38 +184,31 @@ Generally, configuration should be performed via the `/etc/config/sqm-autorate` 
 
 Advanced users may override values (following comments) directly in `/usr/lib/sqm-autorate/sqm-autorate.lua` as comfort level dictates.
 
-### Execution
-
-The Lua Threads version can be invoked directly or operate via the sqm-autorate service script in this branch, which is installed via the setup script.
-
-#### Direct Execution (for Testing and Tuning)
+#### Manual Execution (for Testing and Tuning)
 
 For testing/tuning, invoke the `sqm-autorate.lua` script from the command line:
 
 ```bash
+# Use these optional PATH settings if you see an error message about 'vstruct'
+export LUA_CPATH="/usr/lib/lua/5.1/?.so;./?.so;/usr/lib/lua/?.so;/usr/lib/lua/loadall.so"
+export LUA_PATH="/usr/share/lua/5.1/?.lua;/usr/share/lua/5.1/?/init.lua;./?.lua;/usr/share/lua/?.lua;/usr/share/lua/?/init.lua;/usr/lib/lua/?.lua;/usr/lib/lua/?/init.lua"
+
+# Run this command to execute the script
 lua /usr/lib/sqm-autorate/sqm-autorate.lua
 ```
 
-If you are greeted with an angry message about not being able to locate `vstruct` (or any other Lua package), you will need to add the following exports to your current environment*:
-
-```bash
-export LUA_CPATH="/usr/lib/lua/5.1/?.so;./?.so;/usr/lib/lua/?.so;/usr/lib/lua/loadall.so"
-export LUA_PATH="/usr/share/lua/5.1/?.lua;/usr/share/lua/5.1/?/init.lua;./?.lua;/usr/share/lua/?.lua;/usr/share/lua/?/init.lua;/usr/lib/lua/?.lua;/usr/lib/lua/?/init.lua"
-```
-
-**Note: This is not required for the service method of execution as the service script handles these exports itself.*
-
-When you run a speed test, you should see the `current_dl_rate` and
+(_Is this next paragraph correct?_) When you run a speed test, you should see the `current_dl_rate` and
 `current_ul_rate` values change to match the current conditions.
 They should then drift back to the configured download and update rates
 when the link is idle.
 
-The script also writes the similar information to `/tmp/sqm-autorate.csv` and speed history data to `/tmp/sqm-speedhist.csv`.
-There is currently no way to turn off output to these files, though the file location can be modified via `/etc/config/sqm-autorate`.
+The script logs information to `/tmp/sqm-autorate.csv` and speed history data to `/tmp/sqm-speedhist.csv`.
+See the [Verbosity](#Verbosity_Options) options (below)
+for controlling the logging messages.
 
 #### Service Execution (for Steady-State Execution)
 
-You can also install the `sqm-autorate.lua` script as a service,
+As noted above, the setup script installs `sqm-autorate.lua` as a service,
 so that it starts up automatically when you reboot the router.
 
 ```bash
@@ -130,9 +219,11 @@ service sqm-autorate enable && service sqm-autorate start
 
 #### View of Processes
 
-A properly running instance of sqm-autorate will indicate seven total threads when viewed (in a thread-enabled view) `htop`. Here is an example:
+A properly running instance of sqm-autorate will indicate seven
+total threads when viewed (in a thread-enabled view) `htop`.
+Here is an example:
 
-![Image of Htop Process View](/.readme/htop-example.png)
+![Image of Htop Process View](.readme/htop-example.png)
 
 Alternatively, in the absense of `htop`, one can find the same detail with this command:
 
@@ -188,13 +279,16 @@ Analysis of the CSV outputs can be performed via MS Excel, or more preferably, v
     ```
 5. After some time, the outputs will be available as PNG and GIF files in the current directory.
 
-### A Request to Testers
+#### Error Reporting Script
 
-Please post your overall experience on this
-[OpenWrt Forum thread.](https://forum.openwrt.org/t/cake-w-adaptive-bandwidth/108848/312)
-Your feedback will help improve the script for the benefit of others.
+The `lib/getstats.sh` script in this repo writes a lot
+of interesting information to `tmp/openwrtstats.txt`.
+You can send portions of this file with
+your trouble report.
 
-Bug reports and/or feature requests [should be added here](https://github.com/Fail-Safe/sqm-autorate/issues/new/choose) to allow for proper prioritization and tracking.
+-----------
+
+# I would cut the document off here -richb-hanover
 
 ## Original Shell Version
 
