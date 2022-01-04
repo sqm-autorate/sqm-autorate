@@ -108,6 +108,9 @@ else
     mv "./$refl_udp_file" "$autorate_lib_path/$refl_udp_file"
 fi
 
+echo ">>> Making $lua_file executable..."
+chmod +x "$autorate_lib_path/$lua_file"
+
 echo ">>> Putting service file into place..."
 if [ "$is_git_proj" = true ]; then
     cp "./service/$service_file" "/etc/init.d/$name"
