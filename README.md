@@ -137,7 +137,7 @@ A properly running instance of sqm-autorate will indicate six total threads when
 Alternatively, in the absense of `htop`, one can find the same detail with this command:
 
 ```bash
-# cat /proc/$(ps | grep '[sqm]-autorate.lua' | cut -d' ' -f1)/status | grep 'Threads'
+# cat /proc/$(ps | grep '[sqm]-autorate.lua' | awk '{print $1}')/status | grep 'Threads'
 Threads:    6
 ```
 
