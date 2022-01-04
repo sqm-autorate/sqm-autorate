@@ -805,6 +805,12 @@ local function baseline_calculator()
             if not owd_recent[time_data.reflector].down_ewma then
                 owd_recent[time_data.reflector].down_ewma = time_data.downlink_time
             end
+            if not owd_baseline[time_data.reflector].last_receive_time_s then
+                owd_baseline[time_data.reflector].last_receive_time_s = time_data.last_receive_time_s
+            end
+            if not owd_recent[time_data.reflector].last_receive_time_s then
+                owd_recent[time_data.reflector].last_receive_time_s = time_data.last_receive_time_s
+            end
 
             if time_data.last_receive_time_s - owd_baseline[time_data.reflector].last_receive_time_s > 30 or
                 time_data.last_receive_time_s - owd_recent[time_data.reflector].last_receive_time_s > 30 then
