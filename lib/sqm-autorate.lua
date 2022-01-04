@@ -665,10 +665,8 @@ local function ratecontrol()
                     if owd_recent[reflector_ip] ~= nil and owd_baseline[reflector_ip] ~= nil and
                         owd_recent[reflector_ip].last_receive_time_s ~= nil and
                         owd_recent[reflector_ip].last_receive_time_s > now_abstime - 2 * tick_duration then
-                        table.insert(up_del,
-                            owd_recent[reflector_ip].up_ewma - owd_baseline[reflector_ip].up_ewma)
-                        table.insert(down_del,
-                            owd_recent[reflector_ip].down_ewma - owd_baseline[reflector_ip].down_ewma)
+                        table.insert(up_del, owd_recent[reflector_ip].up_ewma - owd_baseline[reflector_ip].up_ewma)
+                        table.insert(down_del, owd_recent[reflector_ip].down_ewma - owd_baseline[reflector_ip].down_ewma)
 
                         logger(loglevel.INFO, "reflector: " .. reflector_ip .. " delay: " .. up_del[#up_del] ..
                             "  down_del: " .. down_del[#down_del])
@@ -677,13 +675,13 @@ local function ratecontrol()
                 table.sort(up_del)
                 table.sort(down_del)
 
-                local up_del_stat = a_else_b(up_del[3],up_del[1])
-                local down_del_stat = a_else_b(down_del[3],down_del[1])
+                local up_del_stat = a_else_b(up_del[3], up_del[1])
+                local down_del_stat = a_else_b(down_del[3], down_del[1])
 
                 local cur_rx_bytes = read_stats_file(rx_bytes_file)
                 local cur_tx_bytes = read_stats_file(tx_bytes_file)
 
-                if cur_rx_bytes and cur_tx_bytes and up_del_stat and and down_del_stat then
+                if cur_rx_bytes and cur_tx_bytes and up_del_stat and down_del_stat then
                     t_prev_bytes = t_cur_bytes
                     t_cur_bytes = now_t
 
@@ -863,13 +861,13 @@ local function reflector_peer_selector()
 
     -- Initial wait of several seconds to allow some OWD data to build up
     nsleep(baseline_sleep_time_s, baseline_sleep_time_ns)
-    
+
     while true do
         local peerhash = {} -- a hash table of next peers, to ensure uniqueness
         local next_peers = {} -- an array of next peers
         local reflector_tables = reflector_data:get("reflector_tables")
         local reflector_pool = reflector_tables["pool"]
-    
+
         for k, v in pairs(reflector_tables["peers"]) do -- include all current peers
             peerhash[v] = 1
         end
