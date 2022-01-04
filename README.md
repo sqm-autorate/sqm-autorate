@@ -130,7 +130,7 @@ service sqm-autorate enable && service sqm-autorate start
 
 #### View of Processes
 
-A properly running instance of sqm-autorate will indicate six total threads when viewed (in a thread-enabled view) `htop`. Here is an example:
+A properly running instance of sqm-autorate will indicate seven total threads when viewed (in a thread-enabled view) `htop`. Here is an example:
 
 ![Image of Htop Process View](/.readme/htop-example.png)
 
@@ -138,7 +138,7 @@ Alternatively, in the absense of `htop`, one can find the same detail with this 
 
 ```bash
 # cat /proc/$(ps | grep '[sqm]-autorate.lua' | awk '{print $1}')/status | grep 'Threads'
-Threads:    6
+Threads:    7
 ```
 
 #### Verbosity Options

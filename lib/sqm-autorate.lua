@@ -10,7 +10,7 @@
 -- ** Recommended style guide: https://github.com/luarocks/lua-style-guide **
 --
 -- The versioning value for this script
-local _VERSION = "0.1.5"
+local _VERSION = "0.2.0"
 --
 -- Found this clever function here: https://stackoverflow.com/a/15434737
 -- This function will assist in compatibility given differences between OpenWrt, Turris OS, etc.
@@ -198,7 +198,11 @@ local sock
 if reflector_type == "icmp" then
     sock = assert(socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP), "Failed to create socket")
 elseif reflector_type == "udp" then
-    sock = assert(socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP), "Failed to create socket")
+    print("UDP support is not available at this time. Please set your 'reflector_type' setting to 'icmp'.")
+    os.exit(1, true)
+
+    -- Hold for later use
+    -- sock = assert(socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP), "Failed to create socket")
 else
     logger(loglevel.FATAL, "Unknown reflector type specified. Cannot continue.")
     os.exit(1, true)
