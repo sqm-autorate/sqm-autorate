@@ -806,6 +806,16 @@ local function baseline_calculator()
                 owd_recent[time_data.reflector].down_ewma = time_data.downlink_time
             end
 
+            if time_data.last_receive_time_s - owd_baseline[time_data.reflector] > 30 or 
+            time_data.last_receive_time_s - owd_recent[time_data.reflector] > 30 then
+                -- this reflector is out of date, it's probably newly chosen from the 
+                -- choice cycle, reset all the ewmas to the current value.
+                owd_baseline[time_data.reflector].up_ewma = time_data.uplink_time
+                owd_baseline[time_data.reflector].down_ewma = time_data.downlink_time
+                owd_recent[time_data.reflector].up_ewma = time_data.uplink_time
+                owd_recent[time_data.reflector].down_ewma = time_data.downlink_time
+            end
+
             owd_baseline[time_data.reflector].last_receive_time_s = time_data.last_receive_time_s
             owd_recent[time_data.reflector].last_receive_time_s = time_data.last_receive_time_s
             owd_baseline[time_data.reflector].up_ewma = owd_baseline[time_data.reflector].up_ewma * slow_factor +
