@@ -652,34 +652,38 @@ local function ratecontrol()
             local owd_baseline = owd_tables["baseline"]
             local owd_recent = owd_tables["recent"]
 
-            local min_up_del = 1 / 0
-            local min_down_del = 1 / 0
-
             local reflector_tables = reflector_data:get("reflector_tables")
             local reflector_list = reflector_tables["peers"]
 
             -- If we have no reflector peers to iterate over, don't attempt any rate changes.
             -- This will occur under normal operation when the reflector peers table is updated.
             if reflector_list then
+                local up_del = {}
+                local down_del = {}
                 for _, reflector_ip in ipairs(reflector_list) do
-                    -- only consider this data if it's less than 3 seconds old
+                    -- only consider this data if it's less than 2 * tick_duration seconds old
                     if owd_recent[reflector_ip] ~= nil and owd_baseline[reflector_ip] ~= nil and
                         owd_recent[reflector_ip].last_receive_time_s ~= nil and
-                        owd_recent[reflector_ip].last_receive_time_s > now_abstime - 5 * tick_duration then
-                        min_up_del = min(min_up_del,
+                        owd_recent[reflector_ip].last_receive_time_s > now_abstime - 2 * tick_duration then
+                        table.insert(up_del,
                             owd_recent[reflector_ip].up_ewma - owd_baseline[reflector_ip].up_ewma)
-                        min_down_del = min(min_down_del,
+                        table.insert(down_del,
                             owd_recent[reflector_ip].down_ewma - owd_baseline[reflector_ip].down_ewma)
 
-                        logger(loglevel.INFO, "reflector: " .. reflector_ip .. " min_up_del: " .. min_up_del ..
-                            "  min_down_del: " .. min_down_del)
+                        logger(loglevel.INFO, "reflector: " .. reflector_ip .. " delay: " .. up_del[#up_del] ..
+                            "  down_del: " .. down_del[#down_del])
                     end
                 end
+                table.sort(up_del)
+                table.sort(down_del)
+
+                local up_del_stat = a_else_b(up_del[3],up_del[1])
+                local down_del_stat = a_else_b(down_del[3],down_del[1])
 
                 local cur_rx_bytes = read_stats_file(rx_bytes_file)
                 local cur_tx_bytes = read_stats_file(tx_bytes_file)
 
-                if cur_rx_bytes and cur_tx_bytes and min_up_del < 1 / 0 and min_down_del < 1 / 0 then
+                if cur_rx_bytes and cur_tx_bytes and up_del_stat and and down_del_stat then
                     t_prev_bytes = t_cur_bytes
                     t_cur_bytes = now_t
 
@@ -691,8 +695,8 @@ local function ratecontrol()
                     prev_tx_bytes = cur_tx_bytes
                     local next_ul_rate = cur_ul_rate
                     local next_dl_rate = cur_dl_rate
-                    logger(loglevel.INFO, "min_up_del " .. min_up_del .. " min_down_del " .. min_down_del)
-                    if min_up_del < max_delta_owd and tx_load > .8 then
+                    logger(loglevel.INFO, "up_del_stat " .. up_del_stat .. " down_del_stat " .. down_del_stat)
+                    if up_del_stat and up_del_stat < max_delta_owd and tx_load > .8 then
                         safe_ul_rates[nrate_up] = floor(cur_ul_rate * tx_load)
                         local max_ul = maximum(safe_ul_rates)
                         next_ul_rate = cur_ul_rate * (1 + .1 * max(0, (1 - cur_ul_rate / max_ul))) +
@@ -700,7 +704,7 @@ local function ratecontrol()
                         nrate_up = nrate_up + 1
                         nrate_up = nrate_up % histsize
                     end
-                    if min_down_del < max_delta_owd and rx_load > .8 then
+                    if down_del_stat and down_del_stat < max_delta_owd and rx_load > .8 then
                         safe_dl_rates[nrate_down] = floor(cur_dl_rate * rx_load)
                         local max_dl = maximum(safe_dl_rates)
                         next_dl_rate = cur_dl_rate * (1 + .1 * max(0, (1 - cur_dl_rate / max_dl))) +
