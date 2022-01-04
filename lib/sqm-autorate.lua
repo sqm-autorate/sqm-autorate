@@ -10,7 +10,7 @@
 -- ** Recommended style guide: https://github.com/luarocks/lua-style-guide **
 --
 -- The versioning value for this script
-local _VERSION = "0.1.4"
+local _VERSION = "0.2.0"
 --
 -- Found this clever function here: https://stackoverflow.com/a/15434737
 -- This function will assist in compatibility given differences between OpenWrt, Turris OS, etc.
@@ -198,7 +198,11 @@ local sock
 if reflector_type == "icmp" then
     sock = assert(socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP), "Failed to create socket")
 elseif reflector_type == "udp" then
-    sock = assert(socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP), "Failed to create socket")
+    print("UDP support is not available at this time. Please set your 'reflector_type' setting to 'icmp'.")
+    os.exit(1, true)
+
+    -- Hold for later use
+    -- sock = assert(socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP), "Failed to create socket")
 else
     logger(loglevel.FATAL, "Unknown reflector type specified. Cannot continue.")
     os.exit(1, true)
@@ -652,34 +656,36 @@ local function ratecontrol()
             local owd_baseline = owd_tables["baseline"]
             local owd_recent = owd_tables["recent"]
 
-            local min_up_del = 1 / 0
-            local min_down_del = 1 / 0
-
             local reflector_tables = reflector_data:get("reflector_tables")
             local reflector_list = reflector_tables["peers"]
 
             -- If we have no reflector peers to iterate over, don't attempt any rate changes.
             -- This will occur under normal operation when the reflector peers table is updated.
             if reflector_list then
+                local up_del = {}
+                local down_del = {}
                 for _, reflector_ip in ipairs(reflector_list) do
-                    -- only consider this data if it's less than 3 seconds old
+                    -- only consider this data if it's less than 2 * tick_duration seconds old
                     if owd_recent[reflector_ip] ~= nil and owd_baseline[reflector_ip] ~= nil and
                         owd_recent[reflector_ip].last_receive_time_s ~= nil and
-                        owd_recent[reflector_ip].last_receive_time_s > now_abstime - 5 * tick_duration then
-                        min_up_del = min(min_up_del,
-                            owd_recent[reflector_ip].up_ewma - owd_baseline[reflector_ip].up_ewma)
-                        min_down_del = min(min_down_del,
-                            owd_recent[reflector_ip].down_ewma - owd_baseline[reflector_ip].down_ewma)
+                        owd_recent[reflector_ip].last_receive_time_s > now_abstime - 2 * tick_duration then
+                        table.insert(up_del, owd_recent[reflector_ip].up_ewma - owd_baseline[reflector_ip].up_ewma)
+                        table.insert(down_del, owd_recent[reflector_ip].down_ewma - owd_baseline[reflector_ip].down_ewma)
 
-                        logger(loglevel.INFO, "reflector: " .. reflector_ip .. " min_up_del: " .. min_up_del ..
-                            "  min_down_del: " .. min_down_del)
+                        logger(loglevel.INFO, "reflector: " .. reflector_ip .. " delay: " .. up_del[#up_del] ..
+                            "  down_del: " .. down_del[#down_del])
                     end
                 end
+                table.sort(up_del)
+                table.sort(down_del)
+
+                local up_del_stat = a_else_b(up_del[3], up_del[1])
+                local down_del_stat = a_else_b(down_del[3], down_del[1])
 
                 local cur_rx_bytes = read_stats_file(rx_bytes_file)
                 local cur_tx_bytes = read_stats_file(tx_bytes_file)
 
-                if cur_rx_bytes and cur_tx_bytes and min_up_del < 1/0 and min_down_del < 1/0 then
+                if cur_rx_bytes and cur_tx_bytes and up_del_stat and down_del_stat then
                     t_prev_bytes = t_cur_bytes
                     t_cur_bytes = now_t
 
@@ -691,8 +697,8 @@ local function ratecontrol()
                     prev_tx_bytes = cur_tx_bytes
                     local next_ul_rate = cur_ul_rate
                     local next_dl_rate = cur_dl_rate
-                    logger(loglevel.INFO, "min_up_del " .. min_up_del .. " min_down_del " .. min_down_del)
-                    if min_up_del < max_delta_owd and tx_load > .8 then
+                    logger(loglevel.INFO, "up_del_stat " .. up_del_stat .. " down_del_stat " .. down_del_stat)
+                    if up_del_stat and up_del_stat < max_delta_owd and tx_load > .8 then
                         safe_ul_rates[nrate_up] = floor(cur_ul_rate * tx_load)
                         local max_ul = maximum(safe_ul_rates)
                         next_ul_rate = cur_ul_rate * (1 + .1 * max(0, (1 - cur_ul_rate / max_ul))) +
@@ -700,7 +706,7 @@ local function ratecontrol()
                         nrate_up = nrate_up + 1
                         nrate_up = nrate_up % histsize
                     end
-                    if min_down_del < max_delta_owd and rx_load > .8 then
+                    if down_del_stat and down_del_stat < max_delta_owd and rx_load > .8 then
                         safe_dl_rates[nrate_down] = floor(cur_dl_rate * rx_load)
                         local max_dl = maximum(safe_dl_rates)
                         next_dl_rate = cur_dl_rate * (1 + .1 * max(0, (1 - cur_dl_rate / max_dl))) +
@@ -709,14 +715,14 @@ local function ratecontrol()
                         nrate_down = nrate_down % histsize
                     end
 
-                    if min_up_del > max_delta_owd then
+                    if up_del_stat > max_delta_owd then
                         if #safe_ul_rates > 0 then
                             next_ul_rate = min(0.9 * cur_ul_rate * tx_load, safe_ul_rates[random(#safe_ul_rates) - 1])
                         else
                             next_ul_rate = 0.9 * cur_ul_rate * tx_load
                         end
                     end
-                    if min_down_del > max_delta_owd then
+                    if down_del_stat > max_delta_owd then
                         if #safe_dl_rates > 0 then
                             next_dl_rate = min(0.9 * cur_dl_rate * rx_load, safe_dl_rates[random(#safe_dl_rates) - 1])
                         else
@@ -740,13 +746,13 @@ local function ratecontrol()
 
                     logger(loglevel.DEBUG,
                         string.format("%d,%d,%f,%f,%f,%f,%d,%d\n", lastchg_s, lastchg_ns, rx_load, tx_load,
-                            min_down_del, min_up_del, cur_dl_rate, cur_ul_rate))
+                            down_del_stat, up_del_stat, cur_dl_rate, cur_ul_rate))
 
                     lastchg_s, lastchg_ns = get_current_time()
 
                     -- output to log file before doing delta on the time
                     csv_fd:write(string.format("%d,%d,%f,%f,%f,%f,%d,%d\n", lastchg_s, lastchg_ns, rx_load, tx_load,
-                        min_down_del, min_up_del, cur_dl_rate, cur_ul_rate))
+                        down_del_stat, up_del_stat, cur_dl_rate, cur_ul_rate))
 
                     lastchg_s = lastchg_s - start_s
                     lastchg_t = lastchg_s + lastchg_ns / 1e9
@@ -849,6 +855,7 @@ end
 local function reflector_peer_selector()
     local floor = math.floor
     local pi = math.pi
+    local random = math.random
 
     local selector_sleep_time_ns = 0
     local selector_sleep_time_s = peer_reselection_time * 60
@@ -856,16 +863,28 @@ local function reflector_peer_selector()
     local baseline_sleep_time_ns = floor(((tick_duration * pi) % 1) * 1e9)
     local baseline_sleep_time_s = floor(tick_duration * pi)
 
-    local reflector_tables = reflector_data:get("reflector_tables")
-    local reflector_pool = reflector_tables["pool"]
-
     -- Initial wait of several seconds to allow some OWD data to build up
     nsleep(baseline_sleep_time_s, baseline_sleep_time_ns)
-    logger(loglevel.INFO, "Reflector Pool Size: " .. #reflector_pool)
+
     while true do
+        local peerhash = {} -- a hash table of next peers, to ensure uniqueness
+        local next_peers = {} -- an array of next peers
+        local reflector_tables = reflector_data:get("reflector_tables")
+        local reflector_pool = reflector_tables["pool"]
+
+        for k, v in pairs(reflector_tables["peers"]) do -- include all current peers
+            peerhash[v] = 1
+        end
+        for i = 1, 20, 1 do -- add 20 at random, but
+            local nextcandidate = reflector_pool[random(#reflector_pool)]
+            peerhash[nextcandidate] = 1
+        end
+        for k, v in pairs(peerhash) do
+            next_peers[#next_peers + 1] = k
+        end
         -- Put all the pool members back into the peers for some re-baselining...
         reflector_data:set("reflector_tables", {
-            peers = reflector_pool,
+            peers = next_peers,
             pool = reflector_pool
         })
 
@@ -877,13 +896,16 @@ local function reflector_peer_selector()
         local owd_tables = owd_data:get("owd_tables")
         local owd_recent = owd_tables["recent"]
 
-        for k, val in pairs(owd_recent) do
-            local up_del = owd_recent[k].up_ewma
-            local down_del = owd_recent[k].down_ewma
-            local rtt = up_del + down_del
-
-            candidates[#candidates + 1] = {k, rtt}
-            logger(loglevel.INFO, "Candidate reflector: " .. k .. " RTT: " .. rtt)
+        for i, peer in ipairs(next_peers) do
+            if owd_recent[peer] then
+                local up_del = owd_recent[peer].up_ewma
+                local down_del = owd_recent[peer].down_ewma
+                local rtt = up_del + down_del
+                candidates[#candidates + 1] = {peer, rtt}
+                logger(loglevel.INFO, "Candidate reflector: " .. peer .. " RTT: " .. rtt)
+            else
+                logger(loglevel.INFO, "No data found from candidate reflector: " .. peer .. " - skipping")
+            end
         end
 
         -- Sort the candidates table now by ascending RTT
@@ -1040,6 +1062,8 @@ local function conductor()
         logger(loglevel.FATAL, "Unknown reflector type specified: " .. reflector_type)
         os.exit(1, true)
     end
+
+    logger(loglevel.INFO, "Reflector Pool Size: " .. #tmp_reflectors)
 
     -- Load up the reflectors shared tables
     reflector_data:set("reflector_tables", {

@@ -10,7 +10,13 @@ refl_icmp_file="reflectors-icmp.csv"
 refl_udp_file="reflectors-udp.csv"
 autorate_lib_path="/usr/lib/sqm-autorate"
 
-repo_root="https://raw.githubusercontent.com/Fail-Safe/sqm-autorate/testing/lua-threads"
+if [ -z "$1" ]; then
+    repo_root="https://raw.githubusercontent.com/Fail-Safe/sqm-autorate/testing/lua-threads"
+elif [ -z "$2" ]; then
+    repo_root="https://raw.githubusercontent.com/Fail-Safe/sqm-autorate/${1}"
+else
+    repo_root="https://raw.githubusercontent.com/${1}/sqm-autorate/${2}"
+fi
 
 check_for_sqm() {
     # Check first to see if SQM is installed and if not, offer to install it...
