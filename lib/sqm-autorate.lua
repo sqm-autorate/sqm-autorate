@@ -10,7 +10,7 @@
 -- ** Recommended style guide: https://github.com/luarocks/lua-style-guide **
 --
 -- The versioning value for this script
-local _VERSION = "0.2.0"
+local _VERSION = "0.2.1"
 --
 -- Found this clever function here: https://stackoverflow.com/a/15434737
 -- This function will assist in compatibility given differences between OpenWrt, Turris OS, etc.
@@ -840,8 +840,8 @@ local function baseline_calculator()
                 for ref, val in pairs(owd_recent) do
                     local up_ewma = a_else_b(val.up_ewma, "?")
                     local down_ewma = a_else_b(val.down_ewma, "?")
-                    logger(loglevel.INFO,
-                        "Reflector " .. ref .. "recent up baseline = " .. up_ewma .. "recent down baseline = " .. down_ewma)
+                    logger(loglevel.INFO, "Reflector " .. ref .. "recent up baseline = " .. up_ewma ..
+                        "recent down baseline = " .. down_ewma)
                 end
             end
         end
