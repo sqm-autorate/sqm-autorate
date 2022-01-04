@@ -711,14 +711,14 @@ local function ratecontrol()
                         nrate_down = nrate_down % histsize
                     end
 
-                    if min_up_del > max_delta_owd then
+                    if up_del_stat > max_delta_owd then
                         if #safe_ul_rates > 0 then
                             next_ul_rate = min(0.9 * cur_ul_rate * tx_load, safe_ul_rates[random(#safe_ul_rates) - 1])
                         else
                             next_ul_rate = 0.9 * cur_ul_rate * tx_load
                         end
                     end
-                    if min_down_del > max_delta_owd then
+                    if down_del_stat > max_delta_owd then
                         if #safe_dl_rates > 0 then
                             next_dl_rate = min(0.9 * cur_dl_rate * rx_load, safe_dl_rates[random(#safe_dl_rates) - 1])
                         else
@@ -742,13 +742,13 @@ local function ratecontrol()
 
                     logger(loglevel.DEBUG,
                         string.format("%d,%d,%f,%f,%f,%f,%d,%d\n", lastchg_s, lastchg_ns, rx_load, tx_load,
-                            min_down_del, min_up_del, cur_dl_rate, cur_ul_rate))
+                            down_del_stat, up_del_stat, cur_dl_rate, cur_ul_rate))
 
                     lastchg_s, lastchg_ns = get_current_time()
 
                     -- output to log file before doing delta on the time
                     csv_fd:write(string.format("%d,%d,%f,%f,%f,%f,%d,%d\n", lastchg_s, lastchg_ns, rx_load, tx_load,
-                        min_down_del, min_up_del, cur_dl_rate, cur_ul_rate))
+                        down_del_stat, up_del_stat, cur_dl_rate, cur_ul_rate))
 
                     lastchg_s = lastchg_s - start_s
                     lastchg_t = lastchg_s + lastchg_ns / 1e9
