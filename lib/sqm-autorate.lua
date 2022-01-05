@@ -676,10 +676,10 @@ local function ratecontrol()
                     if owd_recent[reflector_ip] ~= nil and owd_baseline[reflector_ip] ~= nil and
                         owd_recent[reflector_ip].last_receive_time_s ~= nil and
                         owd_recent[reflector_ip].last_receive_time_s > now_abstime - 2 * tick_duration then
-                        table.insert(up_del, owd_recent[reflector_ip].up_ewma - owd_baseline[reflector_ip].up_ewma)
-                        table.insert(down_del, owd_recent[reflector_ip].down_ewma - owd_baseline[reflector_ip].down_ewma)
+                        table.insert(up_del, owd_recent[reflector_ip].ul_current_owd_ms - owd_baseline[reflector_ip].up_ewma)
+                        table.insert(down_del, owd_recent[reflector_ip].dl_current_owd_ms - owd_baseline[reflector_ip].down_ewma)
 
-                        logger(loglevel.INFO, "reflector: " .. reflector_ip .. " delay: " .. up_del[#up_del] ..
+                        logger(loglevel.INFO, "reflector: " .. reflector_ip .. " up_del: " .. up_del[#up_del] ..
                             "  down_del: " .. down_del[#down_del])
                     end
                 end
@@ -828,6 +828,13 @@ local function baseline_calculator()
                 owd_recent[time_data.reflector].up_ewma = time_data.uplink_time
                 owd_recent[time_data.reflector].down_ewma = time_data.downlink_time
             end
+
+
+	    -- add the actual current delta owds to the recent table
+	    -- this might potentuially be better housed in a new table, but it is only two values
+	    -- so piggyback them for now
+	    owd_recent[time_data.reflector].dl_current_owd_ms = time_data.downlink_time
+	    owd_recent[time_data.reflector].ul_current_owd_ms = time_data.uplink_time
 
             owd_baseline[time_data.reflector].last_receive_time_s = time_data.last_receive_time_s
             owd_recent[time_data.reflector].last_receive_time_s = time_data.last_receive_time_s
