@@ -10,7 +10,7 @@
 -- ** Recommended style guide: https://github.com/luarocks/lua-style-guide **
 --
 -- The versioning value for this script
-local _VERSION = "0.2.1"
+local _VERSION = "0.3.0"
 --
 -- Found this clever function here: https://stackoverflow.com/a/15434737
 -- This function will assist in compatibility given differences between OpenWrt, Turris OS, etc.
@@ -803,6 +803,22 @@ local function baseline_calculator()
                 owd_baseline[time_data.reflector].down_ewma = time_data.downlink_time
             end
             if not owd_recent[time_data.reflector].down_ewma then
+                owd_recent[time_data.reflector].down_ewma = time_data.downlink_time
+            end
+            if not owd_baseline[time_data.reflector].last_receive_time_s then
+                owd_baseline[time_data.reflector].last_receive_time_s = time_data.last_receive_time_s
+            end
+            if not owd_recent[time_data.reflector].last_receive_time_s then
+                owd_recent[time_data.reflector].last_receive_time_s = time_data.last_receive_time_s
+            end
+
+            if time_data.last_receive_time_s - owd_baseline[time_data.reflector].last_receive_time_s > 30 or
+                time_data.last_receive_time_s - owd_recent[time_data.reflector].last_receive_time_s > 30 then
+                -- this reflector is out of date, it's probably newly chosen from the
+                -- choice cycle, reset all the ewmas to the current value.
+                owd_baseline[time_data.reflector].up_ewma = time_data.uplink_time
+                owd_baseline[time_data.reflector].down_ewma = time_data.downlink_time
+                owd_recent[time_data.reflector].up_ewma = time_data.uplink_time
                 owd_recent[time_data.reflector].down_ewma = time_data.downlink_time
             end
 
