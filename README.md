@@ -43,7 +43,8 @@ If you have some kind of DSL connection, read the
    ```bash
    sh -c "$(wget -q -O- https://raw.githubusercontent.com/Fail-Safe/sqm-autorate/testing/lua-threads/sqm-autorate-setup.sh)"
    ```
-4. When the setup script completes, edit the config file `/etc/config/sqm-autorate` to set:
+4. If the setup script gives a warning about a configuration file `sqm-autorate-NEW`, use that file to replace `/etc/config/sqm-autorate`
+5. When the setup script completes, edit the config file `/etc/config/sqm-autorate` to set:
    * `transmit_kbits_base` to the "nominal" upload speed that your connection provides on a good day
    * `receive_kbits_base` to the "nominal" download speed
    * `transmit_kbits_min` to the lowest upload rate you would accept when controllling bufferbloat
@@ -56,7 +57,7 @@ In certain situations, the script may transition abruptly to either of these low
 Set these values high enough to avoid cutting off your communications entirely.
 A good choice might be 15-20% of the nominal rates for mid-range to high-speed connections (above 20 Mbps).
 For very slow connections (below 1Mbps) use 50% of the nominal rate.
-5. Run these commands to
+6. Run these commands to
 start and enable the _sqm-autorate_ service that runs continually:
 
    ```
