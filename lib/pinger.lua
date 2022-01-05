@@ -2,7 +2,7 @@ local M = {}
 
 local os = require 'os'
 local posix = require 'posix'
-local util = require './utility'
+local util = require 'utility'
 local bit = util.get_bit_module()
 
 local reflector_data
@@ -31,9 +31,9 @@ function M.configure(_settings, _reflector_data, _stats_queue)
         stats_queue = _stats_queue
 
         if settings.reflector_type == 'icmp' then
-            pinger_module = require './pinger_icmp'
+            pinger_module = require 'pinger_icmp'
         elseif settings.reflector_type == 'udp' then
-            pinger_module = require './pinger_udp'
+            pinger_module = require 'pinger_udp'
         end
 
         if not pinger_module then

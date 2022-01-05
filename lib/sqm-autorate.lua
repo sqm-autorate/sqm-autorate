@@ -54,7 +54,7 @@ local function conductor()
     print("Starting sqm-autorate.lua v" .. _VERSION)
     util.logger(util.loglevel.TRACE, "Entered conductor()")
 
-    local settings = lanes.require './settings'.configure('sqm-autorate', reflector_data)
+    local settings = lanes.require 'settings'.configure('sqm-autorate', reflector_data)
     local dl_if = settings.receive_interface
     local ul_if = settings.transmit_interface
 
@@ -110,13 +110,13 @@ local function conductor()
     lanes.require "vstruct"
 
     -- load all internal modules
-    local baseliner_mod = lanes.require './baseliner'
+    local baseliner_mod = lanes.require 'baseliner'
         .configure(settings, owd_data, stats_queue)
-    local pinger_mod = lanes.require './pinger'
+    local pinger_mod = lanes.require 'pinger'
         .configure(settings, reflector_data, stats_queue)
-    local ratecontroller_mod = lanes.require './ratecontroller'
+    local ratecontroller_mod = lanes.require 'ratecontroller'
         .configure(settings, owd_data, reflector_data)
-    local reflector_selector_mod = lanes.require './reflector_selector'
+    local reflector_selector_mod = lanes.require 'reflector_selector'
         .configure(settings, owd_data, reflector_data)
 
     local threads = {

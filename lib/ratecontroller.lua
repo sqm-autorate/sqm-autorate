@@ -3,7 +3,7 @@ local M = {}
 local settings, owd_data, reflector_data
 local rx_bytes_path, tx_bytes_path
 
-local util = require './utility'
+local util = require 'utility'
 
 local function read_stats_file(file)
     file:seek("set", 0)

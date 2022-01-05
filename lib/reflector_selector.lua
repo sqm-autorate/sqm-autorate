@@ -1,6 +1,6 @@
 local M = {}
 
-local util = require './utility'
+local util = require 'utility'
 
 local settings, owd_data, reflector_data
 
