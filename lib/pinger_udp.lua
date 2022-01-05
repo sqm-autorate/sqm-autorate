@@ -4,7 +4,7 @@ local os = require 'os'
 local socket = require 'posix.sys.socket'
 local vstruct = require 'vstruct'
 local util = require 'utility'
-local bit, _ = util.get_bit_module()
+local bit = require '_bit'
 
 local reflector_data
 local remote_port = 62222

@@ -3,7 +3,7 @@ local M = {}
 local os = require 'os'
 local posix = require 'posix'
 local util = require 'utility'
-local bit = util.get_bit_module()
+local bit = require '_bit'
 
 local reflector_data
 local stats_queue

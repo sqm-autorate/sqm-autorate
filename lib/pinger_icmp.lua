@@ -3,7 +3,7 @@ local M = {}
 local socket = require 'posix.sys.socket'
 local util = require 'utility'
 local vstruct = require 'vstruct'
-local bit, _ = util.get_bit_module()
+local bit = require '_bit'
 
 local reflector_data
 local sock

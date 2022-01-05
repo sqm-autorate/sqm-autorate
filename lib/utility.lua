@@ -47,29 +47,6 @@ function M.is_module_available(name)
     end
 end
 
-function M.get_bit_module()
-    local _bit = nil
-    local bit_mod = nil
-
-    if M.is_module_available("bit") then
-        _bit = require "bit"
-        bit_mod = "bit"
-
-        -- This exists because the "bit" version of bnot() differs from the "bit32" version
-        -- of bnot(). This mimics the behavior of the "bit32" version and will therefore be
-        -- used for both "bit" and "bit32" execution.
-        _bit.bnot = function (data)
-            local MOD = 2 ^ 32
-            return (-1 - data) % MOD
-        end
-    elseif M.is_module_available("bit32") then
-        _bit = require "bit32"
-        bit_mod = "bit32"
-    end
-
-    return _bit, bit_mod
-end
-
 function M.get_current_time()
     local time_s, time_ns = 0, 0
     local val1, val2 = time.clock_gettime(time.CLOCK_REALTIME)

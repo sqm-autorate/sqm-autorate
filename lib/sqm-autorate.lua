@@ -64,12 +64,6 @@ local function conductor()
         os.exit(1, true)
     end
 
-    local bit, bit_mod = util.get_bit_module()
-    if not bit_mod then
-        util.logger(util.loglevel.FATAL, "No bitwise module found")
-        os.exit(1, true)
-    end
-
     -- Random seed
     local now_s, now_ns = util.get_current_time()
     math.randomseed(now_ns)
@@ -103,7 +97,10 @@ local function conductor()
     util.logger(util.loglevel.DEBUG, "Upload iface: " .. ul_if .. " | Download iface: " .. dl_if)
 
     -- load external modules so lanes can find them
-    lanes.register(bit_mod, bit)
+    if not lanes.require "_bit" then
+        util.logger(util.loglevel.FATAL, "No bitwise module found")
+        os.exit(1, true)
+    end
     lanes.require "posix"
     lanes.require "posix.sys.socket"
     lanes.require "posix.time"
@@ -121,7 +118,7 @@ local function conductor()
 
     local threads = {
         receiver = lanes.gen("*", {
-            required = {bit_mod, "posix.sys.socket", "posix.time", "vstruct"}
+            required = {"_bit", "posix.sys.socket", "posix.time", "vstruct"}
         }, pinger_mod.receiver)(),
         baseliner = lanes.gen("*", {
             required = {"posix", "posix.time"}
@@ -130,7 +127,7 @@ local function conductor()
             required = {"posix", "posix.time"}
         }, ratecontroller_mod.ratecontrol)(),
         pinger = lanes.gen("*", {
-            required = {bit_mod, "posix.sys.socket", "posix.time", "vstruct"}
+            required = {"_bit", "posix.sys.socket", "posix.time", "vstruct"}
         }, pinger_mod.sender)(),
         selector = lanes.gen("*", {
             required = {"posix", "posix.time"}
