@@ -93,6 +93,34 @@ if [ -f "$owrt_release_file" ]; then
                 mv "./$config_file" "/etc/config/$name"
             fi
         fi
+
+        # transition section 1 - to be removed
+        if grep -q -e 'receive' -e 'transmit' "/etc/config/$name" ; then
+            echo ">>> Revising config option names..."
+            uci rename sqm-autorate.@network[0].transmit_interface=upload_interface
+            uci rename sqm-autorate.@network[0].transmit_kbits_base=upload_kbits_base
+            uci rename sqm-autorate.@network[0].transmit_kbits_min=upload_kbits_min
+            uci rename sqm-autorate.@network[0].receive_interface=download_interface
+            uci rename sqm-autorate.@network[0].receive_kbits_base=download_kbits_base
+            uci rename sqm-autorate.@network[0].receive_kbits_min=download_kbits_min
+
+            uci -q add sqm-autorate advanced_settings 1> /dev/null
+            t=$( uci -q get sqm-autorate.@output[0].hist_size )
+            if [ -n "${t}" ] ; then
+                uci delete sqm-autorate.@output[0].hist_size
+                if [ "${t}" != "100" ] ; then
+                    uci set sqm-autorate.@advanced_settings[0].speed_hist_size="${t}"
+                fi
+            fi
+            t=$( uci -q get sqm-autorate.@network[0].reflector_type )
+            if [ -n "${t}" ] ; then
+                uci delete sqm-autorate.@network[0].reflector_type
+                if [ "${t}" != "icmp" ] ; then
+                    uci set sqm-autorate.@advanced_settings[0].reflector_type="${t}"
+                fi
+            fi
+            uci commit
+        fi
     fi
 fi
 
