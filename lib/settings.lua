@@ -22,6 +22,8 @@ settings.num_reflectors = 5
 -- Time (in minutes) before re-selection of peers from the pool
 settings.peer_reselection_time = 15
 
+-- SETTINGS THE USER CAN SET
+
 -- Reflector type will always be ICMP for now
 settings.reflector_type = 'icmp'
 
@@ -34,10 +36,11 @@ settings.hist_size = 100
 -- increase from baseline RTT for detection of bufferbloat
 settings.max_delta_owd = 15
 
+-- paths to the reflector lists
 settings.reflector_list_icmp = "/usr/lib/sqm-autorate/reflectors-icmp.csv"
 settings.reflector_list_udp = "/usr/lib/sqm-autorate/reflectors-udp.csv"
 
---
+-- where to dump the csv files from the ratecontroller
 settings.stats_file = '/tmp/sqm-autorate.csv'
 settings.speed_hist_file = '/tmp/sqm-speedhist.csv'
 
@@ -100,24 +103,24 @@ function settings.configure(config_file_name, reflector_data)
         uci = uci_lib.cursor()
     end
 
-    settings.sqm_enabled = util.to_num(get_config_setting("sqm", "@queue[0]", "enabled")) or 1
+    settings.sqm_enabled = util.to_num(get_config_setting("sqm", "queue[0]", "enabled")) or 1
 
     -- network section
-    settings.receive_interface = get_config_setting(config_file_name, "@network[0]", 'receive_interface')
-    settings.transmit_interface = get_config_setting(config_file_name, "@network[0]", 'transmit_interface')
+    settings.receive_interface = get_config_setting(config_file_name, "network[0]", 'receive_interface')
+    settings.transmit_interface = get_config_setting(config_file_name, "network[0]", 'transmit_interface')
 
-    settings.receive_kbits_base = util.to_num(get_config_setting(config_file_name, "@network[0]", 'receive_kbits_base'))
-    settings.transmit_kbits_base = util.to_num(get_config_setting(config_file_name, "@network[0]", 'transmit_kbits_base'))
+    settings.receive_kbits_base = util.to_num(get_config_setting(config_file_name, "network[0]", 'receive_kbits_base'))
+    settings.transmit_kbits_base = util.to_num(get_config_setting(config_file_name, "network[0]", 'transmit_kbits_base'))
 
-    settings.receive_kbits_min = util.to_num(get_config_setting(config_file_name, "@network[0]", 'receive_kbits_min'))
-    settings.transmit_kbits_min = util.to_num(get_config_setting(config_file_name, "@network[0]", 'transmit_kbits_min'))
+    settings.receive_kbits_min = util.to_num(get_config_setting(config_file_name, "network[0]", 'receive_kbits_min'))
+    settings.transmit_kbits_min = util.to_num(get_config_setting(config_file_name, "network[0]", 'transmit_kbits_min'))
 
-    settings.reflector_list_icmp = get_config_setting(config_file_name, "@network[0]", 'reflector_list_icmp') or settings.reflector_list_icmp
-    settings.reflector_list_udp = get_config_setting(config_file_name, "@network[0]", 'reflector_list_udp') or settings.reflector_list_udp
-    settings.reflector_type = get_config_setting(config_file_name, "@network[0]", 'reflector_type') or settings.reflector_type
+    settings.reflector_list_icmp = get_config_setting(config_file_name, "network[0]", 'reflector_list_icmp') or settings.reflector_list_icmp
+    settings.reflector_list_udp = get_config_setting(config_file_name, "network[0]", 'reflector_list_udp') or settings.reflector_list_udp
+    settings.reflector_type = get_config_setting(config_file_name, "network[0]", 'reflector_type') or settings.reflector_type
 
     -- output section
-    local log_level = get_config_setting(config_file_name, "@output[0]", 'log_level') or settings.log_level
+    local log_level = get_config_setting(config_file_name, "output[0]", 'log_level') or settings.log_level.name
     
     if util.loglevel[log_level] then
         settings.log_level = util.loglevel[log_level]
@@ -127,9 +130,9 @@ function settings.configure(config_file_name, reflector_data)
         util.logger(util.loglevel.ERROR, 'No log level specified, keeping the default \'' .. settings.log_level.name .. '\'')
     end
 
-    settings.stats_file = get_config_setting(config_file_name, "@output[0]", 'stats_file') or settings.stats_file
-    settings.speed_hist_file = get_config_setting(config_file_name, "@output[0]", 'speed_hist_file') or settings.speed_hist_file
-    settings.hist_size = util.to_num(get_config_setting(config_file_name, "@output[0]", 'hist_size')) or settings.hist_size
+    settings.stats_file = get_config_setting(config_file_name, "output[0]", 'stats_file') or settings.stats_file
+    settings.speed_hist_file = get_config_setting(config_file_name, "output[0]", 'speed_hist_file') or settings.speed_hist_file
+    settings.hist_size = util.to_num(get_config_setting(config_file_name, "output[0]", 'hist_size')) or settings.hist_size
 
      -- Load up the reflectors temp table
      local tmp_reflectors = {}
