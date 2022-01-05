@@ -170,12 +170,12 @@ Generally, configuration should be performed via the `/etc/config/sqm-autorate` 
 
 | Section | Option Name | Value Description | Default |
 | - | - | - | - |
-| network | transmit_interface | The transmit interface name which is typically the physical device name of the WAN-facing interface. | 'wan' |
-| network | receive_interface | The receive interface name which is typically created as a virtual interface when CAKE is active. This typically begins with 'ifb4' or 'veth'. | 'ifb4wan' |
-| network | transmit_kbits_base | The highest speed in kbit/s at which bufferbloat typically is non-existent for outbound traffic on the given connection. This is used for reference in determining safe speeds via learning, but is not a hard floor or ceiling. | '10000' |
-| network | receive_kbits_base | The highest speed in kbit/s at which bufferbloat typically is non-existent for inbound traffic on the given connection. This is used for reference in determining safe speeds via learning, but is not a hard floor or ceiling. | '10000' |
-| network | transmit_kbits_min | The absolute minimum outbound speed in kbits/s the autorate algorithm is allowed to fall back to in cases of extreme congestion. | '1500' |
-| network | receive_kbits_min | The absolute minimum inbound speed in kbits/s the autorate algorithm is allowed to fall back to in cases of extreme congestion. | '1500' |
+| network | upload_interface | The upload interface name which is typically the physical device name of the WAN-facing interface. | 'wan' |
+| network | download_interface | The download interface name which is typically created as a virtual interface when CAKE is active. This typically begins with 'ifb4' or 'veth'. | 'ifb4wan' |
+| network | upload_kbits_base | The highest speed in kbit/s at which bufferbloat typically is non-existent for outbound traffic on the given connection. This is used for reference in determining safe speeds via learning, but is not a hard floor or ceiling. | '10000' |
+| network | download_kbits_base | The highest speed in kbit/s at which bufferbloat typically is non-existent for inbound traffic on the given connection. This is used for reference in determining safe speeds via learning, but is not a hard floor or ceiling. | '10000' |
+| network | upload_kbits_min | The absolute minimum outbound speed in kbits/s the autorate algorithm is allowed to fall back to in cases of extreme congestion. | '1500' |
+| network | download_kbits_min | The absolute minimum inbound speed in kbits/s the autorate algorithm is allowed to fall back to in cases of extreme congestion. | '1500' |
 | output | log_level | Used to set the highest level of logging verbosity. e.g. setting to 'INFO' will output all log levels at the set level or lower (in terms of verbosity). [Verbosity Options](#verbosity-options) | 'INFO' |
 | output | stats_file | The location to which the autorate OWD reflector stats will be written. | '/tmp/sqm-autorate.csv' |
 | output | speed_hist_file | The location to which autorate speed adjustment history will be written. | '/tmp/sqm-speedhist.csv' |
