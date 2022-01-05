@@ -43,7 +43,8 @@ If you have some kind of DSL connection, read the
    ```bash
    sh -c "$(wget -q -O- https://raw.githubusercontent.com/Fail-Safe/sqm-autorate/testing/lua-threads/sqm-autorate-setup.sh)"
    ```
-4. When the setup script completes, run these commands to 
+4. Edit the config file /etc/config/sqm-autorate.config in particular to set the `transmit_kbits_base` and `receive_kbits_base` to be the upload and download speeds that are "nominally" what your connection provides on a good day. Set `transmit_kbits_min` and `receive_kbits_min` to be the upload and download rates you would be willing to accept as the lowest the script should go to try to reduce bufferbloat. Note that the script can transition **all at once** to this minimal rate in some cases, so this should still be a comfortable rate that won't cut off your communications entirely. A good first approximation might be 15-20% of the nominal rates for mid-range broadband connections (20+ Mbps). For very slow connections (1Mbps etc) perhaps 50% of the nominal rate.
+5. When the setup script completes, run these commands to 
 start and enable the _sqm-autorate_ service that runs continually:
 
    ```
@@ -117,24 +118,19 @@ keeping latency low while always giving the maximum available throughput.
 
 _For Test builds, Jan 2022:_ In its current iteration this script can react poorly under conditions with high latency and low load, which can force the rates down to the minimum.
 If this happens to you, please try to adjust the
-`max_delta_owd` variable to a higher value.
+`max_delta_owd` variable to a higher value. And be sure to set your minimum speeds to something reasonable so that your connection isn't shut off almost entirely.
 
 The functionality in this Lua version is a culmination of progressive iterations to the original shell version as introduced by @Lynx (OpenWrt Forum). ~~Refer to the [Original Shell Version](#original-shell-version) (below) for details as to the original goal and theory.~~
 
 ### Lua Threads Algorithm
 
-_**THIS DESCRIPTION PROBABLY NEEDS CONSIDERABLE REVIEW**_
-
 Per @dlakelan (OpenWrt Forum):
-> When the load gets near to the current max in any direction, and latency hasn't increased, then it reacts by opening the throttle according to a formula that I'm still tweaking, but it starts out exponentially and then slows to linear. When it bumps the speed up it puts the old speed into a database of samples of known good speeds. When it hits latency increase then it throttles town the speed by grabbing a random known good speed, and ensuring that's at least less than 0.9 times the current speed. Most of the time the latency increase goes away immediately, and it begins to rise again.
 
-> That's the basic idea, the historical database of known good rates makes it possible to rapidly choke off any latency increase, and obviates the need to decay down in the absence of load. But it does have to run under load a while to learn that "safe" region.
-
-> The random value is often below 0.9 and the duration of lag spikes is quite short when you exploit the historical database. My thought is that we want to keep lag spike duration as short as possible, so having a database of recent "known good" values is valuable. Right now that database is a 100 sample ring-buffer so it's "recent" values. That's a tunable, if you have relatively rapidly varying speeds you might drop this down to 50 or 20 or something.
-
-> The shell's technique is more or less a feedback control loop: rate of change of speed is related to load and observed delay. The historical database adds a predictive component that allows the system to directly jump to a closer to known-good value. Since there is also a rate-of-change component still: exponential transitioning to linear upward, and exponential downward (always below 0.9x) the system should transition strictly faster in all cases.
-
-> For those who are interested in the algorithm theory though, the existence of the random transition makes this into a piecewise deterministic random process. The randomness is a choice of a value from a database of recent past, so it's "markovian" in the sense that current behavior is based on the past, but it's not based on just the "current value". The randomness produces discontinuous "jumps" but in between those jumps the behavior is deterministic and looks like feedback control. Ideally the system should transition to a linear exploration before it gets too high and induces bufferbloat. I think there's a lot to be said for tuning this transition.
+The script operates in essentially three "normal" regimes (and one unfortunate tricky regime):
+1) Low latency, low load: in this situation, the script just monitors latency leaving the speed setting constant. If you don't stress the line much, then it can stay constant for long periods of time. As long as latency is controlled, this is normal.
+2) Low latency, high load: As the load increases above 80% of the current threshold, the script opens up the threshold so long as latency stays low. In order to find what is the true maximum it is expected that it will increase so long as latency stays low. When it starts much lower than the nominal rate, the increase is exponential, and this gradually tapers off to become linear as it increases into "unknown territory". As it increases the threshold, it constantly updates a database of actual loads at which it was able to increase. So it learns what speeds normally allow it to increase. The script may choose rates above the nominal "base" rates, and even above what you know your line can handle. This is ok because:
+3) High latency, high load: When the load increases beyond what the ISP's connection can actually handle, latency will increase and the script will detect this through the pings it sends continuously. When this occurs, it will use its database of speeds to try to pick something that will be below the true capacity. It ensures that this value is also always less than 0.9 times the current actual transfer rate, ensuring that the speed plummets extremely rapidly (at least exponentially). This can be seen as discontinuous drops in the speed, typically choking off latency below the threshold rapidly. However:
+4) There is no way for the script to easily distinguish between high latency and low load because of a random latency fluctuation vs because the ISP capacity suddenly dropped. Hence, if there are random increases in latency that are not related to your own load, the script will plummet the speed threshold rapidly down to the minimum. Ensure that your minimum really is acceptably fast for your use!
 
 ### Algorithm In Action
 
