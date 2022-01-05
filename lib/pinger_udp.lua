@@ -22,7 +22,7 @@ local function calculate_checksum(data)
 end
 
 function M.configure(_reflector_data)
-    print("UDP support is not available at this time. Please set your 'reflector_type' setting to 'icmp'.")
+    util.logger(util.loglevel.FATAL, "UDP support is not available at this time. Please set your 'reflector_type' setting to 'icmp'.")
     os.exit(1, true)
 
     -- Hold for later use
