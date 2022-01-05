@@ -116,8 +116,8 @@ keeping latency low while always giving the maximum available throughput.
 - Reflector Selector
 
 _For Test builds, Jan 2022:_ In its current iteration this script can react poorly under conditions with high latency and low load, which can force the rates down to the minimum.
-If this happens to you, please try to adjust the
-`max_delta_owd` variable to a higher value.
+If this happens to you, please try to set or adjust the
+`delta_delay_trigger` advanced setting to a higher value.
 
 The functionality in this Lua version is a culmination of progressive iterations to the original shell version as introduced by @Lynx (OpenWrt Forum). ~~Refer to the [Original Shell Version](#original-shell-version) (below) for details as to the original goal and theory.~~
 
@@ -180,7 +180,7 @@ Generally, configuration should be performed via the `/etc/config/sqm-autorate` 
 | output | stats_file | The location to which the autorate OWD reflector stats will be written. | '/tmp/sqm-autorate.csv' |
 | output | speed_hist_file | The location to which autorate speed adjustment history will be written. | '/tmp/sqm-speedhist.csv' |
 | advanced_settings | speed_hist_size | The amount of "safe" speed history which the algorithm will maintain for reference during times of increased latency/congestion. Set too high, the algorithm will take days or weeks to stabilise. Set too low, the algorithm may not have enough good values to stabilise on.  | '100' |
-| advanced_settings | rtt_delta_bufferbloat | The amount of increase in RTT that indicates bufferbloat. For high speed and relatively stable fiber connections, this can be reduced. For LTE and DOCIS/cable connections, the default should be correct. | '15' |
+| advanced_settings | delta_delay_trigger | The amount of increase in RTT that indicates bufferbloat. For high speed and relatively stable fiber connections, this can be reduced. For LTE and DOCIS/cable connections, the default should be correct. | '15' |
 | advanced_settings | high_load_level | The load factor used to signal high network load. Between 0.67 and 0.95. | '0.8' |
 | advanced_settings | reflector_type | This is intended for future use and details are TBD. | 'icmp' |
 

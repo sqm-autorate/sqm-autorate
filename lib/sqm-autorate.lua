@@ -176,7 +176,7 @@ local histsize = settings and tonumber(settings:get("sqm-autorate", "@advanced_s
         -- reducing this value could result in the algorithm remembering too few speeds to truly stabilise
         -- increasing this value could result in the algorithm taking too long to stabilise
 
-local max_delta_owd = settings and tonumber(settings:get("sqm-autorate", "@advanced_settings[0]", "rtt_delta_bufferbloat"), 10) or 15 -- increase from baseline RTT for detection of bufferbloat
+local max_delta_owd = settings and tonumber(settings:get("sqm-autorate", "@advanced_settings[0]", "delta_delay_trigger"), 10) or 15 -- increase from baseline RTT for detection of bufferbloat
         -- 15 is good for networks with very variable RTT values, such as LTE and DOCIS/cable networks
         -- 5 might be appropriate for high speed and relatively stable networks such as fiber
 
