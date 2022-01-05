@@ -43,15 +43,27 @@ If you have some kind of DSL connection, read the
    ```bash
    sh -c "$(wget -q -O- https://raw.githubusercontent.com/Fail-Safe/sqm-autorate/testing/lua-threads/sqm-autorate-setup.sh)"
    ```
-4. Edit the config file /etc/config/sqm-autorate.config in particular to set the `transmit_kbits_base` and `receive_kbits_base` to be the upload and download speeds that are "nominally" what your connection provides on a good day. Set `transmit_kbits_min` and `receive_kbits_min` to be the upload and download rates you would be willing to accept as the lowest the script should go to try to reduce bufferbloat. Note that the script can transition **all at once** to this minimal rate in some cases, so this should still be a comfortable rate that won't cut off your communications entirely. A good first approximation might be 15-20% of the nominal rates for mid-range broadband connections (20+ Mbps). For very slow connections (1Mbps etc) perhaps 50% of the nominal rate.
-5. When the setup script completes, run these commands to
+4. When the setup script completes, edit the config file `/etc/config/sqm-autorate` to set:
+   * `transmit_kbits_base` to the "nominal" upload speed that your connection provides on a good day
+   * `receive_kbits_base` to the "nominal" download speed
+   * `transmit_kbits_min` to the lowest upload rate you would accept when controllling bufferbloat
+   * `receive_kbits_min` to the lowest acceptable download rate.
+   
+   Note that these four values are in kilobits/second. If you want the value to be 30 megabits/second, enter `30000`.
+   
+   Note too that the script uses "acceptable" rates as its lowest setting it will use to control latency.
+In certain situations, the script may transition abruptly to either of these lower limits.
+Set these values high enough to avoid cutting off your communications entirely.
+A good choice might be 15-20% of the nominal rates for mid-range to high-speed connections (above 20 Mbps).
+For very slow connections (below 1Mbps) use 50% of the nominal rate.
+5. Run these commands to
 start and enable the _sqm-autorate_ service that runs continually:
 
    ```
    service sqm-autorate enable && service sqm-autorate start
    ```
 
-### A Request to Testers
+### Requests to Testers
 
 Please post your overall experience on this
 [OpenWrt Forum thread.](https://forum.openwrt.org/t/cake-w-adaptive-bandwidth/108848/312)
@@ -151,7 +163,7 @@ and possibly new charts showing new axis labels._
 
 ### Removal
 
-_(We hope that you will never want to uninstall this autorate tool, but if you want to...)_
+_(We hope that you will never need to uninstall this autorate program, but if you want to...)_
 Run the following removal script to remove the operational files:
 
 ```bash
@@ -277,7 +289,7 @@ Analysis of the CSV outputs can be performed via MS Excel, or more preferably, v
 
 #### Error Reporting Script
 
-The `lib/getstats.sh` script in this repo writes a lot
+The `/usr/lib/getstats.sh` script in this repo writes a lot
 of interesting information to `tmp/openwrtstats.txt`.
 You can send portions of this file with
 your trouble report.
