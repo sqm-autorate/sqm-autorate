@@ -10,7 +10,7 @@
 -- ** Recommended style guide: https://github.com/luarocks/lua-style-guide **
 --
 -- The versioning value for this script
-local _VERSION = "0.2.1"
+local _VERSION = "0.3.0"
 --
 -- Found this clever function here: https://stackoverflow.com/a/15434737
 -- This function will assist in compatibility given differences between OpenWrt, Turris OS, etc.
@@ -174,8 +174,15 @@ local reflector_list_icmp = "/usr/lib/sqm-autorate/reflectors-icmp.csv"
 local reflector_list_udp = "/usr/lib/sqm-autorate/reflectors-udp.csv"
 local reflector_type = settings and settings:get("sqm-autorate", "@network[0]", "reflector_type") or nil
 
-local max_delta_owd = 15 -- increase from baseline RTT for detection of bufferbloat
+-- local max_delta_owd = 15 -- increase from baseline OWD for detection of bufferbloat
+-- local ul_max_delta_owd = 10 -- increase from baseline OWD in upoad direction for detection of bufferbloat
+-- local dl_max_delta_owd = 15 -- increase from baseline OWD in download direction for detection of bufferbloat
 
+
+local ul_max_delta_owd  = settings and tonumber(settings:get("sqm-autorate", "@network[0]", "transmit_OWD_threshold_ms"), 10) or
+                        "<UPLOAD OWD THRESHOLD>" -- consider upload OWDs larger than this as indicators of congestion
+local dl_max_delta_owd = settings and tonumber(settings:get("sqm-autorate", "@network[0]", "receive_OWD_threshold_ms"), 10) or
+                        "<DOWNLOAD OWD THRESHOLD>" -- consider download OWDs larger than this as indicators of congestion
 ---------------------------- Begin Internal Local Variables ----------------------------
 
 local cur_process_id = posix.getpid()
@@ -698,7 +705,7 @@ local function ratecontrol()
                     local next_ul_rate = cur_ul_rate
                     local next_dl_rate = cur_dl_rate
                     logger(loglevel.INFO, "up_del_stat " .. up_del_stat .. " down_del_stat " .. down_del_stat)
-                    if up_del_stat and up_del_stat < max_delta_owd and tx_load > .8 then
+                    if up_del_stat and up_del_stat < ul_max_delta_owd and tx_load > .8 then
                         safe_ul_rates[nrate_up] = floor(cur_ul_rate * tx_load)
                         local max_ul = maximum(safe_ul_rates)
                         next_ul_rate = cur_ul_rate * (1 + .1 * max(0, (1 - cur_ul_rate / max_ul))) +
@@ -706,7 +713,7 @@ local function ratecontrol()
                         nrate_up = nrate_up + 1
                         nrate_up = nrate_up % histsize
                     end
-                    if down_del_stat and down_del_stat < max_delta_owd and rx_load > .8 then
+                    if down_del_stat and down_del_stat < dl_max_delta_owd and rx_load > .8 then
                         safe_dl_rates[nrate_down] = floor(cur_dl_rate * rx_load)
                         local max_dl = maximum(safe_dl_rates)
                         next_dl_rate = cur_dl_rate * (1 + .1 * max(0, (1 - cur_dl_rate / max_dl))) +
@@ -715,14 +722,14 @@ local function ratecontrol()
                         nrate_down = nrate_down % histsize
                     end
 
-                    if up_del_stat > max_delta_owd then
+                    if up_del_stat > ul_max_delta_owd then
                         if #safe_ul_rates > 0 then
                             next_ul_rate = min(0.9 * cur_ul_rate * tx_load, safe_ul_rates[random(#safe_ul_rates) - 1])
                         else
                             next_ul_rate = 0.9 * cur_ul_rate * tx_load
                         end
                     end
-                    if down_del_stat > max_delta_owd then
+                    if down_del_stat > dl_max_delta_owd then
                         if #safe_dl_rates > 0 then
                             next_dl_rate = min(0.9 * cur_dl_rate * rx_load, safe_dl_rates[random(#safe_dl_rates) - 1])
                         else
@@ -803,6 +810,22 @@ local function baseline_calculator()
                 owd_baseline[time_data.reflector].down_ewma = time_data.downlink_time
             end
             if not owd_recent[time_data.reflector].down_ewma then
+                owd_recent[time_data.reflector].down_ewma = time_data.downlink_time
+            end
+            if not owd_baseline[time_data.reflector].last_receive_time_s then
+                owd_baseline[time_data.reflector].last_receive_time_s = time_data.last_receive_time_s
+            end
+            if not owd_recent[time_data.reflector].last_receive_time_s then
+                owd_recent[time_data.reflector].last_receive_time_s = time_data.last_receive_time_s
+            end
+
+            if time_data.last_receive_time_s - owd_baseline[time_data.reflector].last_receive_time_s > 30 or
+                time_data.last_receive_time_s - owd_recent[time_data.reflector].last_receive_time_s > 30 then
+                -- this reflector is out of date, it's probably newly chosen from the
+                -- choice cycle, reset all the ewmas to the current value.
+                owd_baseline[time_data.reflector].up_ewma = time_data.uplink_time
+                owd_baseline[time_data.reflector].down_ewma = time_data.downlink_time
+                owd_recent[time_data.reflector].up_ewma = time_data.uplink_time
                 owd_recent[time_data.reflector].down_ewma = time_data.downlink_time
             end
 

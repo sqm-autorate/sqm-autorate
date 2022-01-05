@@ -1,5 +1,6 @@
 using Pkg
 Pkg.activate(".")
+Pkg.instantiate()
 using CSV, StatsPlots, DataFrames, Printf, StatsBase, Measures
 
 ratefile = "sqm-autorate.csv"
