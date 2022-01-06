@@ -13,6 +13,8 @@ echo ">>> Removing sqm-autorate lib directory..."
 rm -rf "$autorate_lib_path"
 echo ">>> Removing config file..."
 rm -f /etc/config/"$name"
+echo ">>> Removing sqm-autorate files from /tmp..."
+rm -f /tmp/sqm-autorate.log /tmp/sqm-autorate.csv /tmp/sqm-speedhist.csv
 
 echo "!!! If you would like to remove the Lua modules which this setup previously installed, please run the following command:"
 echo "!!! WARNING: Only run the following if no other applications are using these Lua modules..."
