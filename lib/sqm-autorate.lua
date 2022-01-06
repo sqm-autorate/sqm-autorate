@@ -1095,7 +1095,8 @@ local function conductor()
     -- fool the baseliner
     update_cake_bandwidth(dl_if, min_dl_rate)
     update_cake_bandwidth(ul_if, min_ul_rate)
-
+    nsleep(0,5e8)
+    
     local threads = {
         receiver = lanes.gen("*", {
             required = {bit_mod, "posix.sys.socket", "posix.time", "vstruct"}
@@ -1115,7 +1116,7 @@ local function conductor()
     nsleep(10,0) -- sleep 10 seconds before we start adjusting speeds
     update_cake_bandwidth(dl_if,base_dl_rate*0.6)
     update_cake_bandwidth(ul_if,base_ul_rate*0.6)
-    
+
     threads["regulator"] = lanes.gen("*", {
             required = {"posix", "posix.time"}
         }, ratecontrol)()
