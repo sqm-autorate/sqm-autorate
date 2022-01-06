@@ -118,8 +118,8 @@ keeping latency low while always giving the maximum available throughput.
 
 _For Test builds, Jan 2022:_ In its current iteration this script can react poorly under conditions with high latency and low load, which can force the rates down to the minimum.
 
-If this happens to you, please try to adjust the
-`max_delta_owd` variable to a higher value. And be sure to set your minimum speeds to something reasonable so that your connection isn't shut off almost entirely.
+If this happens to you, please try to set or adjust the `delta_delay_trigger` advanced setting to a higher value.
+And be sure to set your minimum speeds to something reasonable so that your connection isn't shut off almost entirely.
 
 The functionality in this Lua version is a culmination of progressive iterations to the original shell version as introduced by @Lynx (OpenWrt Forum). ~~Refer to the [Original Shell Version](#original-shell-version) (below) for details as to the original goal and theory.~~
 
