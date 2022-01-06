@@ -10,7 +10,7 @@
 -- ** Recommended style guide: https://github.com/luarocks/lua-style-guide **
 --
 -- The versioning value for this script
-local _VERSION = "0.2.2"
+local _VERSION = "0.3.0"
 --
 -- Found this clever function here: https://stackoverflow.com/a/15434737
 -- This function will assist in compatibility given differences between OpenWrt, Turris OS, etc.

@@ -6,6 +6,7 @@ owrt_release_file="/etc/os-release"
 config_file="sqm-autorate.config"
 service_file="sqm-autorate.service"
 lua_file="sqm-autorate.lua"
+get_stats="getstats.sh"
 refl_icmp_file="reflectors-icmp.csv"
 refl_udp_file="reflectors-udp.csv"
 autorate_lib_path="/usr/lib/sqm-autorate"
@@ -51,6 +52,7 @@ if [ "$is_git_proj" = false ]; then
     curl -o "$config_file" "$repo_root/config/$config_file"
     curl -o "$service_file" "$repo_root/service/$service_file"
     curl -o "$lua_file" "$repo_root/lib/$lua_file"
+    curl -o "$get_stats" "$repo_root/lib/$get_stats"
     curl -o "$refl_icmp_file" "$repo_root/lib/$refl_icmp_file"
     curl -o "$refl_udp_file" "$repo_root/lib/$refl_udp_file"
 else
@@ -128,16 +130,18 @@ echo ">>> Putting sqm-autorate lib files into place..."
 mkdir -p "$autorate_lib_path"
 if [ "$is_git_proj" = true ]; then
     cp "./lib/$lua_file" "$autorate_lib_path/$lua_file"
+    cp "./lib/$get_stats" "$autorate_lib_path/$get_stats"
     cp "./lib/$refl_icmp_file" "$autorate_lib_path/$refl_icmp_file"
     cp "./lib/$refl_udp_file" "$autorate_lib_path/$refl_udp_file"
 else
     mv "./$lua_file" "$autorate_lib_path/$lua_file"
+    mv "./$get_stats" "$autorate_lib_path/$get_stats"
     mv "./$refl_icmp_file" "$autorate_lib_path/$refl_icmp_file"
     mv "./$refl_udp_file" "$autorate_lib_path/$refl_udp_file"
 fi
 
-echo ">>> Making $lua_file executable..."
-chmod +x "$autorate_lib_path/$lua_file"
+echo ">>> Making $lua_file and $get_stats executable..."
+chmod +x "$autorate_lib_path/$lua_file" "$autorate_lib_path/$get_stats"
 
 echo ">>> Putting service file into place..."
 if [ "$is_git_proj" = true ]; then
