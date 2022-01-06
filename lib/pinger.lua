@@ -50,6 +50,7 @@ function M.configure(_settings, _reflector_data, _stats_queue)
 end
 
 function M.receiver()
+    set_debug_threadname('pinger_receiver')
     util.logger(util.loglevel.TRACE, "Entered ts_ping_receiver()")
 
     while true do
@@ -62,6 +63,7 @@ function M.receiver()
 end
 
 function M.sender()
+    set_debug_threadname('pinger_sender')
     local freq = settings.tick_duration
     util.logger(util.loglevel.TRACE, "Entered ts_ping_sender() with values: " .. freq .. " | " .. settings.reflector_type .. " | " .. identifier)
 

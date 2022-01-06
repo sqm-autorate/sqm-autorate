@@ -103,6 +103,8 @@ function M.configure(_settings, _owd_data, _reflector_data)
 end
 
 function M.ratecontrol()
+    set_debug_threadname('ratecontroller')
+
     local floor = math.floor
     local max = math.max
     local min = math.min

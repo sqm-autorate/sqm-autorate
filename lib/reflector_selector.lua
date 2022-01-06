@@ -13,6 +13,8 @@ function M.configure(_settings, _owd_data, _reflector_data)
 end
 
 function M.reflector_peer_selector()
+    set_debug_threadname('reflector_selector')
+
     local floor = math.floor
     local pi = math.pi
     local random = math.random

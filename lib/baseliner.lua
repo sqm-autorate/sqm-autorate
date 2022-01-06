@@ -13,6 +13,8 @@ function M.configure(_settings, _owd_data, _stats_queue)
 end
 
 function M.baseline_calculator()
+    set_debug_threadname('baseliner')
+
     local min = math.min
 
     local slow_factor = .9
