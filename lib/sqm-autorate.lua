@@ -149,12 +149,12 @@ local dl_if = settings and settings:get("sqm-autorate", "@network[0]", "download
 
 local base_ul_rate = settings and tonumber(settings:get("sqm-autorate", "@network[0]", "upload_kbits_base"), 10) or
                          "<STEADY STATE UPLOAD>" -- steady state bandwidth for upload
-local base_dl_rate = settings and tonumber(settings:get("sqm-autorate", "@network[0]", "receive_kbits_base"), 10) or
+local base_dl_rate = settings and tonumber(settings:get("sqm-autorate", "@network[0]", "download_kbits_base"), 10) or
                          "<STEADY STATE DOWNLOAD>" -- steady state bandwidth for download
 
-local min_ul_rate = settings and tonumber(settings:get("sqm-autorate", "@network[0]", "transmit_kbits_min"), 10) or
+local min_ul_rate = settings and tonumber(settings:get("sqm-autorate", "@network[0]", "upload_kbits_min"), 10) or
                         "<MIN UPLOAD RATE>" -- don't go below this many kbps
-local min_dl_rate = settings and tonumber(settings:get("sqm-autorate", "@network[0]", "receive_kbits_min"), 10) or
+local min_dl_rate = settings and tonumber(settings:get("sqm-autorate", "@network[0]", "download_kbits_min"), 10) or
                         "<MIN DOWNLOAD RATE>" -- don't go below this many kbps
 
 local stats_file = settings and settings:get("sqm-autorate", "@output[0]", "stats_file") or "<STATS FILE NAME/PATH>"
