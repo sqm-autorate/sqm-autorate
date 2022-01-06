@@ -174,13 +174,13 @@ Generally, configuration should be performed via the `/etc/config/sqm-autorate` 
 | network | download_interface | The download interface name which is typically created as a virtual interface when CAKE is active. This typically begins with 'ifb4' or 'veth'. | 'ifb4wan' |
 | network | upload_kbits_base | The highest speed in kbit/s at which bufferbloat typically is non-existent for outbound traffic on the given connection. This is used for reference in determining safe speeds via learning, but is not a hard floor or ceiling. | '10000' |
 | network | download_kbits_base | The highest speed in kbit/s at which bufferbloat typically is non-existent for inbound traffic on the given connection. This is used for reference in determining safe speeds via learning, but is not a hard floor or ceiling. | '10000' |
-| network | upload_kbits_min | The absolute minimum outbound speed in kbits/s the autorate algorithm is allowed to fall back to in cases of extreme congestion. | '1500' |
-| network | download_kbits_min | The absolute minimum inbound speed in kbits/s the autorate algorithm is allowed to fall back to in cases of extreme congestion. | '1500' |
+| network | upload_kbits_min | The absolute minimum acceptable outbound speed in kbits/s the autorate algorithm is allowed to fall back to in cases of extreme congestion, at the expense of allowing latency to exceed `delta_delay_trigger`. | '1500' |
+| network | download_kbits_min | The absolute minimum acceptable inbound speed in kbits/s the autorate algorithm is allowed to fall back to in cases of extreme congestion, at the expense of allowing latency to exceed `delta_delay_trigger`. | '1500' |
 | output | log_level | Used to set the highest level of logging verbosity. e.g. setting to 'INFO' will output all log levels at the set level or lower (in terms of verbosity). [Verbosity Options](#verbosity-options) | 'INFO' |
 | output | stats_file | The location to which the autorate OWD reflector stats will be written. | '/tmp/sqm-autorate.csv' |
 | output | speed_hist_file | The location to which autorate speed adjustment history will be written. | '/tmp/sqm-speedhist.csv' |
 | advanced_settings | speed_hist_size | The amount of "safe" speed history which the algorithm will maintain for reference during times of increased latency/congestion. Set too high, the algorithm will take days or weeks to stabilise. Set too low, the algorithm may not have enough good values to stabilise on.  | '100' |
-| advanced_settings | delta_delay_trigger | The amount of increase in RTT that indicates bufferbloat. For high speed and relatively stable fiber connections, this can be reduced. For LTE and DOCIS/cable connections, the default should be correct. | '15' |
+| advanced_settings | delta_delay_trigger | The amount of increase in RTT that indicates bufferbloat. For high speed and relatively stable fiber connections, this can be reduced. For LTE and DOCIS/cable connections, the default should be a reasonable starting point. | '15' |
 | advanced_settings | high_load_level | The load factor used to signal high network load. Between 0.67 and 0.95. | '0.8' |
 | advanced_settings | reflector_type | This is intended for future use and details are TBD. | 'icmp' |
 
