@@ -1090,9 +1090,11 @@ local function conductor()
     -- Set a packet ID
     local packet_id = cur_process_id + 32768
 
-    -- Set initial TC values
-    update_cake_bandwidth(dl_if, base_dl_rate)
-    update_cake_bandwidth(ul_if, base_ul_rate)
+    -- Set initial TC values to minimum
+    -- so there should be no initial bufferbloat to
+    -- fool the baseliner
+    update_cake_bandwidth(dl_if, min_dl_rate)
+    update_cake_bandwidth(ul_if, min_ul_rate)
 
     local threads = {
         receiver = lanes.gen("*", {
@@ -1101,9 +1103,6 @@ local function conductor()
         baseliner = lanes.gen("*", {
             required = {"posix", "posix.time"}
         }, baseline_calculator)(),
-        regulator = lanes.gen("*", {
-            required = {"posix", "posix.time"}
-        }, ratecontrol)(),
         pinger = lanes.gen("*", {
             required = {bit_mod, "posix.sys.socket", "posix.time", "vstruct"}
         }, ts_ping_sender)(reflector_type, packet_id, tick_duration),
@@ -1113,7 +1112,15 @@ local function conductor()
     }
     local join_timeout = 0.5
 
-    -- Start this whole thing in motion!
+    nsleep(10,0) -- sleep 10 seconds before we start adjusting speeds
+    update_cake_bandwidth(dl_if,base_dl_rate*0.6)
+    update_cake_bandwidth(ul_if,base_ul_rate*0.6)
+    
+    threads["regulator"] = lanes.gen("*", {
+            required = {"posix", "posix.time"}
+        }, ratecontrol)()
+
+        -- Start this whole thing in motion!
     while true do
         for name, thread in pairs(threads) do
             local _, err = thread:join(join_timeout)
