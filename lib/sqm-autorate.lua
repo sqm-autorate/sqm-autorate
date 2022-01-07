@@ -347,6 +347,7 @@ end
 
 local function update_cake_bandwidth(iface, rate_in_kbit)
     local is_changed = false
+    rate_in_kbit = math.floor(rate_in_kbit)
     if (iface == dl_if and rate_in_kbit >= min_dl_rate) or (iface == ul_if and rate_in_kbit >= min_ul_rate) then
         os.execute(string.format("tc qdisc change root dev %s cake bandwidth %sKbit", iface, rate_in_kbit))
         is_changed = true
