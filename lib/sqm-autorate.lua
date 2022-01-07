@@ -150,16 +150,22 @@ local dl_if = settings and settings:get("sqm-autorate", "@network[0]", "download
 local base_ul_rate = settings and tonumber(settings:get("sqm-autorate", "@network[0]", "upload_kbits_base"), 10) or 10000
 local base_dl_rate = settings and tonumber(settings:get("sqm-autorate", "@network[0]", "download_kbits_base"), 10) or 10000
 
-local min_ul_rate
-local min_dl_rate
+local min_ul_rate = 0
+local min_dl_rate = 0
 do
     local min_ul_percent = settings and tonumber(settings:get("sqm-autorate", "@network[0]", "upload_min_percent"), 10) or 20
-    min_ul_percent = math.max(math.min(min_ul_percent, 10), 60)
+    min_ul_percent = math.min(math.max(min_ul_percent, 10), 60)
     min_ul_rate = math.floor(base_ul_rate * min_ul_percent / 100)
 
     local min_dl_percent = settings and tonumber(settings:get("sqm-autorate", "@network[0]", "download_min_percent"), 10) or 20
-    min_dl_percent = math.max(math.min(min_dl_percent, 10), 60)
+    min_dl_percent = math.min(math.max(min_dl_percent, 10), 60)
     min_dl_rate = math.floor(base_dl_rate * min_dl_percent / 100)
+end
+if min_ul_rate == 0 then
+    min_ul_rate = base_ul_rate * 0.2
+end
+if min_dl_rate == 0 then
+    min_dl_rate = base_dl_rate * 0.2
 end
 local stats_file = settings and settings:get("sqm-autorate", "@output[0]", "stats_file") or "<STATS FILE NAME/PATH>"
 local speedhist_file = settings and settings:get("sqm-autorate", "@output[0]", "speed_hist_file") or
