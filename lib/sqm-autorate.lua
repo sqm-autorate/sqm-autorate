@@ -117,7 +117,7 @@ local function conductor()
     local pinger_mod = lanes.require 'pinger'
         .configure(settings, reflector_data, stats_queue)
     local ratecontroller_mod = lanes.require('ratecontroller_' .. settings.ratecontroller)
-        .configure(settings, owd_data, reflector_data)
+        .configure(settings, owd_data, reflector_data, signal_to_ratecontrol)
     local reflector_selector_mod = lanes.require 'reflector_selector'
         .configure(settings, owd_data, reflector_data)
 
