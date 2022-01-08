@@ -1,3 +1,6 @@
+## Copyright (C) 2021  @dlakelan
+## This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License version 3 as published by the Free Software Foundation at https://www.gnu.org/licenses/
+
 using StatsPlots,Random,Distributions
 
 vals = rand(Exponential(5.0),100)

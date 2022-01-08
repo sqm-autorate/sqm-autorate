@@ -1,5 +1,7 @@
 # CAKE with Adaptive Bandwidth - "autorate"
+_Copyright (C) 2021_
 
+_This documentation is for free software: you can redistribute it and/or modify it under the terms of the GNU General Public License version 3 as published by the Free Software Foundation at https://www.gnu.org/licenses/ _
 ## About autorate
 **autorate** is a program that automatically adapts the
 CAKE Smart Queue Management (SQM) bandwidth settings

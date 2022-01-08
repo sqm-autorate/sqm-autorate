@@ -3,6 +3,25 @@
 -- Automatically adjust bandwidth for CAKE in dependence on detected load
 -- and OWD, as well as connection history.
 --
+-- Copyright (C) 2021
+--                     @dlakelan
+--                     @_FailSafe
+--                     @Lochnair
+--                     @richb-hanover-priv
+--                     Charles Corrigan mailto:chas-iot@runegate.org
+--
+-- This program is free software: you can redistribute it and/or modify
+-- it under the terms of the GNU General Public License version 3 as
+-- published by the Free Software Foundation.
+--
+-- This program is distributed in the hope that it will be useful,
+-- but WITHOUT ANY WARRANTY; without even the implied warranty of
+-- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-- GNU General Public License for more details.
+--
+-- You should have received a copy of the GNU General Public License
+-- along with this program.  If not, see <https://www.gnu.org/licenses/>.
+--
 -- Inspired by @moeller0 (OpenWrt forum)
 -- Initial sh implementation by @Lynx (OpenWrt forum)
 -- Lua version maintained by @Lochnair, @dlakelan, and @_FailSafe (OpenWrt forum)
