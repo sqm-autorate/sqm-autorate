@@ -782,7 +782,7 @@ local function baseline_calculator()
     local min = math.min
     -- a 30 second to do 50% change factor
     -- and a 1 second to do 80% change factor
-    local slow_factor = ewma_factor(tick_duration,30,.5)
+    local slow_factor = ewma_factor(tick_duration,135,.5)
     local fast_factor = ewma_factor(tick_duration,1.0,.8)
 
     while true do
