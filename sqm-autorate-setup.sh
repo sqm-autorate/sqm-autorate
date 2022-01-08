@@ -100,19 +100,19 @@ if [ -f "$owrt_release_file" ]; then
         if grep -q -e 'receive' -e 'transmit' "/etc/config/$name" ; then
             echo ">>> Revising config option names..."
             uci rename sqm-autorate.@network[0].transmit_interface=upload_interface
-            uci rename sqm-autorate.@network[0].transmit_kbits_base=upload_kbits_base
             uci rename sqm-autorate.@network[0].receive_interface=download_interface
-            uci rename sqm-autorate.@network[0].receive_kbits_base=download_kbits_base
+            uci rename sqm-autorate.@network[0].transmit_kbits_base=upload_base_kbits
+            uci rename sqm-autorate.@network[0].receive_kbits_base=download_base_kbits
 
             t1=$( uci -q get sqm-autorate.@network[0].transmit_kbits_min )
             uci delete sqm-autorate.@network[0].transmit_kbits_min
             if [ -n "${t1}" ] && [ "${t1}" != "1500" ] ; then
-                t2=$( uci -q get sqm-autorate.@network[0].upload_kbits_base )
+                t2=$( uci -q get sqm-autorate.@network[0].upload_base_kbits )
                 t1=$((t1 * 100 / t2))
                 if [ $t1 -lt 10 ] ; then
                     t1=10
-                elif [ $t1 -gt 60 ] ; then
-                    t1=60
+                elif [ $t1 -gt 75 ] ; then
+                    t1=75
                 fi
                 uci set sqm-autorate.@network[0].upload_min_percent="${t1}"
             fi
@@ -120,15 +120,17 @@ if [ -f "$owrt_release_file" ]; then
             t1=$( uci -q get sqm-autorate.@network[0].receive_kbits_min )
             uci delete sqm-autorate.@network[0].receive_kbits_min
             if [ -n "${t1}" ] && [ "${t1}" != "1500" ] ; then
-                t2=$( uci -q get sqm-autorate.@network[0].download_kbits_base )
+                t2=$( uci -q get sqm-autorate.@network[0].download_base_kbits )
                 t1=$((t1 * 100 / t2))
                 if [ $t1 -lt 10 ] ; then
                     t1=10
-                elif [ $t1 -gt 60 ] ; then
-                    t1=60
+                elif [ $t1 -gt 75 ] ; then
+                    t1=75
                 fi
                 uci set sqm-autorate.@network[0].download_min_percent="${t1}"
             fi
+
+            uci -q add sqm-autorate advanced_settings 1> /dev/null
 
             t=$( uci -q get sqm-autorate.@output[0].hist_size )
             if [ -n "${t}" ] ; then
@@ -145,7 +147,6 @@ if [ -f "$owrt_release_file" ]; then
                 fi
             fi
 
-            uci -q add sqm-autorate advanced_settings 1> /dev/null
             uci set sqm-autorate.@advanced_settings[0].upload_delay_ms=15
             uci set sqm-autorate.@advanced_settings[0].download_delay_ms=15
 
