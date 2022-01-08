@@ -26,7 +26,7 @@ function M.configure(_reflector_data)
     os.exit(1, true)
 
     -- Hold for later use
-    reflector_data = _reflector_data
+    reflector_data = assert(_reflector_data, 'need reflector data linda')
     sock = assert(socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP), "Failed to create socket")
     socket.setsockopt(sock, socket.SOL_SOCKET, socket.SO_SNDTIMEO, 0, 500)
 

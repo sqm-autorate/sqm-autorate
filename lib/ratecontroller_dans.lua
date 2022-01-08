@@ -7,7 +7,7 @@ local os = require 'os'
 local string = require 'string'
 local util = require 'utility'
 
-local settings, owd_data, reflector_data, signal_to_ratecontrol
+local settings, owd_data, reflector_data
 
 local function read_stats_file(file)
     file:seek("set", 0)
@@ -26,10 +26,9 @@ end
 
 function M.configure(_settings, _owd_data, _reflector_data, _signal_to_ratecontrol)
     base.configure(_settings)
-    settings = _settings
-    owd_data = _owd_data
-    reflector_data = _reflector_data
-    signal_to_ratecontrol = _signal_to_ratecontrol
+    settings = assert(_settings, "settings cannot be nil")
+    owd_data = assert(_owd_data, "an owd_data linda is required")
+    reflector_data = assert(_reflector_data, "a linda to get reflector data is required")
 
     -- Set initial TC values
     update_cake_bandwidth(settings.receive_interface, settings.receive_kbits_base)

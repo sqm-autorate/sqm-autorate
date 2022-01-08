@@ -5,9 +5,9 @@ local util = require 'utility'
 local settings, owd_data, reflector_data
 
 function M.configure(_settings, _owd_data, _reflector_data)
-    settings = _settings
-    owd_data = _owd_data
-    reflector_data = _reflector_data
+    settings = assert(_settings, 'need the settings')
+    owd_data = assert(_owd_data, 'need the owd linda')
+    reflector_data = assert(_reflector_data, 'need the reflector data linda')
 
     return M
 end

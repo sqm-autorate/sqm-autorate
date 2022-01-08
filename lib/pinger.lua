@@ -24,12 +24,11 @@ local function get_pid()
 end
 
 function M.configure(_settings, _reflector_data, _stats_queue)
+    settings = assert(_settings, 'settings are required')
+    reflector_data = assert(_reflector_data, 'linda for reflector data required')
+    stats_queue = assert(_stats_queue, 'linda for stats queue linda FIFO')
+
     if _settings.reflector_type then
-        settings = _settings
-
-        reflector_data = _reflector_data
-        stats_queue = _stats_queue
-
         local module = 'pinger_' .. settings.reflector_type
         pinger_module = require(module)
 
