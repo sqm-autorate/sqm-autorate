@@ -215,8 +215,8 @@ socket.setsockopt(sock, socket.SOL_SOCKET, socket.SO_SNDTIMEO, 0, 500)
 ---------------------------- Begin Local Functions ----------------------------
 
 -- calculate an ewma factor so that at tick it takes dur to get frac change during step response
-local function ewma_factor(tick,dur,frac)
-    return math.exp(math.log(1-frac)/(dur/tick))
+local function ewma_factor(tick,dur)
+    return math.exp(math.log(0.5)/(dur/tick))
 end
 
 local function load_reflector_list(file_path, ip_version)
@@ -780,10 +780,11 @@ end
 
 local function baseline_calculator()
     local min = math.min
-    -- a 30 second to do 50% change factor
-    -- and a 1 second to do 80% change factor
-    local slow_factor = ewma_factor(tick_duration,135,.5)
-    local fast_factor = ewma_factor(tick_duration,1.0,.8)
+    -- 135 seconds to decay to 50% for the slow factor and
+    -- 0.5 seconds to decay to 50% for the fast factor. 
+    -- The fast one can be adjusted to tune, try anything from 0.01 to 3.0 to get more or less sensitivity
+    local slow_factor = ewma_factor(tick_duration,135)
+    local fast_factor = ewma_factor(tick_duration,0.5)
 
     while true do
         local _, time_data = stats_queue:receive(nil, "stats")
