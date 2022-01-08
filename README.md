@@ -43,15 +43,28 @@ If you have some kind of DSL connection, read the
    ```bash
    sh -c "$(wget -q -O- https://raw.githubusercontent.com/Fail-Safe/sqm-autorate/testing/lua-threads/sqm-autorate-setup.sh)"
    ```
-4. Edit the config file /etc/config/sqm-autorate.config in particular to set the `transmit_kbits_base` and `receive_kbits_base` to be the upload and download speeds that are "nominally" what your connection provides on a good day. Set `transmit_kbits_min` and `receive_kbits_min` to be the upload and download rates you would be willing to accept as the lowest the script should go to try to reduce bufferbloat. Note that the script can transition **all at once** to this minimal rate in some cases, so this should still be a comfortable rate that won't cut off your communications entirely. A good first approximation might be 15-20% of the nominal rates for mid-range broadband connections (20+ Mbps). For very slow connections (1Mbps etc) perhaps 50% of the nominal rate.
-5. When the setup script completes, run these commands to
+4. If the setup script gives a warning about a configuration file `sqm-autorate-NEW`, use that file to replace `/etc/config/sqm-autorate`
+5. When the setup script completes, edit the config file `/etc/config/sqm-autorate` to set:
+   * `transmit_kbits_base` to the "nominal" upload speed that your connection provides on a good day
+   * `receive_kbits_base` to the "nominal" download speed
+   * `transmit_kbits_min` to the lowest upload rate you would accept when controllling bufferbloat
+   * `receive_kbits_min` to the lowest acceptable download rate.
+   
+   Note that these four values are in kilobits/second. If you want the value to be 30 megabits/second, enter `30000`.
+   
+   Note too that the script uses "acceptable" rates as its lowest setting it will use to control latency.
+In certain situations, the script may transition abruptly to either of these lower limits.
+Set these values high enough to avoid cutting off your communications entirely.
+A good choice might be 15-20% of the nominal rates for mid-range to high-speed connections (above 20 Mbps).
+For very slow connections (below 1Mbps) use 50% of the nominal rate.
+6. Run these commands to
 start and enable the _sqm-autorate_ service that runs continually:
 
    ```
    service sqm-autorate enable && service sqm-autorate start
    ```
 
-### A Request to Testers
+### Requests to Testers
 
 Please post your overall experience on this
 [OpenWrt Forum thread.](https://forum.openwrt.org/t/cake-w-adaptive-bandwidth/108848/312)
@@ -117,8 +130,8 @@ keeping latency low while always giving the maximum available throughput.
 - Reflector Selector
 
 _For Test builds, Jan 2022:_ In its current iteration this script can react poorly under conditions with high latency and low load, which can force the rates down to the minimum.
-If this happens to you, please try to adjust the
-`max_delta_owd` variable to a higher value. And be sure to set your minimum speeds to something reasonable so that your connection isn't shut off almost entirely.
+
+If this happens to you, please try to set or adjust the advanced setting `upload_delay_ms` or `download_delay_ms` options to a higher value.
 
 The functionality in this Lua version is a culmination of progressive iterations to the original shell version as introduced by @Lynx (OpenWrt Forum). ~~Refer to the [Original Shell Version](#original-shell-version) (below) for details as to the original goal and theory.~~
 
@@ -151,7 +164,7 @@ and possibly new charts showing new axis labels._
 
 ### Removal
 
-_(We hope that you will never want to uninstall this autorate tool, but if you want to...)_
+_(We hope that you will never need to uninstall this autorate program, but if you want to...)_
 Run the following removal script to remove the operational files:
 
 ```bash
@@ -166,17 +179,20 @@ Generally, configuration should be performed via the `/etc/config/sqm-autorate` 
 
 | Section | Option Name | Value Description | Default |
 | - | - | - | - |
-| network | transmit_interface | The transmit interface name which is typically the physical device name of the WAN-facing interface. | 'wan' |
-| network | receive_interface | The receive interface name which is typically created as a virtual interface when CAKE is active. This typically begins with 'ifb4' or 'veth'. | 'ifb4wan' |
-| network | transmit_kbits_base | The highest speed in kbit/s at which bufferbloat typically is non-existent for outbound traffic on the given connection. This is used for reference in determining safe speeds via learning, but is not a hard floor or ceiling. | '10000' |
-| network | receive_kbits_base | The highest speed in kbit/s at which bufferbloat typically is non-existent for inbound traffic on the given connection. This is used for reference in determining safe speeds via learning, but is not a hard floor or ceiling. | '10000' |
-| network | transmit_kbits_min | The absolute minimum outbound speed in kbits/s the autorate algorithm is allowed to fall back to in cases of extreme congestion. | '1500' |
-| network | receive_kbits_min | The absolute minimum inbound speed in kbits/s the autorate algorithm is allowed to fall back to in cases of extreme congestion. | '1500' |
-| network | reflector_type | This is intended for future use and details are TBD. | 'icmp' |
+| network | upload_interface | The upload interface name which is typically the physical device name of the WAN-facing interface. | 'wan' |
+| network | download_interface | The download interface name which is typically created as a virtual interface when CAKE is active. This typically begins with 'ifb4' or 'veth'. | 'ifb4wan' |
+| network | upload_base_kbits | The highest speed in kbit/s at which bufferbloat typically is non-existent for outbound traffic on the given connection. This is used for reference in determining safe speeds via learning, but is not a hard floor or ceiling. | '10000' |
+| network | download_base_kbits | The highest speed in kbit/s at which bufferbloat typically is non-existent for inbound traffic on the given connection. This is used for reference in determining safe speeds via learning, but is not a hard floor or ceiling. | '10000' |
+| network | upload_min_percent | The absolute minimum acceptable outbound speed as a percentage of `upload_base_kbits` that the autorate algorithm is allowed to fall back to in cases of extreme congestion, at the expense of allowing latency to exceed `upload_delay_ms`. | '20' |
+| network | download_min_percent | The absolute minimum acceptable inbound speed as a percentage of `download_base_kbits` that the autorate algorithm is allowed to fall back to in cases of extreme congestion, at the expense of allowing latency to exceed `download_delay_ms`. | '20' |
 | output | log_level | Used to set the highest level of logging verbosity. e.g. setting to 'INFO' will output all log levels at the set level or lower (in terms of verbosity). [Verbosity Options](#verbosity-options) | 'INFO' |
 | output | stats_file | The location to which the autorate OWD reflector stats will be written. | '/tmp/sqm-autorate.csv' |
 | output | speed_hist_file | The location to which autorate speed adjustment history will be written. | '/tmp/sqm-speedhist.csv' |
-| output | hist_size | The amount of "safe" speed history which the algorithm will maintain for reference during times of increased latency/congestion. | '100' |
+| advanced_settings | speed_hist_size | The amount of "safe" speed history which the algorithm will maintain for reference during times of increased latency/congestion. Set too high, the algorithm will take days or weeks to stabilise. Set too low, the algorithm may not have enough good values to stabilise on.  | '100' |
+| advanced_settings | upload_delay_ms | The amount of delay that indicates bufferbloat for uploads. For high speed and relatively stable fiber connections, this can be reduced as low as 2. For LTE and DOCIS/cable connections, the default should be a reasonable starting point and may be increased. | '15' |
+| advanced_settings | download_delay_ms | As upload_delay_trigger but for downloads. | '15' |
+| advanced_settings | high_load_level | The load factor used to signal high network load. Between 0.67 and 0.95. | '0.8' |
+| advanced_settings | reflector_type | This is intended for future use and details are TBD. | 'icmp' |
 
 Advanced users may override values (following comments) directly in `/usr/lib/sqm-autorate/sqm-autorate.lua` as comfort level dictates.
 
@@ -277,7 +293,7 @@ Analysis of the CSV outputs can be performed via MS Excel, or more preferably, v
 
 #### Error Reporting Script
 
-The `lib/getstats.sh` script in this repo writes a lot
+The `/usr/lib/getstats.sh` script in this repo writes a lot
 of interesting information to `tmp/openwrtstats.txt`.
 You can send portions of this file with
 your trouble report.
