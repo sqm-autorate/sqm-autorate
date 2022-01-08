@@ -42,6 +42,11 @@ function M.configure(_settings, _reflector_data, _stats_queue)
             os.exit(1)
         end
 
+        if not pinger_module.send then
+            util.logger(util.loglevel.FATAL, module .. ' is missing required sender function')
+            os.exit(1)
+        end
+
         pinger_module.configure(_reflector_data)
 
         identifier = bit.band(get_pid(), 0xFFFF)
