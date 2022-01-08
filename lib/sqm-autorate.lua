@@ -10,7 +10,7 @@
 -- ** Recommended style guide: https://github.com/luarocks/lua-style-guide **
 --
 -- The versioning value for this script
-local _VERSION = "0.3.0"
+local _VERSION = "0.4.0"
 --
 -- Found this clever function here: https://stackoverflow.com/a/15434737
 -- This function will assist in compatibility given differences between OpenWrt, Turris OS, etc.
@@ -142,22 +142,27 @@ end
 ---------------------------- Begin Local Variables - External Settings ----------------------------
 
 -- Interface names: leave empty to use values from SQM config or place values here to override SQM config
-local ul_if = settings and settings:get("sqm-autorate", "@network[0]", "upload_interface") or
-                  "<UPLOAD INTERFACE NAME>" -- upload interface
+local ul_if = settings and settings:get("sqm-autorate", "@network[0]", "upload_interface") or "<UPLOAD INTERFACE NAME>" -- upload interface
 local dl_if = settings and settings:get("sqm-autorate", "@network[0]", "download_interface") or
                   "<DOWNLOAD INTERFACE NAME>" -- download interface
 
-local base_ul_rate = settings and math.floor(tonumber(settings:get("sqm-autorate", "@network[0]", "upload_base_kbits"), 10)) or 10000
-local base_dl_rate = settings and math.floor(tonumber(settings:get("sqm-autorate", "@network[0]", "download_base_kbits"), 10)) or 10000
+local base_ul_rate = settings and
+                         math.floor(tonumber(settings:get("sqm-autorate", "@network[0]", "upload_base_kbits"), 10)) or
+                         10000
+local base_dl_rate = settings and
+                         math.floor(tonumber(settings:get("sqm-autorate", "@network[0]", "download_base_kbits"), 10)) or
+                         10000
 
 local min_ul_rate = math.floor(base_ul_rate / 5)
 local min_dl_rate = math.floor(base_dl_rate / 5)
 do -- create a scope for temporary local variables
-    local min_ul_percent = settings and tonumber(settings:get("sqm-autorate", "@network[0]", "upload_min_percent"), 10) or 20
+    local min_ul_percent =
+        settings and tonumber(settings:get("sqm-autorate", "@network[0]", "upload_min_percent"), 10) or 20
     min_ul_percent = math.min(math.max(min_ul_percent, 10), 60)
     min_ul_rate = math.floor(base_ul_rate * min_ul_percent / 100)
 
-    local min_dl_percent = settings and tonumber(settings:get("sqm-autorate", "@network[0]", "download_min_percent"), 10) or 20
+    local min_dl_percent = settings and
+                               tonumber(settings:get("sqm-autorate", "@network[0]", "download_min_percent"), 10) or 20
     min_dl_percent = math.min(math.max(min_dl_percent, 10), 60)
     min_dl_rate = math.floor(base_dl_rate * min_dl_percent / 100)
 end
@@ -177,16 +182,23 @@ local min_change_interval = 0.5 -- don't change speeds unless this many seconds 
 local reflector_list_icmp = "/usr/lib/sqm-autorate/reflectors-icmp.csv"
 local reflector_list_udp = "/usr/lib/sqm-autorate/reflectors-udp.csv"
 
-local histsize = settings and tonumber(settings:get("sqm-autorate", "@advanced_settings[0]", "speed_hist_size"), 10) or 100 -- the number of 'good' speeds to remember
-        -- reducing this value could result in the algorithm remembering too few speeds to truly stabilise
-        -- increasing this value could result in the algorithm taking too long to stabilise
+local histsize = settings and tonumber(settings:get("sqm-autorate", "@advanced_settings[0]", "speed_hist_size"), 10) or
+                     100 -- the number of 'good' speeds to remember
+-- reducing this value could result in the algorithm remembering too few speeds to truly stabilise
+-- increasing this value could result in the algorithm taking too long to stabilise
 
-local ul_max_delta_owd = settings and tonumber(settings:get("sqm-autorate", "@advanced_settings[0]", "upload_delay_ms"), 10) or 15 -- increase from baseline RTT for detection of bufferbloat
-local dl_max_delta_owd = settings and tonumber(settings:get("sqm-autorate", "@advanced_settings[0]", "download_delay_ms"), 10) or 15 -- increase from baseline RTT for detection of bufferbloat
-        -- 15 is good for networks with very variable RTT values, such as LTE and DOCIS/cable networks
-        -- 5 might be appropriate for high speed and relatively stable networks such as fiber
+local ul_max_delta_owd = settings and
+                             tonumber(settings:get("sqm-autorate", "@advanced_settings[0]", "upload_delay_ms"), 10) or
+                             15 -- increase from baseline RTT for detection of bufferbloat
+local dl_max_delta_owd = settings and
+                             tonumber(settings:get("sqm-autorate", "@advanced_settings[0]", "download_delay_ms"), 10) or
+                             15 -- increase from baseline RTT for detection of bufferbloat
+-- 15 is good for networks with very variable RTT values, such as LTE and DOCIS/cable networks
+-- 5 might be appropriate for high speed and relatively stable networks such as fiber
 
-local high_load_level = settings and tonumber(settings:get("sqm-autorate", "@advanced_settings[0]", "high_load_level"), 10) or 0.8
+local high_load_level = settings and
+                            tonumber(settings:get("sqm-autorate", "@advanced_settings[0]", "high_load_level"), 10) or
+                            0.8
 high_load_level = math.min(math.max(high_load_level, 0.67), 0.95)
 
 local reflector_type = settings and settings:get("sqm-autorate", "@advanced_settings[0]", "reflector_type") or "icmp"
@@ -230,8 +242,8 @@ socket.setsockopt(sock, socket.SOL_SOCKET, socket.SO_SNDTIMEO, 0, 500)
 ---------------------------- Begin Local Functions ----------------------------
 
 -- calculate an ewma factor so that at tick it takes dur to get frac change during step response
-local function ewma_factor(tick,dur,frac)
-    return math.exp(math.log(1-frac)/(dur/tick))
+local function ewma_factor(tick, dur, frac)
+    return math.exp(math.log(1 - frac) / (dur / tick))
 end
 
 local function load_reflector_list(file_path, ip_version)
@@ -801,8 +813,8 @@ local function baseline_calculator()
     local min = math.min
     -- a 30 second to do 50% change factor
     -- and a 1 second to do 80% change factor
-    local slow_factor = ewma_factor(tick_duration,30,.5)
-    local fast_factor = ewma_factor(tick_duration,1.0,.8)
+    local slow_factor = ewma_factor(tick_duration, 30, .5)
+    local fast_factor = ewma_factor(tick_duration, 1.0, .8)
 
     while true do
         local _, time_data = stats_queue:receive(nil, "stats")
@@ -1120,8 +1132,8 @@ local function conductor()
     -- fool the baseliner
     update_cake_bandwidth(dl_if, min_dl_rate)
     update_cake_bandwidth(ul_if, min_ul_rate)
-    nsleep(0,5e8)
-    
+    nsleep(0, 5e8)
+
     local threads = {
         receiver = lanes.gen("*", {
             required = {bit_mod, "posix.sys.socket", "posix.time", "vstruct"}
@@ -1138,13 +1150,13 @@ local function conductor()
     }
     local join_timeout = 0.5
 
-    nsleep(10,0) -- sleep 10 seconds before we start adjusting speeds
+    nsleep(10, 0) -- sleep 10 seconds before we start adjusting speeds
 
     threads["regulator"] = lanes.gen("*", {
-            required = {"posix", "posix.time"}
-        }, ratecontrol)()
+        required = {"posix", "posix.time"}
+    }, ratecontrol)()
 
-        -- Start this whole thing in motion!
+    -- Start this whole thing in motion!
     while true do
         for name, thread in pairs(threads) do
             local _, err = thread:join(join_timeout)
