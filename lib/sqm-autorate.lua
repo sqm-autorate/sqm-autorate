@@ -140,21 +140,31 @@ if settings then
 end
 
 ---------------------------- Begin Local Variables - External Settings ----------------------------
-local base_ul_rate = settings and tonumber(settings:get("sqm-autorate", "@network[0]", "transmit_kbits_base"), 10) or
-                         "<STEADY STATE UPLOAD>" -- steady state bandwidth for upload
-local base_dl_rate = settings and tonumber(settings:get("sqm-autorate", "@network[0]", "receive_kbits_base"), 10) or
-                         "<STEADY STATE DOWNLOAD>" -- steady state bandwidth for download
 
-local min_ul_rate = settings and tonumber(settings:get("sqm-autorate", "@network[0]", "transmit_kbits_min"), 10) or
-                        "<MIN UPLOAD RATE>" -- don't go below this many kbps
-local min_dl_rate = settings and tonumber(settings:get("sqm-autorate", "@network[0]", "receive_kbits_min"), 10) or
-                        "<MIN DOWNLOAD RATE>" -- don't go below this many kbps
+-- Interface names: leave empty to use values from SQM config or place values here to override SQM config
+local ul_if = settings and settings:get("sqm-autorate", "@network[0]", "upload_interface") or
+                  "<UPLOAD INTERFACE NAME>" -- upload interface
+local dl_if = settings and settings:get("sqm-autorate", "@network[0]", "download_interface") or
+                  "<DOWNLOAD INTERFACE NAME>" -- download interface
+
+local base_ul_rate = settings and math.floor(tonumber(settings:get("sqm-autorate", "@network[0]", "upload_base_kbits"), 10)) or 10000
+local base_dl_rate = settings and math.floor(tonumber(settings:get("sqm-autorate", "@network[0]", "download_base_kbits"), 10)) or 10000
+
+local min_ul_rate = math.floor(base_ul_rate / 5)
+local min_dl_rate = math.floor(base_dl_rate / 5)
+do -- create a scope for temporary local variables
+    local min_ul_percent = settings and tonumber(settings:get("sqm-autorate", "@network[0]", "upload_min_percent"), 10) or 20
+    min_ul_percent = math.min(math.max(min_ul_percent, 10), 60)
+    min_ul_rate = math.floor(base_ul_rate * min_ul_percent / 100)
+
+    local min_dl_percent = settings and tonumber(settings:get("sqm-autorate", "@network[0]", "download_min_percent"), 10) or 20
+    min_dl_percent = math.min(math.max(min_dl_percent, 10), 60)
+    min_dl_rate = math.floor(base_dl_rate * min_dl_percent / 100)
+end
 
 local stats_file = settings and settings:get("sqm-autorate", "@output[0]", "stats_file") or "<STATS FILE NAME/PATH>"
 local speedhist_file = settings and settings:get("sqm-autorate", "@output[0]", "speed_hist_file") or
                            "<HIST FILE NAME/PATH>"
-
-local histsize = settings and tonumber(settings:get("sqm-autorate", "@output[0]", "hist_size"), 10) or "<HISTORY SIZE>"
 
 use_loglevel = loglevel[string.upper(settings and settings:get("sqm-autorate", "@output[0]", "log_level") or "INFO")]
 
@@ -164,17 +174,22 @@ local enable_verbose_baseline_output = false
 local tick_duration = 0.5 -- Frequency in seconds
 local min_change_interval = 0.5 -- don't change speeds unless this many seconds has passed since last change
 
--- Interface names: leave empty to use values from SQM config or place values here to override SQM config
-local ul_if = settings and settings:get("sqm-autorate", "@network[0]", "transmit_interface") or
-                  "<UPLOAD INTERFACE NAME>" -- upload interface
-local dl_if = settings and settings:get("sqm-autorate", "@network[0]", "receive_interface") or
-                  "<DOWNLOAD INTERFACE NAME>" -- download interface
-
 local reflector_list_icmp = "/usr/lib/sqm-autorate/reflectors-icmp.csv"
 local reflector_list_udp = "/usr/lib/sqm-autorate/reflectors-udp.csv"
-local reflector_type = settings and settings:get("sqm-autorate", "@network[0]", "reflector_type") or nil
 
-local max_delta_owd = 15 -- increase from baseline RTT for detection of bufferbloat
+local histsize = settings and tonumber(settings:get("sqm-autorate", "@advanced_settings[0]", "speed_hist_size"), 10) or 100 -- the number of 'good' speeds to remember
+        -- reducing this value could result in the algorithm remembering too few speeds to truly stabilise
+        -- increasing this value could result in the algorithm taking too long to stabilise
+
+local ul_max_delta_owd = settings and tonumber(settings:get("sqm-autorate", "@advanced_settings[0]", "upload_delay_ms"), 10) or 15 -- increase from baseline RTT for detection of bufferbloat
+local dl_max_delta_owd = settings and tonumber(settings:get("sqm-autorate", "@advanced_settings[0]", "download_delay_ms"), 10) or 15 -- increase from baseline RTT for detection of bufferbloat
+        -- 15 is good for networks with very variable RTT values, such as LTE and DOCIS/cable networks
+        -- 5 might be appropriate for high speed and relatively stable networks such as fiber
+
+local high_load_level = settings and tonumber(settings:get("sqm-autorate", "@advanced_settings[0]", "high_load_level"), 10) or 0.8
+high_load_level = math.min(math.max(high_load_level, 0.67), 0.95)
+
+local reflector_type = settings and settings:get("sqm-autorate", "@advanced_settings[0]", "reflector_type") or "icmp"
 
 ---------------------------- Begin Internal Local Variables ----------------------------
 
@@ -707,7 +722,7 @@ local function ratecontrol()
                     local next_ul_rate = cur_ul_rate
                     local next_dl_rate = cur_dl_rate
                     logger(loglevel.INFO, "up_del_stat " .. up_del_stat .. " down_del_stat " .. down_del_stat)
-                    if up_del_stat and up_del_stat < max_delta_owd and tx_load > .8 then
+                    if up_del_stat and up_del_stat < ul_max_delta_owd and tx_load > high_load_level then
                         safe_ul_rates[nrate_up] = floor(cur_ul_rate * tx_load)
                         local max_ul = maximum(safe_ul_rates)
                         next_ul_rate = cur_ul_rate * (1 + .1 * max(0, (1 - cur_ul_rate / max_ul))) +
@@ -715,7 +730,7 @@ local function ratecontrol()
                         nrate_up = nrate_up + 1
                         nrate_up = nrate_up % histsize
                     end
-                    if down_del_stat and down_del_stat < max_delta_owd and rx_load > .8 then
+                    if down_del_stat and down_del_stat < dl_max_delta_owd and rx_load > high_load_level then
                         safe_dl_rates[nrate_down] = floor(cur_dl_rate * rx_load)
                         local max_dl = maximum(safe_dl_rates)
                         next_dl_rate = cur_dl_rate * (1 + .1 * max(0, (1 - cur_dl_rate / max_dl))) +
@@ -724,14 +739,14 @@ local function ratecontrol()
                         nrate_down = nrate_down % histsize
                     end
 
-                    if up_del_stat > max_delta_owd then
+                    if up_del_stat > ul_max_delta_owd then
                         if #safe_ul_rates > 0 then
                             next_ul_rate = min(0.9 * cur_ul_rate * tx_load, safe_ul_rates[random(#safe_ul_rates) - 1])
                         else
                             next_ul_rate = 0.9 * cur_ul_rate * tx_load
                         end
                     end
-                    if down_del_stat > max_delta_owd then
+                    if down_del_stat > dl_max_delta_owd then
                         if #safe_dl_rates > 0 then
                             next_dl_rate = min(0.9 * cur_dl_rate * rx_load, safe_dl_rates[random(#safe_dl_rates) - 1])
                         else
