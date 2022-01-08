@@ -50,13 +50,22 @@ gif(anim,"downhist.gif",fps=3)
 
 
 relthr = 1.0-1.0/3600
-@df dat plot(ecdf(:deltadelaydown),label=false,ylim=(.99,1),xlim=(0,50),
+
+ecdfdown = ecdf(dat.deltadelaydown)
+ecdfup = ecdf(dat.deltadelayup)
+downq = quantile(dat.deltadelaydown,relthr)
+upq = quantile(dat.deltadelayup,relthr)
+
+@df dat plot(ecdfdown,label=false,ylim=(.99,1),xlim=(0,50),
              title="Fraction of Down delay less than x",xlab="delay (ms)",ylab="Fraction")
 plot!([0.0,50.0],[relthr,relthr],label="1 second per hour",legend=:bottomright)
+plot!([downq,downq],[0.0,1.0],label=@sprintf("%.1f ms",downq))
 savefig("delaydownecdf.png")
-@df dat plot(ecdf(:deltadelayup),label=false,ylim=(.99,1),xlim=(0,50),
+
+@df dat plot(ecdfup,label=false,ylim=(.99,1),xlim=(0,50),
              title="Fraction of Up delay less than x",xlab="delay (ms)",ylab="Fraction")
 plot!([0.0,50.0],[relthr,relthr],label="1 second per hour",legend=:bottomright)
+plot!([upq,upq],[0.0,1.0],label=@sprintf("%.1f ms",upq))
 savefig("delayupecdf.png")
 
 
