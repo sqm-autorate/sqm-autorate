@@ -1,16 +1,10 @@
 reflector_ip,ip_version,description
 94.140.14.14,4,AdGuard
 94.140.15.15,4,AdGuard
-2a10:50c0::ad1:ff,6,AdGuard
-2a10:50c0::ad2:ff,6,AdGuard
 94.140.14.15,4,AdGuard Family
 94.140.15.16,4,AdGuard Family
-2a10:50c0::bad1:ff,6,AdGuard Family
-2a10:50c0::bad2:ff,6,AdGuard Family
 94.140.14.140,4,AdGuard Unfiltered
 94.140.14.141,4,AdGuard Unfiltered
-2a10:50c0::1:ff,6,AdGuard Unfiltered
-2a10:50c0::2:ff,6,AdGuard Unfiltered
 205.171.3.65,4,CenturyLink/Level3
 205.171.2.65,4,CenturyLink/Level3
 185.228.168.9,4,CleanBrowsing
@@ -34,29 +28,18 @@ reflector_ip,ip_version,description
 193.19.108.3,4,Mullvad
 208.67.222.222,4,OpenDNS
 208.67.220.220,4,OpenDNS
-2620:119:35::35,6,OpenDNS
-2620:119:53::53,6,OpenDNS
 208.67.222.123,4,OpenDNS Family
 208.67.220.123,4,OpenDNS Family
-2620:119:35::123,6,OpenDNS Family
-2620:119:53::123,6,OpenDNS Family
 208.67.222.2,4,OpenDNS Sbx
 208.67.220.2,4,OpenDNS Sbx
 159.89.120.99,4,OpenNIC
 134.195.4.2,4,OpenNIC
-2a05:dfc7:5::53,6,OpenNIC
-2a05:dfc7:5::5353,6,OpenNIC
 9.9.9.9,4,Quad9
 9.9.9.10,4,Quad9
 9.9.9.11,4,Quad9
 149.112.112.10,4,Quad9
 149.112.112.11,4,Quad9
 149.112.112.112,4,Quad9
-2620:fe::fe,6,Quad9
-2620:fe::11,6,Quad9
-2620:fe::fe:11,6,Quad9
-2620:fe::10,6,Quad9
-2620:fe::fe:10,6,Quad9
 176.9.93.198,4,dnsforge.de
 176.9.1.117,4,dnsforge.de
 104.236.210.29,4,DNSReactor
@@ -65,32 +48,23 @@ reflector_ip,ip_version,description
 194.8.57.12,4,Nuernberg Internet Exchange (N-IX)
 51.89.30.51,4,PublicDNS.eu
 51.89.93.25,4,PublicDNS.eu
-2001:41d0:701:1100:0:0:0:39cc,6,PublicDNS.eu
 130.59.31.248,4,SWITCH
 130.59.31.251,4,SWITCH
 185.49.141.37,4,GetDNS
-2a04:b900:0:100::37,6,GetDNS
 158.64.1.29,4,Restena Foundation
-2001:a18:1::29,6,Restena Foundation
 89.234.186.112,4,Neutopia
 185.95.218.42,4,Digitale Gesellschaft Schweiz
 185.95.218.43,4,Digitale Gesellschaft Schweiz
-2a05:fc84::42,6,Digitale Gesellschaft Schweiz
-2a05:fc84::43,6,Digitale Gesellschaft Schweiz
 140.238.215.192,4,post-factum
 199.58.81.218,4,CMRG DNS
-2001:470:1c:76d::53,6,CMRG DNS
 146.255.56.98,4,Foundation for Applied Privacy
 185.222.222.222,4,dns.sb
 185.184.222.222,4,dns.sb
-5.1.66.255,4,Freifunk München e.V.
 5.1.66.255,4,Freifunk München e.V.
 80.80.80.80,4,Freenom World
 80.80.81.81,4,Freenom World
 80.67.169.12,4,French Data Network (FDN)
 80.67.169.40,4,French Data Network (FDN)
-2001:910:800::12,6,French Data Network (FDN)
-2001:910:800::40,6,French Data Network (FDN)
 217.24.255.134,4,Albtelecom Sh.a.
 213.163.127.229,4,Telekomi i Kosoves SH.A.
 85.94.178.198,4,ANDORRA TELECOM SAU
@@ -109,8 +83,6 @@ reflector_ip,ip_version,description
 139.134.5.51,4,Telstra Corporation Ltd
 139.134.2.190,4,Telstra Corporation Ltd
 203.50.2.71,4,Telstra Corporation Ltd
-37.235.1.174,4,ANEXIA Internetdienstleistungs GmbH
-37.235.1.177,4,ANEXIA Internetdienstleistungs GmbH
 83.137.41.8,4,nemox.net Informationstechnologie OG
 83.137.41.9,4,nemox.net Informationstechnologie OG
 194.36.144.87,4,netcup GmbH
@@ -147,10 +119,8 @@ reflector_ip,ip_version,description
 81.175.38.1,4,GLOBALCONNECT AS
 46.182.19.48,4,Martin Prager trading as NbIServ
 82.96.64.2,4,Probe Networks
-84.200.69.80,4,diva-e Datacenters GmbH
 94.247.43.254,4,OpenNIC
 195.10.195.195,4,meerfarbig GmbH & Co. KG
-84.200.70.40,4,diva-e Datacenters GmbH
 194.172.160.4,4,Baumann Technologie GmbH
 185.233.106.232,4,netcup GmbH
 185.233.107.4,4,netcup GmbH
@@ -178,7 +148,6 @@ reflector_ip,ip_version,description
 1.33.184.220,4,NTT PC Communications Inc.
 1.33.184.230,4,NTT PC Communications Inc.
 1.33.184.158,4,NTT PC Communications Inc.
-80.67.169.12,4,Association Gitoyen
 62.212.113.125,4,Nerim SAS
 185.30.211.154,4,ENTREPRISE DECIMA SARL
 87.240.90.128,4,KERTEL SAS
@@ -211,3 +180,122 @@ reflector_ip,ip_version,description
 203.210.237.165,4,VNPT Corp
 113.190.253.229,4,VNPT Corp
 119.29.29.29,4,Shenzhen Tencent Computer Systems Company Limited
+209.193.4.7,4,Alaska Communications
+209.112.160.2,4,Alaska Communications
+216.68.4.10,4,Cincinnati Bell ZoomTown
+216.68.5.10,4,Cincinnati Bell ZoomTown
+1.250.0.14,4,Verizon (Newark NJ)
+1.252.0.14,4,Verizon (Reston VA)
+1.252.0.12,4,Verizon (Reston VA)
+8.238.120.14,4,Verizon (Atlanta GA)
+8.238.120.12,4,Verizon (Atlanta GA)
+78.143.192.10,4,Fast (UK)
+201.220.136.186,4,CABLECOLOR S.A.
+190.124.166.8,4,Redes y Telecomunicaciones
+190.64.140.243,4,Administracion Nacional de Telecomunicaciones
+200.40.230.36,4,Administracion Nacional de Telecomunicaciones
+134.249.156.228,4,Kyivstar PJSC
+195.60.70.5,4,VAK Ltd.
+62.140.239.1,4,LLC TRC FIORD
+94.158.153.236,4,Comfo LTD
+109.254.13.190,4,Donbass Electronic Communications Ltd.
+176.67.0.60,4,LLC McLaut-Invest
+193.34.173.206,4,New Information Systems PP
+94.153.241.134,4,Kyivstar PJSC
+216.104.206.136,4,Africa Online Uganda
+154.72.212.38,4,National Information Technology Authority Uganda
+217.174.226.78,4,State Company of Electro Communications Turkmentelecom
+46.45.187.181,4,Radore Veri Merkezi Hizmetleri A.S.
+46.45.187.163,4,Radore Veri Merkezi Hizmetleri A.S.
+46.45.187.184,4,Radore Veri Merkezi Hizmetleri A.S.
+46.45.187.186,4,Radore Veri Merkezi Hizmetleri A.S.
+46.20.159.27,4,DoraTelekom
+93.113.60.84,4,Netinternet Bilisim Teknolojileri AS
+93.113.60.82,4,Netinternet Bilisim Teknolojileri AS
+196.3.132.153,4,Telecommunication Services of Trinidad and Tobago
+196.3.132.154,4,Telecommunication Services of Trinidad and Tobago
+80.248.72.1,4,CAFE Informatique et telecommunications
+117.121.215.102,4,UIH
+1.20.151.94,4,TOT Public Company Limited
+117.121.215.101,4,UIH
+122.154.230.146,4,The Communication Authoity of Thailand CAT
+101.101.101.101,4,Taiwan Network Information Center
+101.102.103.104,4,Taiwan Network Information Center
+113.196.55.130,4,New Century InfoComm Tech Co. Ltd.
+210.242.68.59,4,Data Communication Business Group
+92.60.50.40,4,BONET Systems s.r.o.
+217.73.17.110,4,VNET a.s.
+84.245.69.193,4,SWAN a.s.
+178.254.129.65,4,Drustvo za telekomunikacije Orion telekom doo Beograd-Zemun
+93.86.63.54,4,TELEKOM SRBIJA a.d.
+109.92.22.97,4,TELEKOM SRBIJA a.d.
+197.159.166.81,4,Companhia Santomense de Telecomunicacoes
+208.84.200.28,4,Columbus Communication St. Vincent and the Grenadines Ltd.
+208.94.176.225,4,Karib Cable
+199.116.57.181,4,IP SOLUTIONS INC.
+74.120.24.129,4,IP SOLUTIONS INC.
+74.120.24.81,4,IP SOLUTIONS INC.
+74.120.24.97,4,IP SOLUTIONS INC.
+78.130.38.222,4,NOS COMUNICACOES S.A.
+195.22.25.130,4,Claranet Limited
+213.241.88.98,4,Netia SA
+87.204.28.12,4,Netia SA
+212.160.85.232,4,Orange Polska Spolka Akcyjna
+45.173.200.10,4,INVERSIONES EN TELECOMUNICACIONES DIGITALES S.A.C
+200.10.231.110,4,Centro Nacional de Computacion
+201.222.48.206,4,TECNOLOGIA EN ELECTRONICA E INFORMATICA SOCIEDAD ANONIMA (T.E.I.S.A)
+201.222.50.30,4,TECNOLOGIA EN ELECTRONICA E INFORMATICA SOCIEDAD ANONIMA (T.E.I.S.A)
+201.222.55.246,4,TECNOLOGIA EN ELECTRONICA E INFORMATICA SOCIEDAD ANONIMA (T.E.I.S.A)
+103.209.52.250,4,The Professional Communications Pvt Ltd
+119.63.132.26,4,Transworld Associates (Pvt.) Ltd.
+83.143.8.249,4,MTN NIGERIA Communication limited
+165.98.138.194,4,Amnet Telecomunicaciones S.A.
+203.81.75.37,4,Myanma Posts and Telecommunications
+65.18.114.254,4,Telecom International Myanmar Co. Ltd
+65.18.117.174,4,Telecom International Myanmar Co. Ltd
+69.160.0.86,4,OOREDOO MYANMAR
+103.154.241.252,4,Myanmar Link Telecommunication Ltd
+66.181.167.232,4,The first E-commerce and TriplePlay Service ISP in Mongolia.
+202.21.99.42,4,Mobinet LLC. AS Mobinet Internet Service Provider
+202.131.241.74,4,Mobinet LLC. AS Mobinet Internet Service Provider
+124.158.93.2,4,STXCitinet. Leading Internet & VOIP Service Provider. Ulaanbaatar. Mongolia
+77.89.232.86,4,ORANGE MOLDOVA S.A.
+200.56.224.11,4,Marcatel Com S.A. de C.V.
+201.144.135.211,4,Marcatel Com S.A. de C.V.
+201.134.115.36,4,Uninet S.A. de C.V.
+1.32.58.251,4,TM Net. Internet Service Provider
+202.86.149.20,4,Companhia de Telecomunicacoes de Macau SARL
+202.175.45.2,4,Companhia de Telecomunicacoes de Macau SARL
+202.86.191.50,4,Companhia de Telecomunicacoes de Macau SARL
+80.250.60.241,4,Sia Nano IT
+101.78.12.50,4,Enterprise of Telecommunications Lao
+168.187.161.250,4,Zajil International Telecom Company W.L.L.
+62.12.114.25,4,Angani Limited
+103.134.220.158,4,PT Global Media Pratama Solusindo
+121.100.28.163,4,PT. Sakti Putra Mandiri
+103.28.114.57,4,Lintas Data Prima PT
+202.51.111.149,4,PT iForte Global Internet
+103.23.20.23,4,PT Infinys System Indonesia
+103.98.176.24,4,Universitas PGRI Semarang
+103.98.176.143,4,Universitas PGRI Semarang
+119.235.48.3,4,VAINAVI INDUSTIES LTD. INTERNET SERVICE PROVIDER. INDIA
+103.194.120.33,4,GOLDY DIGINET PRIVATE LIMITED
+103.194.120.3,4,GOLDY DIGINET PRIVATE LIMITED
+103.194.120.129,4,GOLDY DIGINET PRIVATE LIMITED
+223.31.121.171,4,Power Grid Corporation of India Limited
+169.38.73.5,4,SoftLayer Technologies Inc.
+202.86.251.201,4,Artech Infosystems Pvt Ltd
+202.164.44.246,4,Quadrant Televentures Limited
+87.229.99.1,4,SigmaNet Szolgaltato es Kereskedelm Ltd
+91.137.135.75,4,OPC Networks Kft.
+85.90.160.69,4,OPC Networks Kft.
+195.228.219.226,4,Magyar Telekom plc.
+103.6.168.114,4,NewMedia Express Pte Ltd
+45.71.185.100,4,NEDETEL S.A.
+186.149.243.52,4,ALTICE DOMINICANA S.A.
+193.17.47.1,4,CZ.NIC z.s.p.o.
+195.113.144.194,4,CZ.NIC z.s.p.o.
+213.211.50.1,4,itself s.r.o.
+213.211.50.2,4,itself s.r.o.
+185.43.135.1,4,CZ.NIC z.s.p.o.
+90.183.151.107,4,O2 Czech Republic. a.s.
