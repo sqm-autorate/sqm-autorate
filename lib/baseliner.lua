@@ -2,12 +2,13 @@ local M = {}
 
 local util = require 'utility'
 
-local settings, owd_data, stats_queue
+local settings, owd_data, stats_queue, signal_to_ratecontrol
 
-function M.configure(_settings, _owd_data, _stats_queue)
-    settings = _settings
-    owd_data = _owd_data
-    stats_queue = _stats_queue
+function M.configure(_settings, _owd_data, _stats_queue, _signal_to_ratecontrol)
+    settings = assert(_settings, "settings cannot be nil")
+    owd_data = assert(_owd_data, "an owd_data linda is required")
+    stats_queue = assert(_stats_queue, "a stats queue linda is required")
+    signal_to_ratecontrol = assert(_signal_to_ratecontrol, "a linda to signal the ratecontroller is required")
 
     return M
 end
@@ -85,6 +86,9 @@ function M.baseline_calculator()
                 baseline = owd_baseline,
                 recent = owd_recent
             })
+
+            -- Sends a signal to the ratecontroller thread that new data is available
+            signal_to_ratecontrol:send("signal", 1)
 
             if settings.log_level.level >= util.loglevel.DEBUG.level then
                 for ref, val in pairs(owd_baseline) do

@@ -49,6 +49,11 @@ reflector_data:set("reflector_tables", {
     pool = {}
 })
 
+-- The signal_to_ratecontrol is intended to be used by the ratecontroller thread
+-- to wait on a signal from the baseliner thread that new data is available as they come in,
+-- for ratecontrol algorithms that really getting the data as soon as it's ready
+local signal_to_ratecontrol = lanes.linda()
+
 ---------------------------- Begin Conductor ----------------------------
 local function conductor()
     print("Starting sqm-autorate.lua v" .. _VERSION)
@@ -108,10 +113,10 @@ local function conductor()
 
     -- load all internal modules
     local baseliner_mod = lanes.require 'baseliner'
-        .configure(settings, owd_data, stats_queue)
+        .configure(settings, owd_data, stats_queue, signal_to_ratecontrol)
     local pinger_mod = lanes.require 'pinger'
         .configure(settings, reflector_data, stats_queue)
-    local ratecontroller_mod = lanes.require 'ratecontroller'
+    local ratecontroller_mod = lanes.require('ratecontroller_' .. settings.ratecontroller)
         .configure(settings, owd_data, reflector_data)
     local reflector_selector_mod = lanes.require 'reflector_selector'
         .configure(settings, owd_data, reflector_data)

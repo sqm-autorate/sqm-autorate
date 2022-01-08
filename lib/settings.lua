@@ -24,6 +24,9 @@ settings.peer_reselection_time = 15
 
 -- SETTINGS THE USER CAN SET
 
+-- Which ratecontroller to use
+settings.ratecontroller = 'dans'
+
 -- Reflector type will always be ICMP for now
 settings.reflector_type = 'icmp'
 
@@ -118,6 +121,9 @@ function settings.configure(config_file_name, reflector_data)
     settings.reflector_list_icmp = get_config_setting(config_file_name, "network[0]", 'reflector_list_icmp') or settings.reflector_list_icmp
     settings.reflector_list_udp = get_config_setting(config_file_name, "network[0]", 'reflector_list_udp') or settings.reflector_list_udp
     settings.reflector_type = get_config_setting(config_file_name, "network[0]", 'reflector_type') or settings.reflector_type
+
+    -- advanced
+    settings.ratecontroller = get_config_setting(config_file_name, "network[0]", 'ratecontroller') or settings.ratecontroller
 
     -- output section
     local log_level = get_config_setting(config_file_name, "output[0]", 'log_level') or settings.log_level.name

@@ -30,14 +30,16 @@ function M.configure(_settings, _reflector_data, _stats_queue)
         reflector_data = _reflector_data
         stats_queue = _stats_queue
 
-        if settings.reflector_type == 'icmp' then
-            pinger_module = require 'pinger_icmp'
-        elseif settings.reflector_type == 'udp' then
-            pinger_module = require 'pinger_udp'
-        end
+        local module = 'pinger_' .. settings.reflector_type
+        pinger_module = require(module)
 
         if not pinger_module then
             util.logger(util.loglevel.FATAL, 'Invalid reflector type \'' .. settings.reflector_type .. '\'!')
+            os.exit(1)
+        end
+
+        if not pinger_module.receive then
+            util.logger(util.loglevel.FATAL, module .. ' is missing required receive function')
             os.exit(1)
         end
 
