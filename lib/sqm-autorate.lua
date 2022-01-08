@@ -612,8 +612,11 @@ local function ratecontrol()
     local lastchg_t = lastchg_s - start_s + lastchg_ns / 1e9
     local lastdump_t = lastchg_t - 310
 
-    local cur_dl_rate = base_dl_rate
-    local cur_ul_rate = base_ul_rate
+    local cur_dl_rate = base_dl_rate * 0.6
+    local cur_ul_rate = base_ul_rate * 0.6
+    update_cake_bandwidth(dl_if, cur_dl_rate)
+    update_cake_bandwidth(ul_if, cur_ul_rate)
+
     local rx_bytes_file = io.open(rx_bytes_path)
     local tx_bytes_file = io.open(tx_bytes_path)
 
@@ -1115,8 +1118,6 @@ local function conductor()
     local join_timeout = 0.5
 
     nsleep(10,0) -- sleep 10 seconds before we start adjusting speeds
-    update_cake_bandwidth(dl_if,base_dl_rate*0.6)
-    update_cake_bandwidth(ul_if,base_ul_rate*0.6)
 
     threads["regulator"] = lanes.gen("*", {
             required = {"posix", "posix.time"}
