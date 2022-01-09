@@ -937,7 +937,7 @@ local function reflector_peer_selector()
     while true do
         reselection_count = reselection_count + 1
         if reselection_count > 40 then
-            selector_sleep_time_s = 15*60 -- 15 mins
+            selector_sleep_time_s = 15 * 60 -- 15 mins
         end
         local peerhash = {} -- a hash table of next peers, to ensure uniqueness
         local next_peers = {} -- an array of next peers
@@ -1140,8 +1140,7 @@ local function conductor()
     -- Load up the reflectors shared tables
     -- seed the peers with a set of "good candidates", we will adjust using the peer selector through time
     reflector_data:set("reflector_tables", {
-        peers = {"9.9.9.9", "8.238.120.14","74.82.42.42",
-            "194.242.2.2","208.67.222.222","94.140.14.14"},
+        peers = {"9.9.9.9", "8.238.120.14", "74.82.42.42", "194.242.2.2", "208.67.222.222", "94.140.14.14"},
         pool = tmp_reflectors
     })
 
