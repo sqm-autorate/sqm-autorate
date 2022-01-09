@@ -25,7 +25,7 @@
 -- ** Recommended style guide: https://github.com/luarocks/lua-style-guide **
 --
 -- The versioning value for this script
-local _VERSION = "0.4.0"
+local _VERSION = "0.4.1"
 --
 -- Found this clever function here: https://stackoverflow.com/a/15434737
 -- This function will assist in compatibility given differences between OpenWrt, Turris OS, etc.
@@ -257,8 +257,8 @@ socket.setsockopt(sock, socket.SOL_SOCKET, socket.SO_SNDTIMEO, 0, 500)
 ---------------------------- Begin Local Functions ----------------------------
 
 -- calculate an ewma factor so that at tick it takes dur to get frac change during step response
-local function ewma_factor(tick, dur, frac)
-    return math.exp(math.log(1 - frac) / (dur / tick))
+local function ewma_factor(tick, dur)
+    return math.exp(math.log(0.5) / (dur / tick))
 end
 
 local function load_reflector_list(file_path, ip_version)
@@ -826,10 +826,14 @@ end
 
 local function baseline_calculator()
     local min = math.min
-    -- a 30 second to do 50% change factor
-    -- and a 1 second to do 80% change factor
-    local slow_factor = ewma_factor(tick_duration, 30, .5)
-    local fast_factor = ewma_factor(tick_duration, 1.0, .8)
+    -- 135 seconds to decay to 50% for the slow factor and
+    -- 0.4 seconds to decay to 50% for the fast factor.
+    -- The fast one can be adjusted to tune, try anything from 0.01 to 3.0 to get more or less sensitivity
+    -- with more sensitivity we respond faster to bloat, but are at risk from triggering due to lag spikes that
+    -- aren't bloat related, with less sensitivity (bigger numbers) we smooth through quick spikes
+    -- but take longer to respond to real bufferbloat
+    local slow_factor = ewma_factor(tick_duration, 135)
+    local fast_factor = ewma_factor(tick_duration, 0.4)
 
     while true do
         local _, time_data = stats_queue:receive(nil, "stats")
@@ -926,8 +930,8 @@ local function reflector_peer_selector()
     local random = math.random
 
     local selector_sleep_time_ns = 0
-    local selector_sleep_time_s = peer_reselection_time * 60
-
+    local selector_sleep_time_s = 30 -- we start out reselecting every 30 seconds, then after 40 reselections we move to every 15 mins
+    local reselection_count = 0
     local baseline_sleep_time_ns = floor(((tick_duration * pi) % 1) * 1e9)
     local baseline_sleep_time_s = floor(tick_duration * pi)
 
@@ -935,6 +939,10 @@ local function reflector_peer_selector()
     nsleep(baseline_sleep_time_s, baseline_sleep_time_ns)
 
     while true do
+        reselection_count = reselection_count + 1
+        if reselection_count > 40 then
+            selector_sleep_time_s = 15 * 60 -- 15 mins
+        end
         local peerhash = {} -- a hash table of next peers, to ensure uniqueness
         local next_peers = {} -- an array of next peers
         local reflector_tables = reflector_data:get("reflector_tables")
@@ -1134,8 +1142,9 @@ local function conductor()
     logger(loglevel.INFO, "Reflector Pool Size: " .. #tmp_reflectors)
 
     -- Load up the reflectors shared tables
+    -- seed the peers with a set of "good candidates", we will adjust using the peer selector through time
     reflector_data:set("reflector_tables", {
-        peers = tmp_reflectors,
+        peers = {"9.9.9.9", "8.238.120.14", "74.82.42.42", "194.242.2.2", "208.67.222.222", "94.140.14.14"},
         pool = tmp_reflectors
     })
 
