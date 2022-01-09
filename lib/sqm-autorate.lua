@@ -926,8 +926,8 @@ local function reflector_peer_selector()
     local random = math.random
 
     local selector_sleep_time_ns = 0
-    local selector_sleep_time_s = peer_reselection_time * 60
-
+    local selector_sleep_time_s = 30 -- we start out reselecting every 30 seconds, then after 40 reselections we move to every 15 mins
+    local reselection_count = 0
     local baseline_sleep_time_ns = floor(((tick_duration * pi) % 1) * 1e9)
     local baseline_sleep_time_s = floor(tick_duration * pi)
 
@@ -935,6 +935,10 @@ local function reflector_peer_selector()
     nsleep(baseline_sleep_time_s, baseline_sleep_time_ns)
 
     while true do
+        reselection_count = reselection_count + 1
+        if reselection_count > 40 then
+            selector_sleep_time_s = 15*60 -- 15 mins
+        end
         local peerhash = {} -- a hash table of next peers, to ensure uniqueness
         local next_peers = {} -- an array of next peers
         local reflector_tables = reflector_data:get("reflector_tables")
@@ -1134,8 +1138,10 @@ local function conductor()
     logger(loglevel.INFO, "Reflector Pool Size: " .. #tmp_reflectors)
 
     -- Load up the reflectors shared tables
+    -- seed the peers with a set of "good candidates", we will adjust using the peer selector through time
     reflector_data:set("reflector_tables", {
-        peers = tmp_reflectors,
+        peers = {"9.9.9.9", "8.238.120.14","74.82.42.42",
+            "194.242.2.2","208.67.222.222","94.140.14.14"},
         pool = tmp_reflectors
     })
 
