@@ -732,7 +732,7 @@ local function ratecontrol()
                 end
                 if #up_del < 5 or #down_del < 5 then
                     -- trigger reselection here through the Linda channel
-                    reselector_channel:send("reselect")
+                    reselector_channel:send("reselect",1)
                 end
                 if #up_del == 0 or #down_del == 0 then
                     next_dl_rate = min_dl_rate
@@ -905,7 +905,7 @@ local function baseline_calculator()
                 owd_baseline[time_data.reflector].last_receive_time_s = time_data.last_receive_time_s - 60
                 owd_recent[time_data.reflector].last_receive_time_s = time_data.last_receive_time_s - 60
                 -- trigger a reselection of reflectors here
-                reselector_channel:send("reselect")
+                reselector_channel:send("reselect",1)
             else
                 owd_baseline[time_data.reflector].up_ewma = owd_baseline[time_data.reflector].up_ewma * slow_factor +
                 (1 - slow_factor) * time_data.uplink_time
