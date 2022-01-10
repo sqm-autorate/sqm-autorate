@@ -734,7 +734,7 @@ local function ratecontrol()
                 if #up_del == 0 or #down_del == 0 then
                     next_dl_rate = min_dl_rate
                     next_ul_rate = min_ul_rate
-                    -- ideally we'd call goto here, but it requires lua 5.2 or greater
+
                     goto ::setrate::
                 end
 
