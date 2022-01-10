@@ -728,6 +728,15 @@ local function ratecontrol()
                             "  down_del: " .. down_del[#down_del])
                     end
                 end
+                if #up_del < 5 or #down_del < 5 then
+                    -- trigger reselection here through the Linda channel
+                end
+                if #up_del == 0 or #down_del == 0 then
+                    next_dl_rate = min_dl_rate
+                    next_ul_rate = min_ul_rate
+                    -- ideally we'd call goto here, but it requires lua 5.2 or greater
+                end
+
                 table.sort(up_del)
                 table.sort(down_del)
 
@@ -781,6 +790,8 @@ local function ratecontrol()
                             next_dl_rate = 0.9 * cur_dl_rate * rx_load
                         end
                     end
+
+                    -- we could set rate to minimum and GOTO here if there's an abnormal condition
                     logger(loglevel.INFO, "next_ul_rate " .. next_ul_rate .. " next_dl_rate " .. next_dl_rate)
                     next_ul_rate = floor(max(min_ul_rate, next_ul_rate))
                     next_dl_rate = floor(max(min_dl_rate, next_dl_rate))
@@ -881,21 +892,29 @@ local function baseline_calculator()
 
             owd_baseline[time_data.reflector].last_receive_time_s = time_data.last_receive_time_s
             owd_recent[time_data.reflector].last_receive_time_s = time_data.last_receive_time_s
-            owd_baseline[time_data.reflector].up_ewma = owd_baseline[time_data.reflector].up_ewma * slow_factor +
-                                                            (1 - slow_factor) * time_data.uplink_time
-            owd_recent[time_data.reflector].up_ewma = owd_recent[time_data.reflector].up_ewma * fast_factor +
-                                                          (1 - fast_factor) * time_data.uplink_time
-            owd_baseline[time_data.reflector].down_ewma = owd_baseline[time_data.reflector].down_ewma * slow_factor +
-                                                              (1 - slow_factor) * time_data.downlink_time
-            owd_recent[time_data.reflector].down_ewma = owd_recent[time_data.reflector].down_ewma * fast_factor +
-                                                            (1 - fast_factor) * time_data.downlink_time
+            -- if this reflection is more than 5 seconds higher than baseline... mark it no good and trigger a reselection
+            if time_data.uplink_time > owd_baseline[time_data.reflector].up_ewma + 5000 or
+                time_data.downlink_time > owd_baseline[time_data.reflector].down_ewma + 5000 then
+                    -- 5000 ms is a weird amount of time for a ping. let's mark this old and no good
+                owd_baseline[time_data.reflector].last_receive_time_s = time_data.last_receive_time_s - 60
+                owd_recent[time_data.reflector].last_receive_time_s = time_data.last_receive_time_s - 60
+                -- trigger a reselection of reflectors here
+            else
+                owd_baseline[time_data.reflector].up_ewma = owd_baseline[time_data.reflector].up_ewma * slow_factor +
+                (1 - slow_factor) * time_data.uplink_time
+                owd_recent[time_data.reflector].up_ewma = owd_recent[time_data.reflector].up_ewma * fast_factor +
+                (1 - fast_factor) * time_data.uplink_time
+                owd_baseline[time_data.reflector].down_ewma = owd_baseline[time_data.reflector].down_ewma * slow_factor +
+                (1 - slow_factor) * time_data.downlink_time
+                owd_recent[time_data.reflector].down_ewma = owd_recent[time_data.reflector].down_ewma * fast_factor +
+                (1 - fast_factor) * time_data.downlink_time
 
-            -- when baseline is above the recent, set equal to recent, so we track down more quickly
-            owd_baseline[time_data.reflector].up_ewma = min(owd_baseline[time_data.reflector].up_ewma,
+                -- when baseline is above the recent, set equal to recent, so we track down more quickly
+                owd_baseline[time_data.reflector].up_ewma = min(owd_baseline[time_data.reflector].up_ewma,
                 owd_recent[time_data.reflector].up_ewma)
-            owd_baseline[time_data.reflector].down_ewma = min(owd_baseline[time_data.reflector].down_ewma,
+                owd_baseline[time_data.reflector].down_ewma = min(owd_baseline[time_data.reflector].down_ewma,
                 owd_recent[time_data.reflector].down_ewma)
-
+            end
             -- Set the values back into the shared tables
             owd_data:set("owd_tables", {
                 baseline = owd_baseline,
