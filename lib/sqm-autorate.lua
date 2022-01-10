@@ -736,6 +736,10 @@ local function ratecontrol()
                     -- trigger reselection here through the Linda channel
                     reselector_channel:send("reselect",1)
                 end
+
+                local cur_rx_bytes = read_stats_file(rx_bytes_file)
+                local cur_tx_bytes = read_stats_file(tx_bytes_file)
+
                 if #up_del == 0 or #down_del == 0 then
                     next_dl_rate = min_dl_rate
                     next_ul_rate = min_ul_rate
@@ -745,10 +749,7 @@ local function ratecontrol()
                     
                     local up_del_stat = a_else_b(up_del[3], up_del[1])
                     local down_del_stat = a_else_b(down_del[3], down_del[1])
-                    
-                    local cur_rx_bytes = read_stats_file(rx_bytes_file)
-                    local cur_tx_bytes = read_stats_file(tx_bytes_file)
-                    
+
                     if cur_rx_bytes and cur_tx_bytes and up_del_stat and down_del_stat then
                         t_prev_bytes = t_cur_bytes
                         t_cur_bytes = now_t
@@ -796,34 +797,34 @@ local function ratecontrol()
                     else
                         logger(loglevel.WARN, "One or both stats files could not be read. Skipping rate control algorithm.")
                     end
-                                        
-                    logger(loglevel.INFO, "next_ul_rate " .. next_ul_rate .. " next_dl_rate " .. next_dl_rate)
-                    next_ul_rate = floor(max(min_ul_rate, next_ul_rate))
-                    next_dl_rate = floor(max(min_dl_rate, next_dl_rate))
-                    
-                    -- TC modification
-                    if next_dl_rate ~= cur_dl_rate then
-                        update_cake_bandwidth(dl_if, next_dl_rate)
-                    end
-                    if next_ul_rate ~= cur_ul_rate then
-                        update_cake_bandwidth(ul_if, next_ul_rate)
-                    end
-                    cur_dl_rate = next_dl_rate
-                    cur_ul_rate = next_ul_rate
-
-                    logger(loglevel.DEBUG,
-                        string.format("%d,%d,%f,%f,%f,%f,%d,%d\n", lastchg_s, lastchg_ns, rx_load, tx_load,
-                            down_del_stat, up_del_stat, cur_dl_rate, cur_ul_rate))
-
-                    lastchg_s, lastchg_ns = get_current_time()
-
-                    -- output to log file before doing delta on the time
-                    csv_fd:write(string.format("%d,%d,%f,%f,%f,%f,%d,%d\n", lastchg_s, lastchg_ns, rx_load, tx_load,
-                        down_del_stat, up_del_stat, cur_dl_rate, cur_ul_rate))
-
-                    lastchg_s = lastchg_s - start_s
-                    lastchg_t = lastchg_s + lastchg_ns / 1e9
+                end                                        
+                logger(loglevel.INFO, "next_ul_rate " .. next_ul_rate .. " next_dl_rate " .. next_dl_rate)
+                next_ul_rate = floor(max(min_ul_rate, next_ul_rate))
+                next_dl_rate = floor(max(min_dl_rate, next_dl_rate))
+                
+                -- TC modification
+                if next_dl_rate ~= cur_dl_rate then
+                    update_cake_bandwidth(dl_if, next_dl_rate)
                 end
+                if next_ul_rate ~= cur_ul_rate then
+                    update_cake_bandwidth(ul_if, next_ul_rate)
+                end
+                cur_dl_rate = next_dl_rate
+                cur_ul_rate = next_ul_rate
+                
+                logger(loglevel.DEBUG,
+                string.format("%d,%d,%f,%f,%f,%f,%d,%d\n", lastchg_s, lastchg_ns, rx_load, tx_load,
+                down_del_stat, up_del_stat, cur_dl_rate, cur_ul_rate))
+                
+                lastchg_s, lastchg_ns = get_current_time()
+                
+                -- output to log file before doing delta on the time
+                csv_fd:write(string.format("%d,%d,%f,%f,%f,%f,%d,%d\n", lastchg_s, lastchg_ns, rx_load, tx_load,
+                down_del_stat, up_del_stat, cur_dl_rate, cur_ul_rate))
+                
+                lastchg_s = lastchg_s - start_s
+                lastchg_t = lastchg_s + lastchg_ns / 1e9
+                
             end
         end
 
