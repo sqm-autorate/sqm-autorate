@@ -717,6 +717,8 @@ local function ratecontrol()
             if reflector_list then
                 local up_del = {}
                 local down_del = {}
+                local next_dl_rate, next_ul_rate, rx_load, tx_load
+
                 for _, reflector_ip in ipairs(reflector_list) do
                     -- only consider this data if it's less than 2 * tick_duration seconds old
                     if owd_recent[reflector_ip] ~= nil and owd_baseline[reflector_ip] ~= nil and
@@ -738,7 +740,6 @@ local function ratecontrol()
                     next_dl_rate = min_dl_rate
                     next_ul_rate = min_ul_rate
                 else
-                    
                     table.sort(up_del)
                     table.sort(down_del)
                     
@@ -752,14 +753,14 @@ local function ratecontrol()
                         t_prev_bytes = t_cur_bytes
                         t_cur_bytes = now_t
                         
-                        local rx_load = (8 / 1000) * (cur_rx_bytes - prev_rx_bytes) / (t_cur_bytes - t_prev_bytes) /
+                        rx_load = (8 / 1000) * (cur_rx_bytes - prev_rx_bytes) / (t_cur_bytes - t_prev_bytes) /
                         cur_dl_rate
-                        local tx_load = (8 / 1000) * (cur_tx_bytes - prev_tx_bytes) / (t_cur_bytes - t_prev_bytes) /
+                        tx_load = (8 / 1000) * (cur_tx_bytes - prev_tx_bytes) / (t_cur_bytes - t_prev_bytes) /
                         cur_ul_rate
                         prev_rx_bytes = cur_rx_bytes
                         prev_tx_bytes = cur_tx_bytes
-                        local next_ul_rate = cur_ul_rate
-                        local next_dl_rate = cur_dl_rate
+                        next_ul_rate = cur_ul_rate
+                        next_dl_rate = cur_dl_rate
                         logger(loglevel.INFO, "up_del_stat " .. up_del_stat .. " down_del_stat " .. down_del_stat)
                         if up_del_stat and up_del_stat < ul_max_delta_owd and tx_load > high_load_level then
                             safe_ul_rates[nrate_up] = floor(cur_ul_rate * tx_load)
@@ -792,6 +793,8 @@ local function ratecontrol()
                                 next_dl_rate = 0.9 * cur_dl_rate * rx_load
                             end
                         end
+                    else
+                        logger(loglevel.WARN, "One or both stats files could not be read. Skipping rate control algorithm.")
                     end
                                         
                     logger(loglevel.INFO, "next_ul_rate " .. next_ul_rate .. " next_dl_rate " .. next_dl_rate)
@@ -820,8 +823,6 @@ local function ratecontrol()
 
                     lastchg_s = lastchg_s - start_s
                     lastchg_t = lastchg_s + lastchg_ns / 1e9
-                else
-                    logger(loglevel.WARN, "One or both stats files could not be read. Skipping rate control algorithm.")
                 end
             end
         end
