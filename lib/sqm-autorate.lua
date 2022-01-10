@@ -83,6 +83,8 @@ reflector_data:set("reflector_tables", {
     pool = {}
 })
 
+local reselector_channel = lanes.linda()
+
 local loglevel = {
     TRACE = {
         level = 6,
@@ -730,6 +732,7 @@ local function ratecontrol()
                 end
                 if #up_del < 5 or #down_del < 5 then
                     -- trigger reselection here through the Linda channel
+                    reselector_channel:send("reselect")
                 end
                 if #up_del == 0 or #down_del == 0 then
                     next_dl_rate = min_dl_rate
@@ -902,6 +905,7 @@ local function baseline_calculator()
                 owd_baseline[time_data.reflector].last_receive_time_s = time_data.last_receive_time_s - 60
                 owd_recent[time_data.reflector].last_receive_time_s = time_data.last_receive_time_s - 60
                 -- trigger a reselection of reflectors here
+                reselector_channel:send("reselect")
             else
                 owd_baseline[time_data.reflector].up_ewma = owd_baseline[time_data.reflector].up_ewma * slow_factor +
                 (1 - slow_factor) * time_data.uplink_time
@@ -962,6 +966,7 @@ local function reflector_peer_selector()
     nsleep(baseline_sleep_time_s, baseline_sleep_time_ns)
 
     while true do
+        reselector_channel:receive(selector_sleep_time_s + selector_sleep_time_ns/1e9,"reselect")
         reselection_count = reselection_count + 1
         if reselection_count > 40 then
             selector_sleep_time_s = 15 * 60 -- 15 mins
@@ -1042,7 +1047,6 @@ local function reflector_peer_selector()
             pool = reflector_pool
         })
 
-        nsleep(selector_sleep_time_s, selector_sleep_time_ns)
     end
 end
 ---------------------------- End Local Functions ----------------------------
