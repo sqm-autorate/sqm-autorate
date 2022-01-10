@@ -820,7 +820,7 @@ local function ratecontrol()
 
                 lastchg_s, lastchg_ns = get_current_time()
 
-                if up_del_stat and down_del_stat then
+                if rx_load and tx_load and up_del_stat and down_del_stat then
                     logger(loglevel.DEBUG,
                         string.format("%d,%d,%f,%f,%f,%f,%d,%d\n", lastchg_s, lastchg_ns, rx_load, tx_load,
                             down_del_stat, up_del_stat, cur_dl_rate, cur_ul_rate))
@@ -830,7 +830,9 @@ local function ratecontrol()
                         down_del_stat, up_del_stat, cur_dl_rate, cur_ul_rate))
                 else
                     logger(loglevel.DEBUG,
-                        string.format("down_del_stat: %s | up_del_stat: %s\n", down_del_stat, up_del_stat))
+                        string.format(
+                            "Missing value error: rx_load = %s | tx_load = %s | down_del_stat = %s | up_del_stat = %s",
+                            rx_load, tx_load, down_del_stat, up_del_stat))
                 end
 
                 lastchg_s = lastchg_s - start_s
