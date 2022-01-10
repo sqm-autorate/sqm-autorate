@@ -735,6 +735,7 @@ local function ratecontrol()
                     next_dl_rate = min_dl_rate
                     next_ul_rate = min_ul_rate
                     -- ideally we'd call goto here, but it requires lua 5.2 or greater
+                    goto ::setrate::
                 end
 
                 table.sort(up_del)
@@ -792,6 +793,8 @@ local function ratecontrol()
                     end
 
                     -- we could set rate to minimum and GOTO here if there's an abnormal condition
+                    ::setrate::
+
                     logger(loglevel.INFO, "next_ul_rate " .. next_ul_rate .. " next_dl_rate " .. next_dl_rate)
                     next_ul_rate = floor(max(min_ul_rate, next_ul_rate))
                     next_dl_rate = floor(max(min_dl_rate, next_dl_rate))
