@@ -737,71 +737,67 @@ local function ratecontrol()
                 if #up_del == 0 or #down_del == 0 then
                     next_dl_rate = min_dl_rate
                     next_ul_rate = min_ul_rate
-
-                    goto ::setrate::
-                end
-
-                table.sort(up_del)
-                table.sort(down_del)
-
-                local up_del_stat = a_else_b(up_del[3], up_del[1])
-                local down_del_stat = a_else_b(down_del[3], down_del[1])
-
-                local cur_rx_bytes = read_stats_file(rx_bytes_file)
-                local cur_tx_bytes = read_stats_file(tx_bytes_file)
-
-                if cur_rx_bytes and cur_tx_bytes and up_del_stat and down_del_stat then
-                    t_prev_bytes = t_cur_bytes
-                    t_cur_bytes = now_t
-
-                    local rx_load = (8 / 1000) * (cur_rx_bytes - prev_rx_bytes) / (t_cur_bytes - t_prev_bytes) /
-                                        cur_dl_rate
-                    local tx_load = (8 / 1000) * (cur_tx_bytes - prev_tx_bytes) / (t_cur_bytes - t_prev_bytes) /
-                                        cur_ul_rate
-                    prev_rx_bytes = cur_rx_bytes
-                    prev_tx_bytes = cur_tx_bytes
-                    local next_ul_rate = cur_ul_rate
-                    local next_dl_rate = cur_dl_rate
-                    logger(loglevel.INFO, "up_del_stat " .. up_del_stat .. " down_del_stat " .. down_del_stat)
-                    if up_del_stat and up_del_stat < ul_max_delta_owd and tx_load > high_load_level then
-                        safe_ul_rates[nrate_up] = floor(cur_ul_rate * tx_load)
-                        local max_ul = maximum(safe_ul_rates)
-                        next_ul_rate = cur_ul_rate * (1 + .1 * max(0, (1 - cur_ul_rate / max_ul))) +
-                                           (base_ul_rate * 0.03)
-                        nrate_up = nrate_up + 1
-                        nrate_up = nrate_up % histsize
-                    end
-                    if down_del_stat and down_del_stat < dl_max_delta_owd and rx_load > high_load_level then
-                        safe_dl_rates[nrate_down] = floor(cur_dl_rate * rx_load)
-                        local max_dl = maximum(safe_dl_rates)
-                        next_dl_rate = cur_dl_rate * (1 + .1 * max(0, (1 - cur_dl_rate / max_dl))) +
-                                           (base_dl_rate * 0.03)
-                        nrate_down = nrate_down + 1
-                        nrate_down = nrate_down % histsize
-                    end
-
-                    if up_del_stat > ul_max_delta_owd then
-                        if #safe_ul_rates > 0 then
-                            next_ul_rate = min(0.9 * cur_ul_rate * tx_load, safe_ul_rates[random(#safe_ul_rates) - 1])
-                        else
-                            next_ul_rate = 0.9 * cur_ul_rate * tx_load
+                else
+                    
+                    table.sort(up_del)
+                    table.sort(down_del)
+                    
+                    local up_del_stat = a_else_b(up_del[3], up_del[1])
+                    local down_del_stat = a_else_b(down_del[3], down_del[1])
+                    
+                    local cur_rx_bytes = read_stats_file(rx_bytes_file)
+                    local cur_tx_bytes = read_stats_file(tx_bytes_file)
+                    
+                    if cur_rx_bytes and cur_tx_bytes and up_del_stat and down_del_stat then
+                        t_prev_bytes = t_cur_bytes
+                        t_cur_bytes = now_t
+                        
+                        local rx_load = (8 / 1000) * (cur_rx_bytes - prev_rx_bytes) / (t_cur_bytes - t_prev_bytes) /
+                        cur_dl_rate
+                        local tx_load = (8 / 1000) * (cur_tx_bytes - prev_tx_bytes) / (t_cur_bytes - t_prev_bytes) /
+                        cur_ul_rate
+                        prev_rx_bytes = cur_rx_bytes
+                        prev_tx_bytes = cur_tx_bytes
+                        local next_ul_rate = cur_ul_rate
+                        local next_dl_rate = cur_dl_rate
+                        logger(loglevel.INFO, "up_del_stat " .. up_del_stat .. " down_del_stat " .. down_del_stat)
+                        if up_del_stat and up_del_stat < ul_max_delta_owd and tx_load > high_load_level then
+                            safe_ul_rates[nrate_up] = floor(cur_ul_rate * tx_load)
+                            local max_ul = maximum(safe_ul_rates)
+                            next_ul_rate = cur_ul_rate * (1 + .1 * max(0, (1 - cur_ul_rate / max_ul))) +
+                            (base_ul_rate * 0.03)
+                            nrate_up = nrate_up + 1
+                            nrate_up = nrate_up % histsize
+                        end
+                        if down_del_stat and down_del_stat < dl_max_delta_owd and rx_load > high_load_level then
+                            safe_dl_rates[nrate_down] = floor(cur_dl_rate * rx_load)
+                            local max_dl = maximum(safe_dl_rates)
+                            next_dl_rate = cur_dl_rate * (1 + .1 * max(0, (1 - cur_dl_rate / max_dl))) +
+                            (base_dl_rate * 0.03)
+                            nrate_down = nrate_down + 1
+                            nrate_down = nrate_down % histsize
+                        end
+                        
+                        if up_del_stat > ul_max_delta_owd then
+                            if #safe_ul_rates > 0 then
+                                next_ul_rate = min(0.9 * cur_ul_rate * tx_load, safe_ul_rates[random(#safe_ul_rates) - 1])
+                            else
+                                next_ul_rate = 0.9 * cur_ul_rate * tx_load
+                            end
+                        end
+                        if down_del_stat > dl_max_delta_owd then
+                            if #safe_dl_rates > 0 then
+                                next_dl_rate = min(0.9 * cur_dl_rate * rx_load, safe_dl_rates[random(#safe_dl_rates) - 1])
+                            else
+                                next_dl_rate = 0.9 * cur_dl_rate * rx_load
+                            end
                         end
                     end
-                    if down_del_stat > dl_max_delta_owd then
-                        if #safe_dl_rates > 0 then
-                            next_dl_rate = min(0.9 * cur_dl_rate * rx_load, safe_dl_rates[random(#safe_dl_rates) - 1])
-                        else
-                            next_dl_rate = 0.9 * cur_dl_rate * rx_load
-                        end
-                    end
-
-                    -- we could set rate to minimum and GOTO here if there's an abnormal condition
-                    ::setrate::
-
+                                        
                     logger(loglevel.INFO, "next_ul_rate " .. next_ul_rate .. " next_dl_rate " .. next_dl_rate)
                     next_ul_rate = floor(max(min_ul_rate, next_ul_rate))
                     next_dl_rate = floor(max(min_dl_rate, next_dl_rate))
-
+                    
                     -- TC modification
                     if next_dl_rate ~= cur_dl_rate then
                         update_cake_bandwidth(dl_if, next_dl_rate)
@@ -809,7 +805,6 @@ local function ratecontrol()
                     if next_ul_rate ~= cur_ul_rate then
                         update_cake_bandwidth(ul_if, next_ul_rate)
                     end
-
                     cur_dl_rate = next_dl_rate
                     cur_ul_rate = next_ul_rate
 
