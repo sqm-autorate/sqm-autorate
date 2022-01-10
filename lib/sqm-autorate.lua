@@ -828,6 +828,9 @@ local function ratecontrol()
                     -- output to log file before doing delta on the time
                     csv_fd:write(string.format("%d,%d,%f,%f,%f,%f,%d,%d\n", lastchg_s, lastchg_ns, rx_load, tx_load,
                         down_del_stat, up_del_stat, cur_dl_rate, cur_ul_rate))
+                else
+                    logger(loglevel.DEBUG,
+                        string.format("down_del_stat: %s | up_del_stat: %s\n", down_del_stat, up_del_stat))
                 end
 
                 lastchg_s = lastchg_s - start_s
