@@ -712,6 +712,9 @@ local function ratecontrol()
             local reflector_tables = reflector_data:get("reflector_tables")
             local reflector_list = reflector_tables["peers"]
 
+            local up_del_stat = nil
+            local down_del_stat = nil
+
             -- If we have no reflector peers to iterate over, don't attempt any rate changes.
             -- This will occur under normal operation when the reflector peers table is updated.
             if reflector_list then
@@ -734,7 +737,7 @@ local function ratecontrol()
                 end
                 if #up_del < 5 or #down_del < 5 then
                     -- trigger reselection here through the Linda channel
-                    reselector_channel:send("reselect",1)
+                    reselector_channel:send("reselect", 1)
                 end
 
                 local cur_rx_bytes = read_stats_file(rx_bytes_file)
@@ -746,18 +749,18 @@ local function ratecontrol()
                 else
                     table.sort(up_del)
                     table.sort(down_del)
-                    
-                    local up_del_stat = a_else_b(up_del[3], up_del[1])
-                    local down_del_stat = a_else_b(down_del[3], down_del[1])
+
+                    up_del_stat = a_else_b(up_del[3], up_del[1])
+                    down_del_stat = a_else_b(down_del[3], down_del[1])
 
                     if cur_rx_bytes and cur_tx_bytes and up_del_stat and down_del_stat then
                         t_prev_bytes = t_cur_bytes
                         t_cur_bytes = now_t
-                        
+
                         rx_load = (8 / 1000) * (cur_rx_bytes - prev_rx_bytes) / (t_cur_bytes - t_prev_bytes) /
-                        cur_dl_rate
+                                      cur_dl_rate
                         tx_load = (8 / 1000) * (cur_tx_bytes - prev_tx_bytes) / (t_cur_bytes - t_prev_bytes) /
-                        cur_ul_rate
+                                      cur_ul_rate
                         prev_rx_bytes = cur_rx_bytes
                         prev_tx_bytes = cur_tx_bytes
                         next_ul_rate = cur_ul_rate
@@ -767,7 +770,7 @@ local function ratecontrol()
                             safe_ul_rates[nrate_up] = floor(cur_ul_rate * tx_load)
                             local max_ul = maximum(safe_ul_rates)
                             next_ul_rate = cur_ul_rate * (1 + .1 * max(0, (1 - cur_ul_rate / max_ul))) +
-                            (base_ul_rate * 0.03)
+                                               (base_ul_rate * 0.03)
                             nrate_up = nrate_up + 1
                             nrate_up = nrate_up % histsize
                         end
@@ -775,33 +778,36 @@ local function ratecontrol()
                             safe_dl_rates[nrate_down] = floor(cur_dl_rate * rx_load)
                             local max_dl = maximum(safe_dl_rates)
                             next_dl_rate = cur_dl_rate * (1 + .1 * max(0, (1 - cur_dl_rate / max_dl))) +
-                            (base_dl_rate * 0.03)
+                                               (base_dl_rate * 0.03)
                             nrate_down = nrate_down + 1
                             nrate_down = nrate_down % histsize
                         end
-                        
+
                         if up_del_stat > ul_max_delta_owd then
                             if #safe_ul_rates > 0 then
-                                next_ul_rate = min(0.9 * cur_ul_rate * tx_load, safe_ul_rates[random(#safe_ul_rates) - 1])
+                                next_ul_rate = min(0.9 * cur_ul_rate * tx_load,
+                                    safe_ul_rates[random(#safe_ul_rates) - 1])
                             else
                                 next_ul_rate = 0.9 * cur_ul_rate * tx_load
                             end
                         end
                         if down_del_stat > dl_max_delta_owd then
                             if #safe_dl_rates > 0 then
-                                next_dl_rate = min(0.9 * cur_dl_rate * rx_load, safe_dl_rates[random(#safe_dl_rates) - 1])
+                                next_dl_rate = min(0.9 * cur_dl_rate * rx_load,
+                                    safe_dl_rates[random(#safe_dl_rates) - 1])
                             else
                                 next_dl_rate = 0.9 * cur_dl_rate * rx_load
                             end
                         end
                     else
-                        logger(loglevel.WARN, "One or both stats files could not be read. Skipping rate control algorithm.")
+                        logger(loglevel.WARN,
+                            "One or both stats files could not be read. Skipping rate control algorithm.")
                     end
-                end                                        
+                end
                 logger(loglevel.INFO, "next_ul_rate " .. next_ul_rate .. " next_dl_rate " .. next_dl_rate)
                 next_ul_rate = floor(max(min_ul_rate, next_ul_rate))
                 next_dl_rate = floor(max(min_dl_rate, next_dl_rate))
-                
+
                 -- TC modification
                 if next_dl_rate ~= cur_dl_rate then
                     update_cake_bandwidth(dl_if, next_dl_rate)
@@ -811,20 +817,22 @@ local function ratecontrol()
                 end
                 cur_dl_rate = next_dl_rate
                 cur_ul_rate = next_ul_rate
-                
-                logger(loglevel.DEBUG,
-                string.format("%d,%d,%f,%f,%f,%f,%d,%d\n", lastchg_s, lastchg_ns, rx_load, tx_load,
-                down_del_stat, up_del_stat, cur_dl_rate, cur_ul_rate))
-                
+
                 lastchg_s, lastchg_ns = get_current_time()
-                
-                -- output to log file before doing delta on the time
-                csv_fd:write(string.format("%d,%d,%f,%f,%f,%f,%d,%d\n", lastchg_s, lastchg_ns, rx_load, tx_load,
-                down_del_stat, up_del_stat, cur_dl_rate, cur_ul_rate))
-                
+
+                if up_del_stat and down_del_stat then
+                    logger(loglevel.DEBUG,
+                        string.format("%d,%d,%f,%f,%f,%f,%d,%d\n", lastchg_s, lastchg_ns, rx_load, tx_load,
+                            down_del_stat, up_del_stat, cur_dl_rate, cur_ul_rate))
+
+                    -- output to log file before doing delta on the time
+                    csv_fd:write(string.format("%d,%d,%f,%f,%f,%f,%d,%d\n", lastchg_s, lastchg_ns, rx_load, tx_load,
+                        down_del_stat, up_del_stat, cur_dl_rate, cur_ul_rate))
+                end
+
                 lastchg_s = lastchg_s - start_s
                 lastchg_t = lastchg_s + lastchg_ns / 1e9
-                
+
             end
         end
 
@@ -896,28 +904,29 @@ local function baseline_calculator()
             owd_baseline[time_data.reflector].last_receive_time_s = time_data.last_receive_time_s
             owd_recent[time_data.reflector].last_receive_time_s = time_data.last_receive_time_s
             -- if this reflection is more than 5 seconds higher than baseline... mark it no good and trigger a reselection
-            if time_data.uplink_time > owd_baseline[time_data.reflector].up_ewma + 5000 or
-                time_data.downlink_time > owd_baseline[time_data.reflector].down_ewma + 5000 then
-                    -- 5000 ms is a weird amount of time for a ping. let's mark this old and no good
+            if time_data.uplink_time > owd_baseline[time_data.reflector].up_ewma + 5000 or time_data.downlink_time >
+                owd_baseline[time_data.reflector].down_ewma + 5000 then
+                -- 5000 ms is a weird amount of time for a ping. let's mark this old and no good
                 owd_baseline[time_data.reflector].last_receive_time_s = time_data.last_receive_time_s - 60
                 owd_recent[time_data.reflector].last_receive_time_s = time_data.last_receive_time_s - 60
                 -- trigger a reselection of reflectors here
-                reselector_channel:send("reselect",1)
+                reselector_channel:send("reselect", 1)
             else
                 owd_baseline[time_data.reflector].up_ewma = owd_baseline[time_data.reflector].up_ewma * slow_factor +
-                (1 - slow_factor) * time_data.uplink_time
+                                                                (1 - slow_factor) * time_data.uplink_time
                 owd_recent[time_data.reflector].up_ewma = owd_recent[time_data.reflector].up_ewma * fast_factor +
-                (1 - fast_factor) * time_data.uplink_time
-                owd_baseline[time_data.reflector].down_ewma = owd_baseline[time_data.reflector].down_ewma * slow_factor +
-                (1 - slow_factor) * time_data.downlink_time
+                                                              (1 - fast_factor) * time_data.uplink_time
+                owd_baseline[time_data.reflector].down_ewma =
+                    owd_baseline[time_data.reflector].down_ewma * slow_factor + (1 - slow_factor) *
+                        time_data.downlink_time
                 owd_recent[time_data.reflector].down_ewma = owd_recent[time_data.reflector].down_ewma * fast_factor +
-                (1 - fast_factor) * time_data.downlink_time
+                                                                (1 - fast_factor) * time_data.downlink_time
 
                 -- when baseline is above the recent, set equal to recent, so we track down more quickly
                 owd_baseline[time_data.reflector].up_ewma = min(owd_baseline[time_data.reflector].up_ewma,
-                owd_recent[time_data.reflector].up_ewma)
-                owd_baseline[time_data.reflector].down_ewma = min(owd_baseline[time_data.reflector].down_ewma,
-                owd_recent[time_data.reflector].down_ewma)
+                    owd_recent[time_data.reflector].up_ewma)
+                owd_baseline[time_data.reflector].down_ewma =
+                    min(owd_baseline[time_data.reflector].down_ewma, owd_recent[time_data.reflector].down_ewma)
             end
             -- Set the values back into the shared tables
             owd_data:set("owd_tables", {
@@ -963,7 +972,7 @@ local function reflector_peer_selector()
     nsleep(baseline_sleep_time_s, baseline_sleep_time_ns)
 
     while true do
-        reselector_channel:receive(selector_sleep_time_s + selector_sleep_time_ns/1e9,"reselect")
+        reselector_channel:receive(selector_sleep_time_s + selector_sleep_time_ns / 1e9, "reselect")
         reselection_count = reselection_count + 1
         if reselection_count > 40 then
             selector_sleep_time_s = 15 * 60 -- 15 mins
