@@ -26,31 +26,52 @@
 --
 -- The versioning value for this script
 local _VERSION = "0.4.3"
---
--- Found this clever function here: https://stackoverflow.com/a/15434737
--- This function will assist in compatibility given differences between OpenWrt, Turris OS, etc.
-local function is_module_available(name)
-    if package.loaded[name] then
-        return true
-    else
-        for _, searcher in ipairs(package.searchers or package.loaders) do
-            local loader = searcher(name)
-            if type(loader) == 'function' then
-                package.preload[name] = loader
-                return true
-            end
-        end
-        return false
-    end
-end
 
 local lanes = require"lanes".configure()
 
--- Try to load argparse if it's installed
-local argparse = nil
-if is_module_available("argparse") then
-    argparse = lanes.require "argparse"
-end
+local settings = lanes.require "get_settings".set_lanes(lanes).set_version(_VERSION)
+
+---------------------------- Begin Local Variables - External Settings ----------------------------
+
+local ul_if = settings.get("ul_if") -- upload_interface
+local dl_if = settings.get("dl_if") -- download interface
+
+local base_ul_rate = settings.get("base_ul_rate")
+local base_dl_rate = settings.get("base_dl_rate")
+
+local min_ul_rate = settings.get("min_ul_rate")
+local min_dl_rate = settings.get("min_dl_rate")
+
+local stats_file = settings.get("stats_file")
+local speedhist_file = settings.get("speedhist_file")
+
+local histsize = settings.get("histsize")
+
+local ul_max_delta_owd = settings.get("ul_max_delta_owd")
+local dl_max_delta_owd = settings.get("dl_max_delta_owd")
+
+local high_load_level = settings.get("high_load_level")
+
+local reflector_type = settings.get("reflector_type")
+
+---------------------------- End Local Variables - External Settings ----------------------------
+
+---------------------------- Begin Local Variables - Utilities ----------------------------
+local loglevel = settings.get("loglevel")
+local logger = settings.get("logger")
+local bit = settings.get("bit")         -- finds out whether to load module: bit or bit32
+local bit_mod = settings.get("bit_mod") -- indicator of module name loaded
+---------------------------- End Local Variables - Utilities ----------------------------
+
+---------------------------- Begin Advanced User-Configurable Local Variables ----------------------------
+local enable_verbose_baseline_output = false
+
+local tick_duration = 0.5 -- Frequency in seconds
+local min_change_interval = 0.5 -- don't change speeds unless this many seconds has passed since last change
+
+local reflector_list_icmp = "/usr/lib/sqm-autorate/reflectors-icmp.csv"
+local reflector_list_udp = "/usr/lib/sqm-autorate/reflectors-udp.csv"
+---------------------------- End Advanced User-Configurable Local Variables ----------------------------
 
 local math = lanes.require "math"
 local posix = lanes.require "posix"
@@ -84,141 +105,6 @@ reflector_data:set("reflector_tables", {
 })
 
 local reselector_channel = lanes.linda()
-
-local loglevel = {
-    TRACE = {
-        level = 6,
-        name = "TRACE"
-    },
-    DEBUG = {
-        level = 5,
-        name = "DEBUG"
-    },
-    INFO = {
-        level = 4,
-        name = "INFO"
-    },
-    WARN = {
-        level = 3,
-        name = "WARN"
-    },
-    ERROR = {
-        level = 2,
-        name = "ERROR"
-    },
-    FATAL = {
-        level = 1,
-        name = "FATAL"
-    }
-}
-
--- Set a default log level here, until we've got one from UCI
-local use_loglevel = loglevel.INFO
-
--- Basic homegrown logger to keep us from having to import yet another module
-local function logger(loglevel, message)
-    if (loglevel.level <= use_loglevel.level) then
-        local cur_date = os.date("%Y%m%dT%H:%M:%S")
-        -- local cur_date = os.date("%c")
-        local out_str = string.format("[%s - %s]: %s", loglevel.name, cur_date, message)
-        print(out_str)
-    end
-end
-
-local bit = nil
-local bit_mod = nil
-if is_module_available("bit") then
-    bit = lanes.require "bit"
-    bit_mod = "bit"
-elseif is_module_available("bit32") then
-    bit = lanes.require "bit32"
-    bit_mod = "bit32"
-else
-    logger(loglevel.FATAL, "No bitwise module found")
-    os.exit(1, true)
-end
-
--- Figure out if we are running on OpenWrt here and load luci.model.uci if available...
-local uci_lib = nil
-local settings = nil
-if is_module_available("luci.model.uci") then
-    uci_lib = require("luci.model.uci")
-    settings = uci_lib.cursor()
-end
-
--- If we have luci-app-sqm installed, but it is disabled, this whole thing is moot. Let's bail early in that case.
-if settings then
-    local sqm_enabled = tonumber(settings:get("sqm", "@queue[0]", "enabled"), 10)
-    if sqm_enabled == 0 then
-        logger(loglevel.FATAL,
-            "SQM is not enabled on this OpenWrt system. Please enable it before starting sqm-autorate.")
-        os.exit(1, true)
-    end
-end
-
----------------------------- Begin Local Variables - External Settings ----------------------------
-
--- Interface names: leave empty to use values from SQM config or place values here to override SQM config
-local ul_if = settings and settings:get("sqm-autorate", "@network[0]", "upload_interface") or "<UPLOAD INTERFACE NAME>" -- upload interface
-local dl_if = settings and settings:get("sqm-autorate", "@network[0]", "download_interface") or
-                  "<DOWNLOAD INTERFACE NAME>" -- download interface
-
-local base_ul_rate = settings and
-                         math.floor(tonumber(settings:get("sqm-autorate", "@network[0]", "upload_base_kbits"), 10)) or
-                         10000
-local base_dl_rate = settings and
-                         math.floor(tonumber(settings:get("sqm-autorate", "@network[0]", "download_base_kbits"), 10)) or
-                         10000
-
-local min_ul_rate = math.floor(base_ul_rate / 5)
-local min_dl_rate = math.floor(base_dl_rate / 5)
-do -- create a scope for temporary local variables
-    local min_ul_percent =
-        settings and tonumber(settings:get("sqm-autorate", "@network[0]", "upload_min_percent"), 10) or 20
-    min_ul_percent = math.min(math.max(min_ul_percent, 10), 60)
-    min_ul_rate = math.floor(base_ul_rate * min_ul_percent / 100)
-
-    local min_dl_percent = settings and
-                               tonumber(settings:get("sqm-autorate", "@network[0]", "download_min_percent"), 10) or 20
-    min_dl_percent = math.min(math.max(min_dl_percent, 10), 60)
-    min_dl_rate = math.floor(base_dl_rate * min_dl_percent / 100)
-end
-
-local stats_file = settings and settings:get("sqm-autorate", "@output[0]", "stats_file") or "<STATS FILE NAME/PATH>"
-local speedhist_file = settings and settings:get("sqm-autorate", "@output[0]", "speed_hist_file") or
-                           "<HIST FILE NAME/PATH>"
-
-use_loglevel = loglevel[string.upper(settings and settings:get("sqm-autorate", "@output[0]", "log_level") or "INFO")]
-
----------------------------- Begin Advanced User-Configurable Local Variables ----------------------------
-local enable_verbose_baseline_output = false
-
-local tick_duration = 0.5 -- Frequency in seconds
-local min_change_interval = 0.5 -- don't change speeds unless this many seconds has passed since last change
-
-local reflector_list_icmp = "/usr/lib/sqm-autorate/reflectors-icmp.csv"
-local reflector_list_udp = "/usr/lib/sqm-autorate/reflectors-udp.csv"
-
-local histsize = settings and tonumber(settings:get("sqm-autorate", "@advanced_settings[0]", "speed_hist_size"), 10) or
-                     100 -- the number of 'good' speeds to remember
--- reducing this value could result in the algorithm remembering too few speeds to truly stabilise
--- increasing this value could result in the algorithm taking too long to stabilise
-
-local ul_max_delta_owd = settings and
-                             tonumber(settings:get("sqm-autorate", "@advanced_settings[0]", "upload_delay_ms"), 10) or
-                             15 -- increase from baseline RTT for detection of bufferbloat
-local dl_max_delta_owd = settings and
-                             tonumber(settings:get("sqm-autorate", "@advanced_settings[0]", "download_delay_ms"), 10) or
-                             15 -- increase from baseline RTT for detection of bufferbloat
--- 15 is good for networks with very variable RTT values, such as LTE and DOCIS/cable networks
--- 5 might be appropriate for high speed and relatively stable networks such as fiber
-
-local high_load_level = settings and
-                            tonumber(settings:get("sqm-autorate", "@advanced_settings[0]", "high_load_level"), 10) or
-                            0.8
-high_load_level = math.min(math.max(high_load_level, 0.67), 0.95)
-
-local reflector_type = settings and settings:get("sqm-autorate", "@advanced_settings[0]", "reflector_type") or "icmp"
 
 ---------------------------- Begin Internal Local Variables ----------------------------
 
@@ -1232,19 +1118,5 @@ local function conductor()
     end
 end
 ---------------------------- End Conductor Loop ----------------------------
-
-if argparse then
-    local parser = argparse("sqm-autorate.lua", "CAKE with Adaptive Bandwidth - 'autorate'",
-        "For more info, please visit: https://github.com/Fail-Safe/sqm-autorate")
-
-    parser:flag("-v --version", "Displays the SQM Autorate version.")
-    local args = parser:parse()
-
-    -- Print the version and then exit
-    if args.version then
-        print(_VERSION)
-        os.exit(0, true)
-    end
-end
 
 conductor() -- go!
