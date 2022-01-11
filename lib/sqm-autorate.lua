@@ -1111,7 +1111,7 @@ local function conductor()
     if ul_if:find("^ifb.+") or ul_if:find("^veth.+") then
         tx_bytes_path = "/sys/class/net/" .. ul_if .. "/statistics/rx_bytes"
     elseif dl_if:find("^br-lan.+") then
-        rx_bytes_path = "/sys/class/net/" .. dl_if .. "/statistics/tx_bytes"
+        tx_bytes_path = "/sys/class/net/" .. dl_if .. "/statistics/tx_bytes"
     else
         tx_bytes_path = "/sys/class/net/" .. ul_if .. "/statistics/tx_bytes"
     end
