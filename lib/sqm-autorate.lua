@@ -1210,7 +1210,6 @@ local function conductor()
             required = {"posix", "posix.time"}
         }, reflector_peer_selector)()
     }
-    local join_timeout = 0.5
 
     nsleep(10, 0) -- sleep 10 seconds before we start adjusting speeds
 
@@ -1219,6 +1218,7 @@ local function conductor()
     }, ratecontrol)()
 
     -- Start this whole thing in motion!
+    local join_timeout = 0.5
     while true do
         for name, thread in pairs(threads) do
             local _, err = thread:join(join_timeout)
