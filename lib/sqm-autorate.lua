@@ -1102,7 +1102,7 @@ local function conductor()
     -- Verify these are correct using "cat /sys/class/..."
     if dl_if:find("^ifb.+") or dl_if:find("^veth.+") then
         rx_bytes_path = "/sys/class/net/" .. dl_if .. "/statistics/tx_bytes"
-    elseif dl_if:find("^br-lan.+") then
+    elseif dl_if == "br-lan" then
         rx_bytes_path = "/sys/class/net/" .. ul_if .. "/statistics/rx_bytes"
     else
         rx_bytes_path = "/sys/class/net/" .. dl_if .. "/statistics/rx_bytes"
