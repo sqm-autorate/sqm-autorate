@@ -516,6 +516,7 @@ local function receive_udp_pkt(pkt_id)
 end
 
 local function ts_ping_receiver(pkt_id, pkt_type)
+    set_debug_threadname('ping_receiver')
     logger(loglevel.TRACE, "Entered ts_ping_receiver() with value: " .. pkt_id)
 
     local receive_func = nil
@@ -602,6 +603,7 @@ local function send_udp_pkt(reflector, pkt_id)
 end
 
 local function ts_ping_sender(pkt_type, pkt_id, freq)
+    set_debug_threadname('ping_sender')
     logger(loglevel.TRACE, "Entered ts_ping_sender() with values: " .. freq .. " | " .. pkt_type .. " | " .. pkt_id)
 
     local floor = math.floor
@@ -648,6 +650,8 @@ local function read_stats_file(file)
 end
 
 local function ratecontrol()
+    set_debug_threadname('ratecontroller')
+    
     local floor = math.floor
     local max = math.max
     local min = math.min
@@ -853,6 +857,8 @@ local function ratecontrol()
 end
 
 local function baseline_calculator()
+    set_debug_threadname('baseliner')
+
     local min = math.min
     -- 135 seconds to decay to 50% for the slow factor and
     -- 0.4 seconds to decay to 50% for the fast factor.
@@ -963,6 +969,7 @@ local function rtt_compare(a, b)
 end
 
 local function reflector_peer_selector()
+    set_debug_threadname('peer_selector')
     local floor = math.floor
     local pi = math.pi
     local random = math.random
