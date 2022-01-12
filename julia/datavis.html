@@ -77,14 +77,15 @@
     <details>
       <summary>Speed History</summary>
       <p>
-        sqm-autorate uses a certain number of historical samples of speeds at which it was able to increase the speed because of no delay.
-        These graphs show a "smoothed histogram" of those values at different snapshots in time.
-        Each snapshot shows what values the script think would be "safe" to change the speed to,
-        in that it would then likely have no delay and be able to rise again.
+        <cite>sqm-autorate</cite> uses a certain number of historical samples of speeds at which it was able to increase the speed because of no delay.
+        These graphs show an animated "smoothed histogram" of those values at different snapshots in time.
+        Each snapshot shows the values that the script has recorded as "safe" to change the speed to,
+        in the expectation that it would then likely have no delay and be able to increase the speed again.
       <p>
         When the connection's actual speed changes dramatically, these samples will be less relevant,
         and the hunt for correct speed will cause the range of values to change.
         If these curves have wildly changing shapes it indicates very rapid changes in the actual line performance.
+      <p>
         Staying constant for long periods indicates a reliable range of speeds that the script can use.
     </details>
     <br>
