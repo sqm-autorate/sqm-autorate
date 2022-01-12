@@ -24,19 +24,24 @@
 local M = {}  -- the module table for export
 
 local settings = {}     -- a private table to hold all the settings
-local initialise = nil  -- place holder for forward definition of the initialiser
-local lanes = nil       --
+settings.version ='- not initialised -'
+
+local initialise = nil  -- place holder for forward definition of the initialiser function
+local lanes = nil       -- place holder for reference to the lanes require from main
 
 --==-- start of public interface --==--
 
 -- set the current version of sqm-autorate so it may be printed with -v / --version
+-- returns the module table for a fluent interface
 function M.set_version(version)
     settings.version = version
 
     return M
 end
 
--- set the current version of sqm-autorate so it may be printed with -v / --version
+-- set a reference to the lanes require from 'main'
+-- will crash if not set before internal initialisation
+-- returns the module table for a fluent interface
 function M.set_lanes(_lanes)
     lanes = _lanes
 
@@ -57,7 +62,7 @@ function M.get_all()
   return settings
 end
 
--- print all settings
+-- print all settings. The printed order of settings is 'random'
 function M.print_all()
     initialise()
 
@@ -92,11 +97,6 @@ local function _initialise()
         return nil
     end
     _run_once = true
-
-    if settings.version == nil then
-        print "Programming error found in get_settings._initialise, set_version not called"
-        os.exit(1, true)
-    end
 
     local math = lanes.require "math"
     local floor = math.floor
@@ -221,12 +221,6 @@ local function _initialise()
             parser:flag("-v --version", "Displays the SQM Autorate version.")
             parser:flag("-vv --show-settings", "shows all of the settings values after processing")
             args = parser:parse()
-
-            -- Print the version and then exit
-            if args.version then
-                print(settings.version)
-                os.exit(0, true)
-            end
         end
     end
 
@@ -385,11 +379,22 @@ local function _initialise()
         settings.reflector_type = reflector_type
     end
 
-    if arg and arg.show_settings then
-        M.print_all()
+    if args then
+        if args.version then
+            print(settings.version)
+        end
+
+        if args.show_settings then
+            M.print_all()
+        end
+
+        if args.version or args.show_settings then
+            os.exit(0, true)
+        end
     end
 end
 
-initialise = _initialise  -- now the function is defined, give it the correct name
+-- now the initialiser function is defined, make is accessible to the public functions
+initialise = _initialise
 
 return M
