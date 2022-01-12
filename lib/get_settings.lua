@@ -62,29 +62,53 @@ function M.get_all()
   return settings
 end
 
--- print all settings. The printed order of settings is 'random'
+-- print all settings
 function M.print_all()
     initialise()
 
-    print "sqm-autorate: settings start"
+    print "internal settings"
     local t = nil
+    local o = {}
+    local kmax = 0
+    local vmax = 0
     for k, v in pairs(settings) do
         if type(k) == "boolean" or type(k) == "number" then
             k = tostring(k)
         end
         t = type(v)
+        if k == "use_loglevel" then
+            v = v.name
+            t = "extracted from table"
+        end
         if t == "nil" then
             v = "nil"
         elseif t == "boolean" or t == "number" then
             v = tostring(v)
-        elseif t == "function" then
-            v = "function"
-        elseif t == "table" then
-            v = "table"
+        elseif t == "function"  or t == "table" then
+            v = ""
         end
-        print("    "..k..": "..v.." ("..t..")")
+        if #k > kmax then
+            kmax = #k
+        end
+        if #v > vmax then
+            vmax = #v
+        end
+        o[#o + 1] = { k = k, v = v, t = t }
     end
-    print "sqm-autorate: settings end"
+    table.sort(o,
+        function (a, b)
+            return a.k < b.k
+        end)
+    local function pad(s,l,c)
+        if c == nil then
+            c = " "
+        end
+        return s..string.rep(c, l - #s)
+    end
+    for i = 1, #o do
+        print("    "..pad(o[i].k, kmax)..": "..pad(o[i].v, vmax).." ("..o[i].t..")")
+    end
+    print "--"
 end
 
 --==-- end of public interface --==--
