@@ -98,11 +98,6 @@ local function _initialise()
     end
     _run_once = true
 
-    local math = lanes.require "math"
-    local floor = math.floor
-    local min = math.min
-    local max = math.max
-
     local loglevel = {
         TRACE = {
             level = 6,
@@ -144,6 +139,16 @@ local function _initialise()
         end
     end
     settings.logger = logger
+
+    if lanes == nil then
+        logger(loglevel.FATAL, "programming error. Please inform developers that 'set_lanes' is missing")
+        os.exit(1, true)
+    end
+
+    local math = lanes.require "math"
+    local floor = math.floor
+    local min = math.min
+    local max = math.max
 
     -- Found this clever function here: https://stackoverflow.com/a/15434737
     -- This function will assist in compatibility given differences between OpenWrt, Turris OS, etc.
