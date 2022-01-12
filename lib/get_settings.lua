@@ -277,7 +277,7 @@ local function _initialise()
         if upload_min_percent == nil then
             settings.min_ul_rate = floor(settings.base_ul_rate / 5)
         else
-            settings.min_ul_rate = floor(min(max(tonumber(upload_min_percent), 10), 60))
+            settings.min_ul_rate = floor(settings.base_ul_rate * min(max(tonumber(upload_min_percent), 10), 60) / 100)
         end
     end
 
@@ -289,7 +289,7 @@ local function _initialise()
         if download_min_percent == nil then
             settings.min_dl_rate = floor(settings.base_dl_rate / 5)
         else
-            settings.min_dl_rate = floor(min(max(tonumber(download_min_percent), 10), 60))
+            settings.min_dl_rate = floor(settings.base_dl_rate * min(max(tonumber(download_min_percent), 10), 60) / 100)
         end
     end
 
