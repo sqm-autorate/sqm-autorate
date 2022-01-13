@@ -1,7 +1,7 @@
-# CAKE with Adaptive Bandwidth - "autorate"
+# CAKE with Adaptive Bandwidth - "sqm-autorate"
 
-## About autorate
-**autorate** is a program that automatically adapts the
+## About sqm-autorate
+**sqm-autorate** is a program that automatically adapts the
 CAKE Smart Queue Management (SQM) bandwidth settings
 by measuring traffic load and RTT times.
 This is designed for variable bandwidth connections such as LTE,
@@ -13,6 +13,9 @@ being sent/received by an OpenWrt router so that no more
 data is queued than is necessary,
 minimizing the latency ("bufferbloat")
 and improving the responsiveness of a network.
+
+**sqm-autorate** is undergoing rapid development, so sometimes the documentation lags behind the latest and greatest. 
+We do try to keep up and occasionally succeed!
 
 ### Requirements
 
@@ -43,29 +46,50 @@ If you have some kind of DSL connection, read the
    ```bash
    sh -c "$(wget -q -O- https://raw.githubusercontent.com/Fail-Safe/sqm-autorate/testing/lua-threads/sqm-autorate-setup.sh)"
    ```
-4. If the setup script gives a warning about a configuration file `sqm-autorate-NEW`, use that file to replace `/etc/config/sqm-autorate` unless you want to keep your existing settings
+4. If the setup script gives a warning about a configuration file `sqm-autorate-NEW`, use that file to replace `/etc/config/sqm-autorate`
+
 5. When the setup script completes, edit the config file `/etc/config/sqm-autorate` to set:
-   * `upload_interface` to the name of your WAN interface, usually something like 'wan' or 'eth0'
-   * `download_interface` to the name of the associated download interface, usually like 'ifb4eth0' or 'veth0'
+   * `upload_interface` to the name of your WAN interface, usually something like `wan` or `eth0`
+   * `download_interface` to the name of the associated download interface, usually like `ifb4eth0` or `veth`
    * `upload_base_kbits` to the expected upload speed that your connection provides on a good day.
    * `download_base_kbits` to the expected download speed
-You may want to adjust the minimum rates, which are controlled by:
-   * `upload_min_percent` the percentage of your 'upload_base_kbits' that is the minimum bandwidth that you can accept when there is high bufferbloat. This is defaulted to 20 (%) and can be between 10 and 60
+
+   You may want to adjust the minimum rates, which are controlled by:
+   * `upload_min_percent` the percentage of your `upload_base_kbits` that is the minimum bandwidth that you can accept when there is high bufferbloat. This is defaulted to 20 (%) and can be between 10 and 60
    * `download_min_percent` as above but for 'download_base_kbits'
 
    If you want the value in `upload_base_kbits` or `download_base_kbits` to be 30 megabits/second, enter `30000`.
-   The base values are often lower than the nominal or maximum rate that your ISP provides in their sales literature. The value that you provide is not a maximum, 'sqm-autorate' will increase the rate above this whenever it calculates that it is possible.
+   
+   The base values of `upload_interface` and `download_interface` should usually be lower than the nominal or maximum rate that your ISP provides in their sales literature.
+The base values that you provide are not hard maximums, 'sqm-autorate' will increase the rate above this whenever it calculates that it is possible.
 
-   Note too that the script uses the "acceptable" rates calculated using '*_min_percent' as the lowest setting speed setting it will use to control latency.
+   Note too that the script uses the "acceptable" rates calculated using `*_min_percent` as the lowest setting speed setting it will use to control latency.
 In certain situations, the script may transition abruptly to either of these lower limits.
 Set these values high enough to avoid cutting off your communications entirely.
-A good choice might be 15-20% of the nominal rates for mid-range to high-speed connections (above 20 Mbps).
+The default is 20% of the nominal rates. 
+This is good for mid-range to high-speed connections (above 20 Mbps).
 For very slow connections (below 1Mbps) use 50% of the nominal rate.
+
 6. Run these commands to
 start and enable the _sqm-autorate_ service that runs continually:
 
    ```
    service sqm-autorate enable && service sqm-autorate start
+   ```
+### Upgrading
+`sqm-autorate` is frequently updated in response to test reports and user requests. 
+The following `bash` commands will upgrade it to the latest version
+1. Stop the service
+   ```bash
+   service sqm-autorate stop
+   ```
+2. Run the setup script
+   ```bash
+   sh -c "$(wget -q -O- https://raw.githubusercontent.com/Fail-Safe/sqm-autorate/testing/lua-threads/sqm-autorate-setup.sh)"
+   ```
+3. Start the service
+   ```bash
+   service sqm-autorate start
    ```
 
 ### Requests to Testers
