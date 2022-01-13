@@ -14,7 +14,7 @@ data is queued than is necessary,
 minimizing the latency ("bufferbloat")
 and improving the responsiveness of a network.
 
-**sqm-autorate** is undergoing rapid development, so sometimes the documentation lags behind the latest and greatest. 
+_sqm-autorate_ is undergoing rapid development, so sometimes the documentation lags behind the latest and greatest. 
 We do try to keep up and occasionally succeed!
 
 ### Requirements
@@ -60,13 +60,13 @@ If you have some kind of DSL connection, read the
 
    If you want the value in `upload_base_kbits` or `download_base_kbits` to be 30 megabits/second, enter `30000`.
    
-   The base values of `upload_interface` and `download_interface` should usually be lower than the nominal or maximum rate that your ISP provides in their sales literature.
-The base values that you provide are not hard maximums, 'sqm-autorate' will increase the rate above this whenever it calculates that it is possible.
+   The base values of `upload_base_kbits` and `download_base_kbits` should usually be lower than the nominal or maximum rate that your ISP provides in their sales literature.
+The base values that you provide are not hard maximums, `sqm-autorate` will increase the rate above this whenever it calculates that it is possible.
 
-   Note too that the script uses the "acceptable" rates calculated using `*_min_percent` as the lowest setting speed setting it will use to control latency.
+   Note too that the script uses the "acceptable" rates calculated using `upload_min_percent` and `download_min_percent` as the lowest setting speed setting it will use to control latency.
 In certain situations, the script may transition abruptly to either of these lower limits.
 Set these values high enough to avoid cutting off your communications entirely.
-The default is 20% of the nominal rates. 
+The default is 20% of the base rates. 
 This is good for mid-range to high-speed connections (above 20 Mbps).
 For very slow connections (below 1Mbps) use 50% of the nominal rate.
 
@@ -319,7 +319,9 @@ Analysis of the CSV outputs can be performed via MS Excel, or more preferably, v
     ```
 5. After some time, the outputs will be available as PNG and GIF files in the current directory.
 
-6. `timeseries.png` shows several measures of the behavior of the network interfaces and CAKE over time.
+##### `timeseries.png`
+`timeseries.png` shows several measures of the behavior of the network interfaces and CAKE over time
+
    The Bandwith Fractional utilisation shows the proportion of the maximum threshold set in CAKE that is currently in use over time.
 
    The Delay through time should be compared with the Bandwith fractional utilisation above. When there is high utilization and high delay is when the script should be responding by dropping the CAKE Bandwidth Setting.
@@ -329,7 +331,8 @@ If there is a high load and low delay, then the bandwidth is increased.
 If there is a high delay, then the bandwidth is decreased, sometimes radically, especially if the delay occurs during low load conditions.
 If delay goes away, then bandwidth is rapidly increased.
 
-7. `delayupecdf.png` and `delaydownecdf.png` graph the size distribution of the delays and show whether the delay is being well controlled.
+##### `delayupecdf.png` and `delaydownecdf.png`
+`delayupecdf.png` and `delaydownecdf.png` graph the size distribution of the delays and show whether the delay is being well controlled.
    The vertical axis shows the cumulative proportion of delays less than the value shown on the x axis (in milliseconds)
 This graph has a 'good' shape if the blue line rises steeply alongside the vertical axis so that almost all the delay measures are small.
 
@@ -337,7 +340,8 @@ This graph has a 'good' shape if the blue line rises steeply alongside the verti
 These graphs can be helpful in determining whether the advanced settings `upload_delay_ms` and `download_delay_ms` should be changed from the default of 15.
 If the logs are analysed from, say, 24 hours of operation, the vertical (green) line may be a starting point for the new values.
 
-8. `uphist.gif` and `downhist.gif` are animated graphs of the "smoothed histogram" of the known good speeds at various times.
+##### `uphist.gif` and `downhist.gif`
+`uphist.gif` and `downhist.gif` are animated graphs of the "smoothed histogram" of the known good speeds at various times.
 
    `sqm-autorate` uses a certain number of historical samples of speeds at which it was able to increase the speed because of no delay.
 Each 'snapshot' shows what values the script calculated to be "safe" to change the speed to,
