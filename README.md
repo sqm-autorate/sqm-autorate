@@ -43,16 +43,20 @@ If you have some kind of DSL connection, read the
    ```bash
    sh -c "$(wget -q -O- https://raw.githubusercontent.com/Fail-Safe/sqm-autorate/testing/lua-threads/sqm-autorate-setup.sh)"
    ```
-4. If the setup script gives a warning about a configuration file `sqm-autorate-NEW`, use that file to replace `/etc/config/sqm-autorate`
+4. If the setup script gives a warning about a configuration file `sqm-autorate-NEW`, use that file to replace `/etc/config/sqm-autorate` unless you want to keep your existing settings
 5. When the setup script completes, edit the config file `/etc/config/sqm-autorate` to set:
-   * `transmit_kbits_base` to the "nominal" upload speed that your connection provides on a good day
-   * `receive_kbits_base` to the "nominal" download speed
-   * `transmit_kbits_min` to the lowest upload rate you would accept when controllling bufferbloat
-   * `receive_kbits_min` to the lowest acceptable download rate.
-   
-   Note that these four values are in kilobits/second. If you want the value to be 30 megabits/second, enter `30000`.
-   
-   Note too that the script uses "acceptable" rates as its lowest setting it will use to control latency.
+   * `upload_interface` to the name of your WAN interface, usually something like 'wan' or 'eth0'
+   * `download_interface` to the name of the associated download interface, usually like 'ifb4eth0' or 'veth0'
+   * `upload_base_kbits` to the expected upload speed that your connection provides on a good day.
+   * `download_base_kbits` to the expected download speed
+You may want to adjust the minimum rates, which are controlled by:
+   * `upload_min_percent` the percentage of your 'upload_base_kbits' that is the minimum bandwidth that you can accept when there is high bufferbloat. This is defaulted to 20 (%) and can be between 10 and 60
+   * `download_min_percent` as above but for 'download_base_kbits'
+
+   If you want the value in `upload_base_kbits` or `download_base_kbits` to be 30 megabits/second, enter `30000`.
+   The base values are often lower than the nominal or maximum rate that your ISP provides in their sales literature. The value that you provide is not a maximum, 'sqm-autorate' will increase the rate above this whenever it calculates that it is possible.
+
+   Note too that the script uses the "acceptable" rates calculated using '*_min_percent' as the lowest setting speed setting it will use to control latency.
 In certain situations, the script may transition abruptly to either of these lower limits.
 Set these values high enough to avoid cutting off your communications entirely.
 A good choice might be 15-20% of the nominal rates for mid-range to high-speed connections (above 20 Mbps).
@@ -131,7 +135,7 @@ keeping latency low while always giving the maximum available throughput.
 
 _For Test builds, Jan 2022:_ In its current iteration this script can react poorly under conditions with high latency and low load, which can force the rates down to the minimum.
 
-If this happens to you, please try to set or adjust the advanced setting `upload_delay_ms` or `download_delay_ms` options to a higher value.
+If this happens to you, please try to set or adjust the advanced setting `upload_delay_ms` or `download_delay_ms` options to a higher value. See the section 'Output Analysis' below for guidance.
 
 The functionality in this Lua version is a culmination of progressive iterations to the original shell version as introduced by @Lynx (OpenWrt Forum). ~~Refer to the [Original Shell Version](#original-shell-version) (below) for details as to the original goal and theory.~~
 
@@ -290,6 +294,34 @@ Analysis of the CSV outputs can be performed via MS Excel, or more preferably, v
     include("plotstats.jl")
     ```
 5. After some time, the outputs will be available as PNG and GIF files in the current directory.
+
+6. `timeseries.png` shows several measures of the behavior of the network interfaces and CAKE over time.
+   The Bandwith Fractional utilisation shows the proportion of the maximum threshold set in CAKE that is currently in use over time.
+
+   The Delay through time should be compared with the Bandwith fractional utilisation above. When there is high utilization and high delay is when the script should be responding by dropping the CAKE Bandwidth Setting.
+
+   The CAKE Bandwith Setting shows the bandwith settings for CAKE over time. It should be compared with the Bandwith fractional utilisation and Delay through time above it.
+If there is a high load and low delay, then the bandwidth is increased.
+If there is a high delay, then the bandwidth is decreased, sometimes radically, especially if the delay occurs during low load conditions.
+If delay goes away, then bandwidth is rapidly increased.
+
+7. `delayupecdf.png` and `delaydownecdf.png` graph the size distribution of the delays and show whether the delay is being well controlled.
+   The vertical axis shows the cumulative proportion of delays less than the value shown on the x axis (in milliseconds)
+This graph has a 'good' shape if the blue line rises steeply alongside the vertical axis so that almost all the delay measures are small.
+
+   The shape is not so good if the blue line slopes quickly away from the vertical axis, showing that large delays occur more frequently.
+These graphs can be helpful in determining whether the advanced settings `upload_delay_ms` and `download_delay_ms` should be changed from the default of 15.
+If the logs are analysed from, say, 24 hours of operation, the vertical (green) line may be a starting point for the new values.
+
+8. `uphist.gif` and `downhist.gif` are animated graphs of the "smoothed histogram" of the known good speeds at various times.
+
+   `sqm-autorate` uses a certain number of historical samples of speeds at which it was able to increase the speed because of no delay.
+Each 'snapshot' shows what values the script calculated to be "safe" to change the speed to,
+in that it would then likely have no delay and be able to rise again.
+
+   When the connection's actual speed changes dramatically, these samples will be less relevant, and the hunt for correct speed will cause the range of values to change.
+If these curves have wildly changing shapes it indicates very rapid changes in the actual line performance.
+Staying constant for long periods indicates a reliable range of speeds that the script can use.
 
 #### Error Reporting Script
 
