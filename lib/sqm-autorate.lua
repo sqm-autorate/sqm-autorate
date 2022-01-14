@@ -25,7 +25,7 @@
 -- ** Recommended style guide: https://github.com/luarocks/lua-style-guide **
 --
 -- The versioning value for this script
-local _VERSION = "0.4.3"
+local _VERSION = "0.4.4"
 --
 -- Found this clever function here: https://stackoverflow.com/a/15434737
 -- This function will assist in compatibility given differences between OpenWrt, Turris OS, etc.
@@ -832,7 +832,7 @@ local function ratecontrol()
                     logger(loglevel.DEBUG,
                         string.format(
                             "Missing value error: rx_load = %s | tx_load = %s | down_del_stat = %s | up_del_stat = %s",
-                            rx_load, tx_load, down_del_stat, up_del_stat))
+                            tostring(rx_load), tostring(tx_load), tostring(down_del_stat), tostring(up_del_stat)))
                 end
 
                 lastchg_s = lastchg_s - start_s
