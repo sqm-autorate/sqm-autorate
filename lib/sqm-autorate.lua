@@ -642,6 +642,9 @@ local function ts_ping_sender(pkt_type, pkt_id, freq)
 end
 
 local function read_stats_file(file)
+    if not file then
+        return
+    end
     file:seek("set", 0)
     local bytes = file:read()
     return bytes
@@ -743,7 +746,20 @@ local function ratecontrol()
                 local cur_rx_bytes = read_stats_file(rx_bytes_file)
                 local cur_tx_bytes = read_stats_file(tx_bytes_file)
 
-                if #up_del == 0 or #down_del == 0 then
+                if not cur_rx_bytes or not cur_tx_bytes then
+                    logger(loglevel.WARN,
+                        "One or both stats files could not be read. Skipping rate control algorithm.")
+                    rx_bytes_file = io.open(rx_bytes_path)
+                    tx_bytes_file = io.open(tx_bytes_path)
+                    
+                    t_prev_bytes = now_t
+                    prev_rx_bytes = read_stats_file(rx_bytes_file)
+                    prev_tx_bytes = read_stats_file(tx_bytes_file)
+                elseif not prev_rx_bytes or not prev_tx_bytes then
+                    t_prev_bytes = now_t
+                    prev_rx_bytes = cur_rx_bytes
+                    prev_tx_bytes = cur_tx_bytes
+                elseif #up_del == 0 or #down_del == 0 then
                     next_dl_rate = min_dl_rate
                     next_ul_rate = min_ul_rate
                 else
@@ -753,7 +769,7 @@ local function ratecontrol()
                     up_del_stat = a_else_b(up_del[3], up_del[1])
                     down_del_stat = a_else_b(down_del[3], down_del[1])
 
-                    if cur_rx_bytes and cur_tx_bytes and up_del_stat and down_del_stat then
+                    if up_del_stat and down_del_stat then
                         t_prev_bytes = t_cur_bytes
                         t_cur_bytes = now_t
 
@@ -799,9 +815,6 @@ local function ratecontrol()
                                 next_dl_rate = 0.9 * cur_dl_rate * rx_load
                             end
                         end
-                    else
-                        logger(loglevel.WARN,
-                            "One or both stats files could not be read. Skipping rate control algorithm.")
                     end
                 end
                 
