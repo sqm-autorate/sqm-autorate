@@ -12,9 +12,9 @@ refl_udp_file="reflectors-udp.csv"
 autorate_lib_path="/usr/lib/sqm-autorate"
 
 if [ -z "$1" ]; then
-    repo_root="https://raw.githubusercontent.com/Fail-Safe/sqm-autorate/testing/lua-threads"
+    repo_root="https://raw.githubusercontent.com/sqm-autorate/sqm-autorate/testing/lua-threads"
 elif [ -z "$2" ]; then
-    repo_root="https://raw.githubusercontent.com/Fail-Safe/sqm-autorate/${1}"
+    repo_root="https://raw.githubusercontent.com/sqm-autorate/sqm-autorate/${1}"
 else
     repo_root="https://raw.githubusercontent.com/${1}/sqm-autorate/${2}"
 fi
@@ -47,14 +47,14 @@ check_for_sqm() {
 [ -d "./.git" ] && is_git_proj=true || is_git_proj=false
 
 if [ "$is_git_proj" = false ]; then
-    # Need to curl some stuff down...
+    # Need to wget some stuff down...
     echo ">>> Pulling down sqm-autorate operational files..."
-    curl -o "$config_file" "$repo_root/config/$config_file"
-    curl -o "$service_file" "$repo_root/service/$service_file"
-    curl -o "$lua_file" "$repo_root/lib/$lua_file"
-    curl -o "$get_stats" "$repo_root/lib/$get_stats"
-    curl -o "$refl_icmp_file" "$repo_root/lib/$refl_icmp_file"
-    curl -o "$refl_udp_file" "$repo_root/lib/$refl_udp_file"
+    wget -O "$config_file" "$repo_root/config/$config_file"
+    wget -O "$service_file" "$repo_root/service/$service_file"
+    wget -O "$lua_file" "$repo_root/lib/$lua_file"
+    wget -O "$get_stats" "$repo_root/lib/$get_stats"
+    wget -O "$refl_icmp_file" "$repo_root/lib/$refl_icmp_file"
+    wget -O "$refl_udp_file" "$repo_root/lib/$refl_udp_file"
 else
     echo "> Since this is a Git project, local files will be used and will be COPIED into place instead of MOVED..."
 fi
@@ -97,52 +97,52 @@ if [ -f "$owrt_release_file" ]; then
         fi
 
         # transition section 1 - to be removed
-        if grep -q -e 'receive' -e 'transmit' "/etc/config/$name" ; then
+        if grep -q -e 'receive' -e 'transmit' "/etc/config/$name"; then
             echo ">>> Revising config option names..."
             uci rename sqm-autorate.@network[0].transmit_interface=upload_interface
             uci rename sqm-autorate.@network[0].receive_interface=download_interface
             uci rename sqm-autorate.@network[0].transmit_kbits_base=upload_base_kbits
             uci rename sqm-autorate.@network[0].receive_kbits_base=download_base_kbits
 
-            t1=$( uci -q get sqm-autorate.@network[0].transmit_kbits_min )
+            t1=$(uci -q get sqm-autorate.@network[0].transmit_kbits_min)
             uci delete sqm-autorate.@network[0].transmit_kbits_min
-            if [ -n "${t1}" ] && [ "${t1}" != "1500" ] ; then
-                t2=$( uci -q get sqm-autorate.@network[0].upload_base_kbits )
+            if [ -n "${t1}" ] && [ "${t1}" != "1500" ]; then
+                t2=$(uci -q get sqm-autorate.@network[0].upload_base_kbits)
                 t1=$((t1 * 100 / t2))
-                if [ $t1 -lt 10 ] ; then
+                if [ $t1 -lt 10 ]; then
                     t1=10
-                elif [ $t1 -gt 75 ] ; then
+                elif [ $t1 -gt 75 ]; then
                     t1=75
                 fi
                 uci set sqm-autorate.@network[0].upload_min_percent="${t1}"
             fi
 
-            t1=$( uci -q get sqm-autorate.@network[0].receive_kbits_min )
+            t1=$(uci -q get sqm-autorate.@network[0].receive_kbits_min)
             uci delete sqm-autorate.@network[0].receive_kbits_min
-            if [ -n "${t1}" ] && [ "${t1}" != "1500" ] ; then
-                t2=$( uci -q get sqm-autorate.@network[0].download_base_kbits )
+            if [ -n "${t1}" ] && [ "${t1}" != "1500" ]; then
+                t2=$(uci -q get sqm-autorate.@network[0].download_base_kbits)
                 t1=$((t1 * 100 / t2))
-                if [ $t1 -lt 10 ] ; then
+                if [ $t1 -lt 10 ]; then
                     t1=10
-                elif [ $t1 -gt 75 ] ; then
+                elif [ $t1 -gt 75 ]; then
                     t1=75
                 fi
                 uci set sqm-autorate.@network[0].download_min_percent="${t1}"
             fi
 
-            uci -q add sqm-autorate advanced_settings 1> /dev/null
+            uci -q add sqm-autorate advanced_settings 1>/dev/null
 
-            t=$( uci -q get sqm-autorate.@output[0].hist_size )
-            if [ -n "${t}" ] ; then
+            t=$(uci -q get sqm-autorate.@output[0].hist_size)
+            if [ -n "${t}" ]; then
                 uci delete sqm-autorate.@output[0].hist_size
-                if [ "${t}" != "100" ] ; then
+                if [ "${t}" != "100" ]; then
                     uci set sqm-autorate.@advanced_settings[0].speed_hist_size="${t}"
                 fi
             fi
-            t=$( uci -q get sqm-autorate.@network[0].reflector_type )
-            if [ -n "${t}" ] ; then
+            t=$(uci -q get sqm-autorate.@network[0].reflector_type)
+            if [ -n "${t}" ]; then
                 uci delete sqm-autorate.@network[0].reflector_type
-                if [ "${t}" != "icmp" ] ; then
+                if [ "${t}" != "icmp" ]; then
                     uci set sqm-autorate.@advanced_settings[0].reflector_type="${t}"
                 fi
             fi
