@@ -804,19 +804,22 @@ local function ratecontrol()
                             "One or both stats files could not be read. Skipping rate control algorithm.")
                     end
                 end
-                logger(loglevel.INFO, "next_ul_rate " .. next_ul_rate .. " next_dl_rate " .. next_dl_rate)
-                next_ul_rate = floor(max(min_ul_rate, next_ul_rate))
-                next_dl_rate = floor(max(min_dl_rate, next_dl_rate))
+                
+                if next_ul_rate and next_dl_rate then
+                    logger(loglevel.INFO, "next_ul_rate " .. next_ul_rate .. " next_dl_rate " .. next_dl_rate)
+                    next_ul_rate = floor(max(min_ul_rate, next_ul_rate))
+                    next_dl_rate = floor(max(min_dl_rate, next_dl_rate))
 
-                -- TC modification
-                if next_dl_rate ~= cur_dl_rate then
-                    update_cake_bandwidth(dl_if, next_dl_rate)
+                    -- TC modification
+                    if next_dl_rate ~= cur_dl_rate then
+                        update_cake_bandwidth(dl_if, next_dl_rate)
+                    end
+                    if next_ul_rate ~= cur_ul_rate then
+                        update_cake_bandwidth(ul_if, next_ul_rate)
+                    end
+                    cur_dl_rate = next_dl_rate
+                    cur_ul_rate = next_ul_rate
                 end
-                if next_ul_rate ~= cur_ul_rate then
-                    update_cake_bandwidth(ul_if, next_ul_rate)
-                end
-                cur_dl_rate = next_dl_rate
-                cur_ul_rate = next_ul_rate
 
                 lastchg_s, lastchg_ns = get_current_time()
 
