@@ -749,6 +749,14 @@ local function ratecontrol()
                 if not cur_rx_bytes or not cur_tx_bytes then
                     logger(loglevel.WARN,
                         "One or both stats files could not be read. Skipping rate control algorithm.")
+
+                    if rx_bytes_file then
+                        io.close(rx_bytes_file)
+                    end
+                    if tx_bytes_file then
+                        io.close(tx_bytes_file)
+                    end
+                    
                     rx_bytes_file = io.open(rx_bytes_path)
                     tx_bytes_file = io.open(tx_bytes_path)
                     
