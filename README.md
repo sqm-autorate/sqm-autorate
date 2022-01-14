@@ -99,8 +99,8 @@ to keep a longer term _baseline_ RTT and a fast moving _recent_ RTT.
 because there is no such thing as negative delay on a network.
 
 If there is high bandwidth utilisation (aka. load), with low delay, then the CAKE speed is adjusted up.
-If there is low load and high delay, then the CAKE speed is adjusted down.
-And all this is done separately for upload and download speeds, twice each second.
+If there is a high delay, then the CAKE speed is adjusted down.
+And all this is done separately for upload and download speeds, twice each second (by default).
 
 There's much more going on, please ask in the discussions, though we suggest to first have a look at the rest of this document and then at the code.
 
@@ -170,7 +170,7 @@ If you have some kind of DSL connection, read the
 
    If you want the value in `upload_base_kbits` or `download_base_kbits` to be 30 megabits/second, enter `30000`.
 
-   The base values of `upload_base_kbits` and `download_base_kbits` should usually be lower than the nominal or maximum rate that your ISP provides in their sales literature.
+   The base values of `upload_base_kbits` and `download_base_kbits` should usually be close to or a little lower than the nominal or maximum rate that your ISP provides in their sales literature.
 The base values that you provide are not hard maximums, _sqm-autorate_ will increase the rate above this whenever it calculates that it is possible.
 
    Note too that the script uses the "acceptable" rates calculated using `upload_min_percent` and `download_min_percent` as the lowest setting speed setting it will use to control latency.
@@ -178,7 +178,9 @@ In certain situations, the script may transition abruptly to either of these low
 Set these values high enough to avoid cutting off your communications entirely.
 The default is 20% of the base rates.
 This is good for mid-range to high-speed connections (above 20 Mbps).
-For very slow connections (below 1Mbps) use 50% of the nominal rate.
+For very slow connections (below 5Mbps) perhaps use 50% of the nominal rate.
+For connections below 3Mbps be aware that even one packet will take about 4ms at 3Mbps and 12ms at 1Mbps. 
+There is no way to get reliable low latency such as for gaming when your connection is much lower than 3Mbps.
 
 6. Run these commands to start and enable the _sqm-autorate_ service that runs continually:
    ```
@@ -289,7 +291,7 @@ This graph has a 'good' shape if the blue line rises steeply alongside the verti
 
    The shape is not so good if the blue line slopes quickly away from the vertical axis, showing that large delays occur more frequently.
 These graphs can be helpful in determining whether the advanced settings `upload_delay_ms` and `download_delay_ms` should be changed from the default of 15.
-If the logs are analysed from, say, 24 hours of operation, the vertical (green) line may be a starting point for the new values.
+If the logs are analysed from, say, 10 minutes of operations during which you do not utilize your network very much at all, the vertical (green) line may be a starting point for a good value. Good values will range from around 10ms to around 30 or 40, as typical realtime events on a network such as VOIP packets are sent every 20ms and we want to avoid delays that are large multiples of this "tick".
 
 ### uphist.gif and downhist.gif
 _uphist.gif_ and _downhist.gif_ are animated graphs of the "smoothed histogram" of the known good speeds at various times.
