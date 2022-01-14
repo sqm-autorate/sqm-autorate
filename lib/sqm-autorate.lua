@@ -1235,7 +1235,7 @@ end
 
 if argparse then
     local parser = argparse("sqm-autorate.lua", "CAKE with Adaptive Bandwidth - 'autorate'",
-        "For more info, please visit: https://github.com/Fail-Safe/sqm-autorate")
+        "For more info, please visit: https://github.com/sqm-autorate/sqm-autorate")
 
     parser:flag("-v --version", "Displays the SQM Autorate version.")
     local args = parser:parse()
