@@ -681,7 +681,6 @@ local function ratecontrol()
     local prev_rx_bytes = read_stats_file(rx_bytes_file)
     local prev_tx_bytes = read_stats_file(tx_bytes_file)
     local t_prev_bytes = lastchg_t
-    local t_cur_bytes = lastchg_t
 
     local safe_dl_rates = {}
     local safe_ul_rates = {}
@@ -760,17 +759,12 @@ local function ratecontrol()
                     rx_bytes_file = io.open(rx_bytes_path)
                     tx_bytes_file = io.open(tx_bytes_path)
                     
-                    t_prev_bytes = now_t
-                    prev_rx_bytes = read_stats_file(rx_bytes_file)
-                    prev_tx_bytes = read_stats_file(tx_bytes_file)
-                elseif not prev_rx_bytes or not prev_tx_bytes then
-                    t_prev_bytes = now_t
-                    prev_rx_bytes = cur_rx_bytes
-                    prev_tx_bytes = cur_tx_bytes
+                    cur_rx_bytes = read_stats_file(rx_bytes_file)
+                    cur_tx_bytes = read_stats_file(tx_bytes_file)
                 elseif #up_del == 0 or #down_del == 0 then
                     next_dl_rate = min_dl_rate
                     next_ul_rate = min_ul_rate
-                else
+                elseif prev_rx_bytes and prev_tx_bytes then
                     table.sort(up_del)
                     table.sort(down_del)
 
@@ -778,12 +772,9 @@ local function ratecontrol()
                     down_del_stat = a_else_b(down_del[3], down_del[1])
 
                     if up_del_stat and down_del_stat then
-                        t_prev_bytes = t_cur_bytes
-                        t_cur_bytes = now_t
-
-                        rx_load = (8 / 1000) * (cur_rx_bytes - prev_rx_bytes) / (t_cur_bytes - t_prev_bytes) /
+                        rx_load = (8 / 1000) * (cur_rx_bytes - prev_rx_bytes) / (now_t - t_prev_bytes) /
                                       cur_dl_rate
-                        tx_load = (8 / 1000) * (cur_tx_bytes - prev_tx_bytes) / (t_cur_bytes - t_prev_bytes) /
+                        tx_load = (8 / 1000) * (cur_tx_bytes - prev_tx_bytes) / (now_t - t_prev_bytes) /
                                       cur_ul_rate
                         prev_rx_bytes = cur_rx_bytes
                         prev_tx_bytes = cur_tx_bytes
@@ -825,7 +816,11 @@ local function ratecontrol()
                         end
                     end
                 end
-                
+
+                t_prev_bytes = now_t
+                prev_rx_bytes = cur_rx_bytes
+                prev_tx_bytes = cur_tx_bytes
+
                 if next_ul_rate and next_dl_rate then
                     logger(loglevel.INFO, "next_ul_rate " .. next_ul_rate .. " next_dl_rate " .. next_dl_rate)
                     next_ul_rate = floor(max(min_ul_rate, next_ul_rate))
@@ -841,7 +836,7 @@ local function ratecontrol()
                     cur_dl_rate = next_dl_rate
                     cur_ul_rate = next_ul_rate
                 end
-
+                
                 lastchg_s, lastchg_ns = get_current_time()
 
                 if rx_load and tx_load and up_del_stat and down_del_stat then
