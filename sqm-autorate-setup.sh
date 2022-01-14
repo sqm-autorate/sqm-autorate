@@ -12,9 +12,9 @@ refl_udp_file="reflectors-udp.csv"
 autorate_lib_path="/usr/lib/sqm-autorate"
 
 if [ -z "$1" ]; then
-    repo_root="https://raw.githubusercontent.com/Fail-Safe/sqm-autorate/testing/lua-threads"
+    repo_root="https://raw.githubusercontent.com/sqm-autorate/sqm-autorate/testing/lua-threads"
 elif [ -z "$2" ]; then
-    repo_root="https://raw.githubusercontent.com/Fail-Safe/sqm-autorate/${1}"
+    repo_root="https://raw.githubusercontent.com/sqm-autorate/sqm-autorate/${1}"
 else
     repo_root="https://raw.githubusercontent.com/${1}/sqm-autorate/${2}"
 fi

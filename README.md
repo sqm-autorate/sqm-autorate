@@ -14,7 +14,7 @@ data is queued than is necessary,
 minimizing the latency ("bufferbloat")
 and improving the responsiveness of a network.
 
-_sqm-autorate_ is undergoing rapid development, so sometimes the documentation lags behind the latest and greatest. 
+_sqm-autorate_ is undergoing rapid development, so sometimes the documentation lags behind the latest and greatest.
 We do try to keep up and occasionally succeed!
 
 ### Requirements
@@ -30,7 +30,7 @@ If they supply patches for the good of the project, that's even better!
 _For Testers, Jan 2022:_ For those people running OpenWrt snapshot builds,
 a patch is required for Lua Lanes.
 Details can be found here:
-[https://github.com/Fail-Safe/sqm-autorate/issues/32#issuecomment-1002584519](https://github.com/Fail-Safe/sqm-autorate/issues/32#issuecomment-1002584519)
+[https://github.com/sqm-autorate/sqm-autorate/issues/32#issuecomment-1002584519](https://github.com/sqm-autorate/sqm-autorate/issues/32#issuecomment-1002584519)
 
 ### Installation
 
@@ -44,7 +44,7 @@ If you have some kind of DSL connection, read the
 3. Run the following command to run the setup script that downloads and installed the required files and packages:
 
    ```bash
-   sh -c "$(wget -q -O- https://raw.githubusercontent.com/Fail-Safe/sqm-autorate/testing/lua-threads/sqm-autorate-setup.sh)"
+   sh -c "$(wget -q -O- https://raw.githubusercontent.com/sqm-autorate/sqm-autorate/testing/lua-threads/sqm-autorate-setup.sh)"
    ```
 4. If the setup script gives a warning about a configuration file `sqm-autorate-NEW`, use that file to replace `/etc/config/sqm-autorate`
 
@@ -59,14 +59,14 @@ If you have some kind of DSL connection, read the
    * `download_min_percent` as above but for 'download_base_kbits'
 
    If you want the value in `upload_base_kbits` or `download_base_kbits` to be 30 megabits/second, enter `30000`.
-   
+
    The base values of `upload_base_kbits` and `download_base_kbits` should usually be lower than the nominal or maximum rate that your ISP provides in their sales literature.
 The base values that you provide are not hard maximums, `sqm-autorate` will increase the rate above this whenever it calculates that it is possible.
 
    Note too that the script uses the "acceptable" rates calculated using `upload_min_percent` and `download_min_percent` as the lowest setting speed setting it will use to control latency.
 In certain situations, the script may transition abruptly to either of these lower limits.
 Set these values high enough to avoid cutting off your communications entirely.
-The default is 20% of the base rates. 
+The default is 20% of the base rates.
 This is good for mid-range to high-speed connections (above 20 Mbps).
 For very slow connections (below 1Mbps) use 50% of the nominal rate.
 
@@ -77,7 +77,7 @@ start and enable the _sqm-autorate_ service that runs continually:
    service sqm-autorate enable && service sqm-autorate start
    ```
 ### Upgrading
-`sqm-autorate` is frequently updated in response to test reports and user requests. 
+`sqm-autorate` is frequently updated in response to test reports and user requests.
 The following `bash` commands will upgrade it to the latest version
 1. Stop the service
    ```bash
@@ -85,7 +85,7 @@ The following `bash` commands will upgrade it to the latest version
    ```
 2. Run the setup script
    ```bash
-   sh -c "$(wget -q -O- https://raw.githubusercontent.com/Fail-Safe/sqm-autorate/testing/lua-threads/sqm-autorate-setup.sh)"
+   sh -c "$(wget -q -O- https://raw.githubusercontent.com/sqm-autorate/sqm-autorate/testing/lua-threads/sqm-autorate-setup.sh)"
    ```
 3. Start the service
    ```bash
@@ -98,7 +98,7 @@ Please post your overall experience on this
 [OpenWrt Forum thread.](https://forum.openwrt.org/t/cake-w-adaptive-bandwidth/108848/312)
 Your feedback will help improve the script for the benefit of others.
 
-Bug reports and/or feature requests [should be added on Github](https://github.com/Fail-Safe/sqm-autorate/issues/new/choose) to allow for proper prioritization and tracking.
+Bug reports and/or feature requests [should be added on Github](https://github.com/sqm-autorate/sqm-autorate/issues/new/choose) to allow for proper prioritization and tracking.
 
 Read on to learn more about how the _sqm-autorate_ algorithm works,
 and the [More Details](#More_Details) section for troubleshooting.
@@ -196,7 +196,7 @@ _(We hope that you will never need to uninstall this autorate program, but if yo
 Run the following removal script to remove the operational files:
 
 ```bash
-sh -c "$(wget -q -O- https://raw.githubusercontent.com/Fail-Safe/sqm-autorate/testing/lua-threads/sqm-autorate-remove.sh)"
+sh -c "$(wget -q -O- https://raw.githubusercontent.com/sqm-autorate/sqm-autorate/testing/lua-threads/sqm-autorate-remove.sh)"
 ```
 
 ### Configuration
