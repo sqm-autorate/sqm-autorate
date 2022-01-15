@@ -399,7 +399,7 @@ The main programming language is [Lua](https://www.lua.org/),
 with the analytical scripts written in [Julia](https://julialang.org/),
 and some shell scripting.
 
-The primary development git branch is [develop\main](../../../tree/develop/main), 
+The primary development git branch is [develop/main](../../../tree/develop/main), 
 with bug fixes and features developed in feature branches before review and merging.
 
 Periodic releases are performed in the [testing/lua-threads](../../../tree/testing/lua-threads) branch.
