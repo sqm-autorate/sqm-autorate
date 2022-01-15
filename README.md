@@ -1,8 +1,8 @@
 # CAKE with Adaptive Bandwidth - "sqm-autorate"
 
 ## About _sqm-autorate_
-_sqm-autorate_ is a program for [OpenWRT](https://openwrt.org/) that automatically adapts the
-[CAKE Smart Queue Management (SQM)](https://www.bufferbloat.net/projects/codel/wiki/Cake/) bandwidth settings by measuring traffic load and RTT times.
+_sqm-autorate_ is a program for [OpenWRT](https://openwrt.org/) that automatically manages the
+[CAKE Smart Queue Management (SQM)](https://www.bufferbloat.net/projects/codel/wiki/Cake/) bandwidth settings by measuring traffic load and latency.
 
 It is designed for variable bandwidth connections such as DOCIS and LTE,
 and is not so useful for connections that have a stable, fixed bandwidth.
@@ -63,7 +63,7 @@ CAKE is great!
 
 However out of the box, CAKE makes the assumption that an ISP connection has a stable speed (bandwidth) and a stable latency.
 This is **not** the case for connections on **cable/DOCIS**, or on **LTE/ and other wireless technologies**.
-The achieveable speed and latency on these connections is sensitive to the number of simultaneous active users (from the ISP point of view) and, for wireless, may be sensitive to weather conditions.
+The achieveable speed and latency on these connections is sensitive to the number of simultaneous active connections (users, from the ISP point of view) and, for wireless, may be sensitive to weather conditions.
 
 To make CAKE work well, there is a compromise and trade off between speed and latency.
 If there is need for fairly constant latency, then speed must be given up.
@@ -85,7 +85,7 @@ Image credit [Lynxthecat](https://github.com/lynxthecat)
 
 _sqm-autorate_ monitors the current latency and current demand for bandwidth as seen on the router,
 then actively adjusts the CAKE speed to get the best current compromise.
-And it does it independently for both uploads and downloads.
+And it does so independently for both uploads and downloads.
 
 #### In more and still incomplete detail:
 
@@ -93,9 +93,9 @@ _sqm-autorate_ measures the [Round Trip Time (RTT)](https://en.wikipedia.org/wik
 to a number of [ICMP reflectors](https://en.wikipedia.org/wiki/Internet_Control_Message_Protocol)
 and splits these into the upload and download components.
 It uses some [cool maths](https://en.wikipedia.org/wiki/Moving_average#Exponential_moving_average)
-to keep a longer term _baseline_ RTT and a fast moving _recent_ RTT.
-* If the recent RTT is higher than the baseline, then the difference is the _delay_.
-* If the recent RTT is lower than the baseline, then the baseline is reset to to the recent,
+to keep a longer term _baseline_ latency and a fast moving _recent_ latency.
+* If the recent latency is higher than the baseline, then the difference is the _delay_.
+* If the recent latency is lower than the baseline, then the baseline is reset to to the recent,
 because there is no such thing as negative delay on a network.
 
 If there is high bandwidth utilisation (aka. load), with low delay, then the CAKE speed is adjusted up.
@@ -117,16 +117,15 @@ But not to worry, there are compensating controls.
 If the _delay_ exceeds 15 ms, then the speed is reduced.
 If the delay is high at the same time as the utilisation (aka load) is low, then the speed is immediately reduced to the chosen minimum acceptable.
 
+Many of the parameter numbers mentioned above can be changed in the advanced settings, with technical details and some guidelines provided later in this document.
+
 After a while, _sqm-autorate_ builds a profile of good speeds to use and the speed finding should stabilise.
 On very variable connections, this algorithmic stabilisation should complete within 30-90 minutes.
 During this stabilisation period, there may be some latency spikes but thereafter it should run smooth.
-On very stable connections, the algorithmic stabilisation might never complete.
-Because it's not needed.
-
-Many of the parameter numbers mentioned above can be changed in the advanced settings, with technical details and some guidelines provided later in this document.
+On very stable connections, the algorithmic stabilisation might never complete, because that stabilisation is not needed.
 
 ### How to see what _sqm-autorate_ is doing?
-The `bash` command to use on the router to see the current CAKE bandwidth setting is `tc qdisc`.
+The shell command to use on the router to see the current CAKE bandwidth setting is `tc qdisc`.
 Reading the output of this may initially be quite difficult, but is instant.
 
 For [graphical analysis](#graphical-analysis) of results, _sqm-autorate_ provides a number of scripts written in [Julia](https://julialang.org/). See [Graphical Analysis](#graphical-analysis)
@@ -145,21 +144,26 @@ and the [More Details](#More_Details) section for troubleshooting.
 ## Installation
 
 1. Install the **SQM QoS** package (from the LuCI web GUI) or `opkg install sqm-scripts` from the command line
+
 2. Configure [SQM for your WAN link,](https://openwrt.org/docs/guide-user/network/traffic-shaping/sqm) setting its interface, download and upload speeds, and
 checking the **Enable** box.
 In the **Queue Discipline** tab, select _cake_ and _piece\_of\_cake.qos._
 If you have some kind of DSL connection, read the
 **Link Layer Adaptation** section of the
-[SQM HOWTO.](https://openwrt.org/docs/guide-user/network/traffic-shaping/sqm)
-3. Run the following command to run the setup script that downloads and installed the required files and packages:
+[SQM HOWTO.](https://openwrt.org/docs/guide-user/network/traffic-shaping/sqm).
+   Check the output of the shell command `tc qdisc | grep cake`.
+   If the output of this command is empty, then CAKE is not yet setup.
 
+3. Run the following command to run the setup script that downloads and installed the required files and packages:
    ```bash
    sh -c "$(wget -q -O- https://raw.githubusercontent.com/sqm-autorate/sqm-autorate/testing/lua-threads/sqm-autorate-setup.sh)"
    ```
+
 4. If the setup script gives a warning about a configuration file `sqm-autorate-NEW`, use that file to replace `/etc/config/sqm-autorate` (first time installation only)
 
 5. When the setup script completes, edit the config file `/etc/config/sqm-autorate` to set:
-   * `upload_interface` to the name of your WAN interface, usually something like `wan` or `eth0`
+   * `upload_interface` to the name of your WAN interface, usually something like `wan` or `eth0`.
+     The output of the shell command `tc qdisc | grep cake` should show the two interface names.
    * `download_interface` to the name of the associated download interface, usually like `ifb4eth0` or `veth`
    * `upload_base_kbits` to the expected upload speed that your connection provides on a good day.
    * `download_base_kbits` to the expected download speed
@@ -179,7 +183,7 @@ Set these values high enough to avoid cutting off your communications entirely.
 The default is 20% of the base rates.
 This is good for mid-range to high-speed connections (above 20 Mbps).
 For very slow connections (below 5Mbps) perhaps use 50% of the nominal rate.
-For connections below 3Mbps be aware that even one packet will take about 4ms at 3Mbps and 12ms at 1Mbps. 
+For connections below 3Mbps be aware that even one packet will take about 4ms at 3Mbps and 12ms at 1Mbps.
 There is no way to get reliable low latency such as for gaming when your connection is much lower than 3Mbps.
 
 6. Run these commands to start and enable the _sqm-autorate_ service that runs continually:
@@ -330,7 +334,7 @@ export LUA_PATH="/usr/share/lua/5.1/?.lua;/usr/share/lua/5.1/?/init.lua;./?.lua;
 lua /usr/lib/sqm-autorate/sqm-autorate.lua
 ```
 
-To view the current CAKE speeds, use the bash command
+To view the current CAKE speeds, use the shell command
 
 ```bash
 tc qdisc
@@ -342,7 +346,7 @@ for controlling the logging messages.
 
 ## Upgrading
 `sqm-autorate` is frequently updated in response to test reports and user requests.
-The following `bash` commands will upgrade it to the latest version
+The following shell commands will upgrade it to the latest version
 1. Stop the service
    ```bash
    service sqm-autorate stop
