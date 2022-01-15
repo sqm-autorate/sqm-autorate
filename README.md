@@ -1,10 +1,8 @@
 # CAKE with Adaptive Bandwidth - "sqm-autorate"
 
 ## About _sqm-autorate_
-_sqm-autorate_ is a program for [OpenWRT](https://openwrt.org/) that automatically manages the
-[CAKE Smart Queue Management (SQM)](https://www.bufferbloat.net/projects/codel/wiki/Cake/) bandwidth settings by measuring traffic load and latency.
-
-It is designed for variable bandwidth connections such as DOCIS and LTE,
+_sqm-autorate_ is a program for [OpenWRT](https://openwrt.org/) that actively manages the
+[CAKE Smart Queue Management (SQM)](https://www.bufferbloat.net/projects/codel/wiki/Cake/) bandwidth settings through measurments of traffic load and latency. It is designed for variable bandwidth connections such as DOCIS/cable and LTE/wireless,
 and is not so useful for connections that have a stable, fixed bandwidth.
 
 The _sqm-autorate_ code is licensed under the [MPLv2](https://www.mozilla.org/en-US/MPL/2.0/)
@@ -32,6 +30,8 @@ We do try to keep up and occasionally succeed!
   * [delayupecdf.png and delaydownecdf.png](#delayupecdfpng-and-delaydownecdfpng)
   * [uphist.gif and downhist.gif](#uphistgif-and-downhistgif)
   * [zoomedts.png](#zoomedtspng)
+* [Troubleshooting](#troubleshooting)
+  * [Error Reporting Script](#error-reporting-script)
 * [Manual Execution](#manual-execution)
 * [Upgrading](#upgrading)
 * [Removal](#removal)
@@ -42,12 +42,12 @@ We do try to keep up and occasionally succeed!
 * [Output and Monitoring](#output-and-monitoring)
   * [View of Processes](#view-of-processes)
   * [Log Output](#log-output)
-  * [Error Reporting Script](#error-reporting-script)
 
 ## Introduction
 
 ### Use cases of _sqm-autorate_
-The primary use of _sqm-autorate_ is for managing the network speed and latency for cable/DOCIS and LTE/wireless connections under the CAKE SQM on OpenWRT routers so that users get an actively managed best compromise between network latency and network speed.
+The primary use of _sqm-autorate_ is for managing the network speed and latency for DOCIS/cable and LTE/wireless connections
+under the CAKE SQM on OpenWRT routers so that users get an actively managed best compromise between network latency and network speed.
 
 There is a secondary use case on OpenWRT routers using CAKE.
 It provides some analytical tools that produce graphs that can help understand the performance characterictics of an ISP connection, even when it is very stable.
@@ -64,8 +64,9 @@ and improving the responsiveness of a network.
 CAKE is great!
 
 However out of the box, CAKE makes the assumption that an ISP connection has a stable speed (bandwidth) and a stable latency.
-This is **not** the case for connections on **cable/DOCIS**, or on **LTE/ and other wireless technologies**.
-The achieveable speed and latency on these connections is sensitive to the number of simultaneous active connections (users, from the ISP point of view) and, for wireless, may be sensitive to weather conditions.
+This is **not** the case for connections on **DOCIS/cable**, or on **LTE/wireless technologies**.
+The achieveable speed and latency on these connections is sensitive to the number of simultaneous active connections (users, from the ISP point of view)
+and, for wireless, may be sensitive to weather conditions.
 
 To make CAKE work well, there is a compromise and trade off between speed and latency.
 If there is need for fairly constant latency, then speed must be given up.
@@ -86,7 +87,7 @@ Image credit [Lynxthecat](https://github.com/lynxthecat)
 #### In consise terms:
 
 _sqm-autorate_ monitors the current latency and current demand for bandwidth as seen on the router,
-then actively adjusts the CAKE speed to get the best current compromise.
+then frequently adjusts the CAKE speed to get the best current compromise.
 And it does so independently for both uploads and downloads.
 
 #### In more and still incomplete detail:
@@ -95,7 +96,7 @@ _sqm-autorate_ measures the [Round Trip Time (RTT)](https://en.wikipedia.org/wik
 to a number of [ICMP reflectors](https://en.wikipedia.org/wiki/Internet_Control_Message_Protocol)
 and splits these into the upload and download components.
 It uses some [cool maths](https://en.wikipedia.org/wiki/Moving_average#Exponential_moving_average)
-to keep a longer term _baseline_ latency and a fast moving _recent_ latency.
+to measure and keep a longer term _baseline_ latency and a fast moving _recent_ latency.
 * If the recent latency is higher than the baseline, then the difference is the _delay_.
 * If the recent latency is lower than the baseline, then the baseline is reset to to the recent,
 because there is no such thing as negative delay on a network.
@@ -104,7 +105,8 @@ If there is high bandwidth utilisation (aka. load), with low delay, then the CAK
 If there is a high delay, then the CAKE speed is adjusted down.
 And all this is done separately for upload and download speeds, twice each second (by default).
 
-There's much more going on, please ask in the discussions, though we suggest to first have a look at the rest of this document and then at the code.
+There's much more going on, please ask in the [discussions](https://github.com/sqm-autorate/sqm-autorate/discussions),
+though we suggest to first have a look at the rest of this document and then at the code.
 
 ### What happens when _sqm-autorate_ is running?
 _sqm-autorate_ starts out with the CAKE speeds set to a chosen minimum acceptable speed.
@@ -119,7 +121,7 @@ But not to worry, there are compensating controls.
 If the _delay_ exceeds 15 ms, then the speed is reduced.
 If the delay is high at the same time as the utilisation (aka load) is low, then the speed is immediately reduced to the chosen minimum acceptable.
 
-Many of the parameter numbers mentioned above can be changed in the advanced settings, with technical details and some guidelines provided later in this document.
+Many of the numbers mentioned above can be changed in the advanced settings, with technical details and some guidelines provided later in this document.
 
 After a while, _sqm-autorate_ builds a profile of good speeds to use and the speed finding should stabilise.
 On very variable connections, this algorithmic stabilisation should complete within 30-90 minutes.
@@ -138,10 +140,13 @@ Please post your overall experience on this
 [OpenWrt Forum thread.](https://forum.openwrt.org/t/cake-w-adaptive-bandwidth/108848/312)
 Your feedback will help improve the script for the benefit of others.
 
-Bug reports and/or feature requests [should be added on Github](https://github.com/sqm-autorate/sqm-autorate/issues/new/choose) to allow for proper prioritization and tracking.
+Bug reports and/or feature requests [should be added on Github](https://github.com/sqm-autorate/sqm-autorate/issues/new/choose)
+to allow for proper prioritization and tracking.
 
-Read on to learn more about how the _sqm-autorate_ algorithm works,
-and the [More Details](#More_Details) section for troubleshooting.
+_For Testers, Jan 2022:_ For those people running OpenWrt snapshot builds,
+a patch is required for Lua Lanes.
+Details can be found here:
+[https://github.com/sqm-autorate/sqm-autorate/issues/32#issuecomment-1002584519](https://github.com/sqm-autorate/sqm-autorate/issues/32#issuecomment-1002584519)
 
 ## Installation
 
@@ -316,6 +321,15 @@ _datavis.html_ is provided to quickly load the above output images into a browse
 ### zoomedts.png
 to be done
 
+## Troubleshooting
+
+### Error Reporting Script
+
+The `/usr/lib/getstats.sh` script in this repo writes a lot
+of interesting information to `tmp/openwrtstats.txt`.
+You can send portions of this file with
+your trouble report.
+
 ## Manual Execution
 ### For testing and tuning
 
@@ -385,6 +399,11 @@ The main programming language is [Lua](https://www.lua.org/),
 with the analytical scripts written in [Julia](https://julialang.org/),
 and some shell scripting.
 
+The primary development git branch is [develop\main](../../../../tree/develop/main), 
+with bug fixes and features developed in feature branches before review and merging.
+
+Periodic releases are performed in the [testing/lua-threads](../../../../tree/testing/lua-threads) branch.
+
 ### _sqm-autorate.lua_
 _sqm-autorate.lua_ is a Lua implementation of an SQM auto-rate algorithm and it employs multiple [preemptive] threads to perform the following high-level actions in parallel:
 
@@ -450,10 +469,3 @@ Threads:    7
 
 - **sqm-autorate.csv**: The location to which the autorate OWD reflector stats will be written. By default, this file is stored in `/tmp`.
 - **sqm-speedhist.csv**: The location to which autorate speed adjustment history will be written. By default, this file is stored in `/tmp`.
-
-### Error Reporting Script
-
-The `/usr/lib/getstats.sh` script in this repo writes a lot
-of interesting information to `tmp/openwrtstats.txt`.
-You can send portions of this file with
-your trouble report.
