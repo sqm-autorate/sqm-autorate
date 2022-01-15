@@ -399,10 +399,10 @@ The main programming language is [Lua](https://www.lua.org/),
 with the analytical scripts written in [Julia](https://julialang.org/),
 and some shell scripting.
 
-The primary development git branch is [develop\main](../../../../tree/develop/main), 
+The primary development git branch is [develop\main](../../../tree/develop/main), 
 with bug fixes and features developed in feature branches before review and merging.
 
-Periodic releases are performed in the [testing/lua-threads](../../../../tree/testing/lua-threads) branch.
+Periodic releases are performed in the [testing/lua-threads](../../../tree/testing/lua-threads) branch.
 
 ### _sqm-autorate.lua_
 _sqm-autorate.lua_ is a Lua implementation of an SQM auto-rate algorithm and it employs multiple [preemptive] threads to perform the following high-level actions in parallel:
