@@ -7,6 +7,8 @@ _sqm-autorate_ is a program for [OpenWRT](https://openwrt.org/) that automatical
 It is designed for variable bandwidth connections such as DOCIS and LTE,
 and is not so useful for connections that have a stable, fixed bandwidth.
 
+The _sqm-autorate_ code is licensed under the [MPLv2](https://www.mozilla.org/en-US/MPL/2.0/)
+
 _sqm-autorate_ is undergoing rapid development, so sometimes the documentation lags behind the latest and greatest.
 We do try to keep up and occasionally succeed!
 
