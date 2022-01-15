@@ -3,21 +3,31 @@
 --[[
     sqm-autorate.lua: Automatically adjust bandwidth for CAKE in dependence on
     detected load and OWD, as well as connection history.
-    Copyright (C) 2022  @Lochnair, @dlakelan, @CharlesJC, and @_FailSafe
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License version 3 as
-    published by the Free Software Foundation.
+    Copyright (C) 2022
+        Nils Andreas Svee mailto:contact@lochnair.net (github @Lochnair)
+        Daniel Lakeland mailto:dlakelan@street-artists.org (github @dlakelan)
+        Mark Baker mailto:mark@e-bakers.com (github @Fail-Safe)
+        Charles Corrigan mailto:chas-iot@runegate.org (github @chas-iot)
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+    This Source Code Form is subject to the terms of the Mozilla Public
+    License, v. 2.0. If a copy of the MPL was not distributed with this
+    file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+    Covered Software is provided under this License on an "as is"
+    basis, without warranty of any kind, either expressed, implied, or
+    statutory, including, without limitation, warranties that the
+    Covered Software is free of defects, merchantable, fit for a
+    particular purpose or non-infringing. The entire risk as to the
+    quality and performance of the Covered Software is with You.
+    Should any Covered Software prove defective in any respect, You
+    (not any Contributor) assume the cost of any necessary servicing,
+    repair, or correction. This disclaimer of warranty constitutes an
+    essential part of this License. No use of any Covered Software is
+    authorized under this License except under this disclaimer.
+
 ]] --
---
 --
 -- Inspired by @moeller0 (OpenWrt forum)
 -- Initial sh implementation by @Lynx (OpenWrt forum)
@@ -651,7 +661,7 @@ end
 
 local function ratecontrol()
     set_debug_threadname('ratecontroller')
-    
+
     local floor = math.floor
     local max = math.max
     local min = math.min

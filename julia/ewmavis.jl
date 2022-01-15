@@ -1,3 +1,8 @@
+#   Copyright (C) 2022
+#       Daniel Lakeland mailto:dlakelan@street-artists.org (github @dlakelan)
+#   This Source Code Form is subject to the terms of the Mozilla Public
+#   License, v. 2.0. If a copy of the MPL was not distributed with this
+#   file, You can obtain one at https://mozilla.org/MPL/2.0/.
 using StatsPlots,Random,Distributions
 
 vals = rand(Exponential(5.0),100)
