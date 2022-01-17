@@ -491,6 +491,9 @@ local function ts_ping_sender(pkt_type, pkt_id, freq)
 end
 
 local function read_stats_file(file)
+    if not file then
+        return
+    end
     file:seek("set", 0)
     local bytes = file:read()
     return bytes
@@ -529,7 +532,6 @@ local function ratecontrol()
     local prev_rx_bytes = read_stats_file(rx_bytes_file)
     local prev_tx_bytes = read_stats_file(tx_bytes_file)
     local t_prev_bytes = lastchg_t
-    local t_cur_bytes = lastchg_t
 
     local safe_dl_rates = {}
     local safe_ul_rates = {}
@@ -598,7 +600,26 @@ local function ratecontrol()
                 local cur_rx_bytes = read_stats_file(rx_bytes_file)
                 local cur_tx_bytes = read_stats_file(tx_bytes_file)
 
-                if #up_del == 0 or #down_del == 0 then
+                if not cur_rx_bytes or not cur_tx_bytes then
+                    logger(loglevel.WARN,
+                        "One or both stats files could not be read. Skipping rate control algorithm.")
+
+                    if rx_bytes_file then
+                        io.close(rx_bytes_file)
+                    end
+                    if tx_bytes_file then
+                        io.close(tx_bytes_file)
+                    end
+
+                    rx_bytes_file = io.open(rx_bytes_path)
+                    tx_bytes_file = io.open(tx_bytes_path)
+                    
+                    cur_rx_bytes = read_stats_file(rx_bytes_file)
+                    cur_tx_bytes = read_stats_file(tx_bytes_file)
+
+                    next_ul_rate = cur_ul_rate
+                    next_dl_rate = cur_dl_rate
+                elseif #up_del == 0 or #down_del == 0 then
                     next_dl_rate = min_dl_rate
                     next_ul_rate = min_ul_rate
                 else
@@ -608,16 +629,11 @@ local function ratecontrol()
                     up_del_stat = a_else_b(up_del[3], up_del[1])
                     down_del_stat = a_else_b(down_del[3], down_del[1])
 
-                    if cur_rx_bytes and cur_tx_bytes and up_del_stat and down_del_stat then
-                        t_prev_bytes = t_cur_bytes
-                        t_cur_bytes = now_t
-
-                        rx_load = (8 / 1000) * (cur_rx_bytes - prev_rx_bytes) / (t_cur_bytes - t_prev_bytes) /
+                    if up_del_stat and down_del_stat then
+                        rx_load = (8 / 1000) * (cur_rx_bytes - prev_rx_bytes) / (now_t - t_prev_bytes) /
                                       cur_dl_rate
-                        tx_load = (8 / 1000) * (cur_tx_bytes - prev_tx_bytes) / (t_cur_bytes - t_prev_bytes) /
+                        tx_load = (8 / 1000) * (cur_tx_bytes - prev_tx_bytes) / (now_t - t_prev_bytes) /
                                       cur_ul_rate
-                        prev_rx_bytes = cur_rx_bytes
-                        prev_tx_bytes = cur_tx_bytes
                         next_ul_rate = cur_ul_rate
                         next_dl_rate = cur_dl_rate
                         logger(loglevel.DEBUG, "up_del_stat " .. up_del_stat .. " down_del_stat " .. down_del_stat)
@@ -654,11 +670,13 @@ local function ratecontrol()
                                 next_dl_rate = 0.9 * cur_dl_rate * rx_load
                             end
                         end
-                    else
-                        logger(loglevel.WARN,
-                            "One or both stats files could not be read. Skipping rate control algorithm.")
                     end
                 end
+
+                t_prev_bytes = now_t
+                prev_rx_bytes = cur_rx_bytes
+                prev_tx_bytes = cur_tx_bytes
+                
                 next_ul_rate = floor(max(min_ul_rate, next_ul_rate))
                 next_dl_rate = floor(max(min_dl_rate, next_dl_rate))
 
