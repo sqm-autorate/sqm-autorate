@@ -90,6 +90,7 @@ tc -s qdisc | grep capacity
 cat /etc/config/sqm | grep load
 cat /etc/config/sqm
 cat /etc/config/sqm-autorate
+ls -al /tmp
 head -n 10 /tmp/sqm-autorate.log
 tail -n 20 /tmp/sqm-autorate.csv ; tail -n 20 /tmp/sqm-speedhist.csv ; tail -n 20 /tmp/sqm-autorate.log
 top -b | head -n 20
