@@ -3,21 +3,26 @@
 --[[
     sqm-autorate.lua: Automatically adjust bandwidth for CAKE in dependence on
     detected load and OWD, as well as connection history.
-    Copyright (C) 2022  @Lochnair, @dlakelan, @CharlesJC, and @_FailSafe
-
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License version 3 as
-    published by the Free Software Foundation.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+    Copyright (C) 2022
+        Nils Andreas Svee mailto:contact@lochnair.net (github @Lochnair)
+        Daniel Lakeland mailto:dlakelan@street-artists.org (github @dlakelan)
+        Mark Baker mailto:mark@e-bakers.com (github @Fail-Safe)
+        Charles Corrigan mailto:chas-iot@runegate.org (github @chas-iot)
+    This Source Code Form is subject to the terms of the Mozilla Public
+    License, v. 2.0. If a copy of the MPL was not distributed with this
+    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+    Covered Software is provided under this License on an "as is"
+    basis, without warranty of any kind, either expressed, implied, or
+    statutory, including, without limitation, warranties that the
+    Covered Software is free of defects, merchantable, fit for a
+    particular purpose or non-infringing. The entire risk as to the
+    quality and performance of the Covered Software is with You.
+    Should any Covered Software prove defective in any respect, You
+    (not any Contributor) assume the cost of any necessary servicing,
+    repair, or correction. This disclaimer of warranty constitutes an
+    essential part of this License. No use of any Covered Software is
+    authorized under this License except under this disclaimer.
 ]] --
---
 --
 -- Inspired by @moeller0 (OpenWrt forum)
 -- Initial sh implementation by @Lynx (OpenWrt forum)
@@ -25,7 +30,7 @@
 -- ** Recommended style guide: https://github.com/luarocks/lua-style-guide **
 --
 -- The versioning value for this script
-local _VERSION = "0.4.4"
+local _VERSION = "0.4.3"
 --
 -- Found this clever function here: https://stackoverflow.com/a/15434737
 -- This function will assist in compatibility given differences between OpenWrt, Turris OS, etc.
@@ -516,6 +521,7 @@ local function receive_udp_pkt(pkt_id)
 end
 
 local function ts_ping_receiver(pkt_id, pkt_type)
+    set_debug_threadname('ping_receiver')
     logger(loglevel.TRACE, "Entered ts_ping_receiver() with value: " .. pkt_id)
 
     local receive_func = nil
@@ -602,6 +608,7 @@ local function send_udp_pkt(reflector, pkt_id)
 end
 
 local function ts_ping_sender(pkt_type, pkt_id, freq)
+    set_debug_threadname('ping_sender')
     logger(loglevel.TRACE, "Entered ts_ping_sender() with values: " .. freq .. " | " .. pkt_type .. " | " .. pkt_id)
 
     local floor = math.floor
@@ -651,6 +658,8 @@ local function read_stats_file(file)
 end
 
 local function ratecontrol()
+    set_debug_threadname('ratecontroller')
+
     local floor = math.floor
     local max = math.max
     local min = math.min
@@ -755,7 +764,7 @@ local function ratecontrol()
                     if tx_bytes_file then
                         io.close(tx_bytes_file)
                     end
-                    
+
                     rx_bytes_file = io.open(rx_bytes_path)
                     tx_bytes_file = io.open(tx_bytes_path)
                     
@@ -764,7 +773,7 @@ local function ratecontrol()
                 elseif #up_del == 0 or #down_del == 0 then
                     next_dl_rate = min_dl_rate
                     next_ul_rate = min_ul_rate
-                elseif prev_rx_bytes and prev_tx_bytes then
+                else
                     table.sort(up_del)
                     table.sort(down_del)
 
@@ -776,10 +785,9 @@ local function ratecontrol()
                                       cur_dl_rate
                         tx_load = (8 / 1000) * (cur_tx_bytes - prev_tx_bytes) / (now_t - t_prev_bytes) /
                                       cur_ul_rate
-                        prev_rx_bytes = cur_rx_bytes
-                        prev_tx_bytes = cur_tx_bytes
                         next_ul_rate = cur_ul_rate
                         next_dl_rate = cur_dl_rate
+                        
                         logger(loglevel.INFO, "up_del_stat " .. up_del_stat .. " down_del_stat " .. down_del_stat)
                         if up_del_stat and up_del_stat < ul_max_delta_owd and tx_load > high_load_level then
                             safe_ul_rates[nrate_up] = floor(cur_ul_rate * tx_load)
@@ -836,7 +844,7 @@ local function ratecontrol()
                     cur_dl_rate = next_dl_rate
                     cur_ul_rate = next_ul_rate
                 end
-                
+
                 lastchg_s, lastchg_ns = get_current_time()
 
                 if rx_load and tx_load and up_del_stat and down_del_stat then
@@ -872,6 +880,8 @@ local function ratecontrol()
 end
 
 local function baseline_calculator()
+    set_debug_threadname('baseliner')
+
     local min = math.min
     -- 135 seconds to decay to 50% for the slow factor and
     -- 0.4 seconds to decay to 50% for the fast factor.
@@ -982,6 +992,7 @@ local function rtt_compare(a, b)
 end
 
 local function reflector_peer_selector()
+    set_debug_threadname('peer_selector')
     local floor = math.floor
     local pi = math.pi
     local random = math.random
@@ -1121,6 +1132,8 @@ local function conductor()
     -- Verify these are correct using "cat /sys/class/..."
     if dl_if:find("^ifb.+") or dl_if:find("^veth.+") then
         rx_bytes_path = "/sys/class/net/" .. dl_if .. "/statistics/tx_bytes"
+    elseif dl_if == "br-lan" then
+        rx_bytes_path = "/sys/class/net/" .. ul_if .. "/statistics/rx_bytes"
     else
         rx_bytes_path = "/sys/class/net/" .. dl_if .. "/statistics/rx_bytes"
     end
@@ -1254,7 +1267,7 @@ end
 
 if argparse then
     local parser = argparse("sqm-autorate.lua", "CAKE with Adaptive Bandwidth - 'autorate'",
-        "For more info, please visit: https://github.com/Fail-Safe/sqm-autorate")
+        "For more info, please visit: https://github.com/sqm-autorate/sqm-autorate")
 
     parser:flag("-v --version", "Displays the SQM Autorate version.")
     local args = parser:parse()
