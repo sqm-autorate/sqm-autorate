@@ -36,6 +36,27 @@
 --
 -- The versioning value for this script
 local _VERSION = "0.4.3"
+
+local requires = {}
+
+local lanes = require"lanes".configure()
+requires.lanes = lanes
+
+local math = lanes.require "math"
+requires.math = math
+
+local posix = lanes.require "posix"
+requires.posix = posix
+
+local socket = lanes.require "posix.sys.socket"
+requires.socket = socket
+
+local time = lanes.require "posix.time"
+requires.time = time
+
+local vstruct = lanes.require "vstruct"
+requires.vstruct = vstruct
+
 --
 -- Found this clever function here: https://stackoverflow.com/a/15434737
 -- This function will assist in compatibility given differences between OpenWrt, Turris OS, etc.
@@ -54,19 +75,59 @@ local function is_module_available(name)
     end
 end
 
-local lanes = require"lanes".configure()
-
 -- Try to load argparse if it's installed
 local argparse = nil
 if is_module_available("argparse") then
     argparse = lanes.require "argparse"
 end
+requires.argparse = argparse
 
-local math = lanes.require "math"
-local posix = lanes.require "posix"
-local socket = lanes.require "posix.sys.socket"
-local time = lanes.require "posix.time"
-local vstruct = lanes.require "vstruct"
+local bit = nil
+local bit_mod = nil
+if is_module_available("bit") then
+  bit = lanes.require "bit"
+  bit_mod = "bit"
+elseif is_module_available("bit32") then
+  bit = lanes.require "bit32"
+  bit_mod = "bit32"
+else
+  print "FATAL: No bitwise module found"
+  os.exit(1, true)
+end
+requires.bit = bit
+requires.bit_mod = bit_mod
+
+-- Figure out if we are running on OpenWrt here and load luci.model.uci if available...
+local settings = nil
+if is_module_available("luci.model.uci") then
+    local uci_lib = nil
+    uci_lib = require("luci.model.uci")
+    settings = uci_lib.cursor()
+end
+requires.settings = settings
+
+local utilities = lanes.require("sqma-utilities").initialise(requires)
+requires.utilities = utilities
+
+local loglevel = utilities.loglevel
+local set_loglevel = utilities.set_loglevel
+local logger = utilities.logger
+local nsleep = utilities.nsleep
+local get_current_time = utilities.get_current_time
+local get_time_after_midnight_ms = utilities.get_time_after_midnight_ms
+local calculate_checksum = utilities.calculate_checksum
+local a_else_b = utilities.a_else_b
+local get_table_position = utilities.get_table_position
+local shuffle_table = utilities.shuffle_table
+local maximum = utilities.maximum
+
+-- inject this one back into utilities
+utilities.is_module_available = is_module_available
+
+-- are these needed ?
+local dec_to_hex = utilities.dec_to_hex
+local bnot = utilities.bnot
+
 
 -- The stats_queue is intended to be a true FIFO queue.
 -- The purpose of the queue is to hold the processed timestamp packets that are
@@ -94,67 +155,6 @@ reflector_data:set("reflector_tables", {
 })
 
 local reselector_channel = lanes.linda()
-
-local loglevel = {
-    TRACE = {
-        level = 6,
-        name = "TRACE"
-    },
-    DEBUG = {
-        level = 5,
-        name = "DEBUG"
-    },
-    INFO = {
-        level = 4,
-        name = "INFO"
-    },
-    WARN = {
-        level = 3,
-        name = "WARN"
-    },
-    ERROR = {
-        level = 2,
-        name = "ERROR"
-    },
-    FATAL = {
-        level = 1,
-        name = "FATAL"
-    }
-}
-
--- Set a default log level here, until we've got one from UCI
-local use_loglevel = loglevel.INFO
-
--- Basic homegrown logger to keep us from having to import yet another module
-local function logger(loglevel, message)
-    if (loglevel.level <= use_loglevel.level) then
-        local cur_date = os.date("%Y%m%dT%H:%M:%S")
-        -- local cur_date = os.date("%c")
-        local out_str = string.format("[%s - %s]: %s", loglevel.name, cur_date, message)
-        print(out_str)
-    end
-end
-
-local bit = nil
-local bit_mod = nil
-if is_module_available("bit") then
-    bit = lanes.require "bit"
-    bit_mod = "bit"
-elseif is_module_available("bit32") then
-    bit = lanes.require "bit32"
-    bit_mod = "bit32"
-else
-    logger(loglevel.FATAL, "No bitwise module found")
-    os.exit(1, true)
-end
-
--- Figure out if we are running on OpenWrt here and load luci.model.uci if available...
-local uci_lib = nil
-local settings = nil
-if is_module_available("luci.model.uci") then
-    uci_lib = require("luci.model.uci")
-    settings = uci_lib.cursor()
-end
 
 -- If we have luci-app-sqm installed, but it is disabled, this whole thing is moot. Let's bail early in that case.
 if settings then
@@ -198,7 +198,7 @@ local stats_file = settings and settings:get("sqm-autorate", "@output[0]", "stat
 local speedhist_file = settings and settings:get("sqm-autorate", "@output[0]", "speed_hist_file") or
                            "<HIST FILE NAME/PATH>"
 
-use_loglevel = loglevel[string.upper(settings and settings:get("sqm-autorate", "@output[0]", "log_level") or "INFO")]
+set_loglevel(string.upper(settings and settings:get("sqm-autorate", "@output[0]", "log_level")) or "INFO")
 
 ---------------------------- Begin Advanced User-Configurable Local Variables ----------------------------
 local enable_verbose_baseline_output = false
@@ -308,101 +308,6 @@ local function baseline_reflector_list(tbl)
     end
 end
 
-local function a_else_b(a, b)
-    if a then
-        return a
-    else
-        return b
-    end
-end
-
-local function nsleep(s, ns)
-    -- nanosleep requires integers
-    local floor = math.floor
-    time.nanosleep({
-        tv_sec = floor(s),
-        tv_nsec = floor(((s % 1.0) * 1e9) + ns)
-    })
-end
-
-local function get_current_time()
-    local time_s, time_ns = 0, 0
-    local val1, val2 = time.clock_gettime(time.CLOCK_REALTIME)
-    if type(val1) == "table" then
-        time_s = val1.tv_sec
-        time_ns = val1.tv_nsec
-    else
-        time_s = val1
-        time_ns = val2
-    end
-    return time_s, time_ns
-end
-
-local function get_time_after_midnight_ms()
-    local time_s, time_ns = get_current_time()
-    return (time_s % 86400 * 1000) + (math.floor(time_ns / 1000000))
-end
-
-local function dec_to_hex(number, digits)
-    local bit_mask = (bit.lshift(1, (digits * 4))) - 1
-    local str_fmt = "%0" .. digits .. "X"
-    return string.format(str_fmt, bit.band(number, bit_mask))
-end
-
--- This exists because the "bit" version of bnot() differs from the "bit32" version
--- of bnot(). This mimics the behavior of the "bit32" version and will therefore be
--- used for both "bit" and "bit32" execution.
-local function bnot(data)
-    local MOD = 2 ^ 32
-    return (-1 - data) % MOD
-end
-
-local function calculate_checksum(data)
-    local checksum = 0
-    for i = 1, #data - 1, 2 do
-        checksum = checksum + (bit.lshift(string.byte(data, i), 8)) + string.byte(data, i + 1)
-    end
-    if bit.rshift(checksum, 16) then
-        checksum = bit.band(checksum, 0xffff) + bit.rshift(checksum, 16)
-    end
-    return bnot(checksum)
-end
-
-local function get_table_position(tbl, item)
-    for i, value in ipairs(tbl) do
-        if value == item then
-            return i
-        end
-    end
-    return 0
-end
-
-local function get_table_len(tbl)
-    local count = 0
-    for _ in pairs(tbl) do
-        count = count + 1
-    end
-    return count
-end
-
-local function shuffle_table(tbl)
-    -- Fisher-Yates shuffle
-    local random = math.random
-    for i = #tbl, 2, -1 do
-        local j = random(i)
-        tbl[i], tbl[j] = tbl[j], tbl[i]
-    end
-    return tbl
-end
-
-local function maximum(table)
-    local max = math.max
-    local m = -1 / 0
-    for _, v in pairs(table) do
-        m = max(v, m)
-    end
-    return m
-end
 
 local function update_cake_bandwidth(iface, rate_in_kbit)
     local is_changed = false
