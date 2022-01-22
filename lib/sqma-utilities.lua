@@ -1,8 +1,7 @@
 #!/usr/bin/env lua
 
 --[[
-    sqm-autorate.lua: Automatically adjust bandwidth for CAKE in dependence on
-    detected load and OWD, as well as connection history.
+    sqma-utilities.lua: utility functions for sqm-autorate.lua
 
     Copyright (C) 2022
         Nils Andreas Svee mailto:contact@lochnair.net (github @Lochnair)
@@ -28,8 +27,6 @@
     authorized under this License except under this disclaimer.
 
 ]] --
---
--- start modularisation process
 
 local M = {}
 
