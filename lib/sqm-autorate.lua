@@ -113,7 +113,7 @@ local bnot = utilities.bnot
 
 ---------------------------- Begin Local Variables - Settings ----------------------------
 
-local settings = lanes.require("sqma-settings").initialise(requires)
+local settings = lanes.require("sqma-settings").initialise(requires, _VERSION)
 
 local ul_if = settings.ul_if                                -- upload interface
 local dl_if = settings.dl_if                                -- download interface
