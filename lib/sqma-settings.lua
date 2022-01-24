@@ -41,7 +41,7 @@ local function print_all()
             v = "nil"
         elseif t == "boolean" or t == "number" then
             v = tostring(v)
-        elseif t == "table" then
+        elseif t == "table" or t == "function" then
             v = ""
         end
         if #k > kmax then
@@ -82,7 +82,6 @@ function M.initialise(requires, version)
     if version == nil then
         version = "version is not set, likely a programming error"
     end
-    M._VERSION = version
 
     local utilities = requires.utilities
     local loglevel = utilities.loglevel
@@ -134,8 +133,8 @@ function M.initialise(requires, version)
             local parser = argparse("sqm-autorate.lua", "CAKE with Adaptive Bandwidth - 'autorate'",
                 "For more info, please visit: https://github.com/Fail-Safe/sqm-autorate")
 
-            parser:option("--upload-interface -ul ", "the device name of the upload interface; no default")
-            parser:option("--download-interface -dl ", "the device name of the download interface; no default")
+            parser:option("--upload-interface -ul", "the device name of the upload interface; no default")
+            parser:option("--download-interface -dl", "the device name of the download interface; no default")
             parser:option("--upload-base-kbits -ub", "the expected consistent rate in kbit/s of the upload interface; default 10000")
             parser:option("--download-base-kbits -db", "the expected consistent rate in kbit/s of the download interface; default 10000")
             parser:option("--upload-min-percent -up", "the worst case tolerable percentage of the kbits of the upload rate; range 10 to 60; default=20")
@@ -146,8 +145,8 @@ function M.initialise(requires, version)
             parser:option("--stats-file", "the location of the output stats file; default /tmp/sqm-autorate.csv")
             parser:option("--speed-hist-file", "the location of the output speed history file; default /tmp/sqm-speedhist.csv")
             parser:option("--speed-hist-size", "the number of usable speeds to keep in the history; default 100")
-            parser:option("--high-load-level", "the fraction of relative load considered high for rate change purposes; range 0.67 to 0.95; default 0.8")
-            parser:option("--reflector-type","not yet operable; default icmp")
+            parser:option("--high-load-level", "the relative load ratio considered high for rate change purposes; range 0.67 to 0.95; default 0.8")
+            parser:option("--reflector-type", "not yet operable; default icmp")
 
             parser:flag("-v --version", "Displays the SQM Autorate version.")
             parser:flag("-s --show-settings", "shows all of the settings values after initialisation")
@@ -345,18 +344,14 @@ function M.initialise(requires, version)
     M.reflector_list_icmp = "/usr/lib/sqm-autorate/reflectors-icmp.csv"
     M.reflector_list_udp = "/usr/lib/sqm-autorate/reflectors-udp.csv"
 
-    if args then
-        if args.version then
-            print(M._VERSION)
-        end
+    if args and ( args.version or args.show_settings) then
+        print(version)
 
         if args.show_settings then
             print_all()
         end
 
-        if args.version or args.show_settings then
-            os.exit(0, true)
-        end
+        os.exit(0, true)
     end
 
     return M
