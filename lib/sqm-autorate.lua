@@ -35,7 +35,7 @@
 -- ** Recommended style guide: https://github.com/luarocks/lua-style-guide **
 --
 -- The versioning value for this script
-local _VERSION = "0.4.4"
+local _VERSION = "0.4.5"
 --
 -- Found this clever function here: https://stackoverflow.com/a/15434737
 -- This function will assist in compatibility given differences between OpenWrt, Turris OS, etc.
@@ -124,6 +124,14 @@ local loglevel = {
 
 -- Set a default log level here, until we've got one from UCI
 local use_loglevel = loglevel.INFO
+
+-- logger for CSV files: Observes the passed-in loglevel
+local function csv_logger(fd, loglevel, message)
+    if (loglevel.level <= use_loglevel.level) then
+        fd:write(message)
+    end
+end
+
 
 -- Basic homegrown logger to keep us from having to import yet another module
 local function logger(loglevel, message)
@@ -703,8 +711,11 @@ local function ratecontrol()
     local csv_fd = io.open(stats_file, "w")
     local speeddump_fd = io.open(speedhist_file, "w")
 
-    csv_fd:write("times,timens,rxload,txload,deltadelaydown,deltadelayup,dlrate,uprate\n")
-    speeddump_fd:write("time,counter,upspeed,downspeed\n")
+    csv_logger(csv_fd, loglevel.INFO,"times,timens,rxload,txload,deltadelaydown,deltadelayup,dlrate,uprate\n")
+    csv_logger(speeddump_fd, loglevel.INFO,"time,counter,upspeed,downspeed\n")
+
+    -- csv_fd:write("times,timens,rxload,txload,deltadelaydown,deltadelayup,dlrate,uprate\n")
+    -- speeddump_fd:write("time,counter,upspeed,downspeed\n")
 
     while true do
         local now_s, now_ns = get_current_time()
@@ -836,8 +847,11 @@ local function ratecontrol()
                             down_del_stat, up_del_stat, cur_dl_rate, cur_ul_rate))
 
                     -- output to log file before doing delta on the time
-                    csv_fd:write(string.format("%d,%d,%f,%f,%f,%f,%d,%d\n", lastchg_s, lastchg_ns, rx_load, tx_load,
+                    csv_logger(csv_fd, loglevel.INFO,string.format("%d,%d,%f,%f,%f,%f,%d,%d\n", 
+                        lastchg_s, lastchg_ns, rx_load, tx_load,
                         down_del_stat, up_del_stat, cur_dl_rate, cur_ul_rate))
+                    -- csv_fd:write(string.format("%d,%d,%f,%f,%f,%f,%d,%d\n", lastchg_s, lastchg_ns, rx_load, tx_load,
+                    --     down_del_stat, up_del_stat, cur_dl_rate, cur_ul_rate))
                 else
                     logger(loglevel.DEBUG,
                         string.format(
@@ -853,7 +867,8 @@ local function ratecontrol()
 
         if now_t - lastdump_t > 300 then
             for i = 0, histsize - 1 do
-                speeddump_fd:write(string.format("%f,%d,%f,%f\n", now_t, i, safe_ul_rates[i], safe_dl_rates[i]))
+                csv_logger(speeddump_fd, loglevel.INFO, string.format("%f,%d,%f,%f\n", now_t, i, safe_ul_rates[i], safe_dl_rates[i]))
+                -- speeddump_fd:write(string.format("%f,%d,%f,%f\n", now_t, i, safe_ul_rates[i], safe_dl_rates[i]))
             end
             lastdump_t = now_t
         end
