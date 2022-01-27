@@ -33,17 +33,18 @@
       <p>
         This shows several measures of the behavior of the network interfaces and CAKE over time.
       <p>
-        The <strong>Bandwith Fractional utilisation</strong> shows the proportion of the maximum threshold set in CAKE
+        The <strong>Bandwidth Fractional utilisation</strong> shows the proportion of the maximum threshold set in CAKE
         that is currently in use over time.
       <p>
-        The <strong>Delay through time</strong> should be compared with the <em>Bandwith fractional utilisation</em> above. When there
-        is high utilization and high delay is when the script should be responding by dropping the CAKE Bandwidth Setting.
+        The <strong>Delay through time</strong> should be compared with the <em>Bandwidth fractional utilisation</em> above.
+        When there is high utilization and high delay is when the script should be responding by dropping the CAKE Bandwidth Setting.
       <p>
-        The <strong>CAKE Bandwith Setting</strong> shows the bandwith settings for CAKE over time.
-        It should be compared with the <em>Bandwith fractional utilisation</em> and <em>Delay through time</em> above it.
+        The <strong>CAKE Bandwidth Setting</strong> shows the bandwidth settings for CAKE over time.
+        It should be compared with the <em>Bandwidth fractional utilisation</em> and <em>Delay through time</em> above it.
         If there is a high load and low delay, then the bandwidth is increased.
-        If there is a high delay, then the bandwidth is decreased, sometimes radically, especially if the delay occurs during
-        low load conditions. If delay goes away, then bandwidth is rapidly increased.
+        If there is a high delay, then the bandwidth is decreased, sometimes radically,
+        especially if the delay occurs during low load conditions.
+        If delay goes away, then bandwidth is increased.
     </details>
     <br>
     <img src="timeseries.png" alt="timeseries.png">
@@ -56,12 +57,13 @@
       <summary>Delay Profile</summary>
       <p>
         These graph the size distribution of the delays.
-        The vertical axis shows the cumulative proportion of delays less than the value shown on the x axis (in milliseconds)
-        This graph has a 'good' shape if the blue line rises steeply alongside the vertical axis so that almost all the delay measures
-        are small.
+        The vertical axis shows the cumulative proportion of delays less than the value shown on the x axis (in milliseconds).
+      <p>
+        These graphs have a 'good' shape if the blue line rises steeply alongside the vertical axis so that almost all the delay measures are small.
         The shape is not so good if the blue line slopes quickly away from the vertical axis, showing that large delays occur more frequently.
-        These graphs can be helpful in determining whether the advanced setting 'delta_delay_trigger' should be changed from the default of 15
-        and whether the delay is being well controlled or not.
+      <p>
+        These graphs show whether the delay is being well controlled or not.
+        They can be helpful in determining whether the advanced settings 'upload_delay_ms' and/or 'download_delay_ms' should be changed from the default of 15.
     </details>
     <br>
     <img src="delayupecdf.png" alt="delayupecdf.png">
@@ -73,14 +75,17 @@
   <div id="hist">
     <details>
       <summary>Speed History</summary>
-      <p>sqm-autorate uses a certain number of historical samples of speeds at which it was able to increase the speed because of no delay.
-          These graphs show a "smoothed histogram" of those values at different snapshots in time. Each snapshot shows what values the script think would be "safe"
-          to change the speed to, in that it would then likely have no delay and be able to rise again. When the connection's actual speed
-          changes dramatically, these samples will be less relevant, and the hunt for correct speed will cause the range of values to change.
-          If these curves have wildly changing shapes it indicates very rapid changes in the actual line performance. Staying constant for long periods indicates
-          a reliable range of speeds that the script can use.
-
-        </p>
+      <p>
+        <cite>sqm-autorate</cite> uses a certain number of historical samples of speeds at which it was able to increase the speed because of no delay.
+        These graphs show an animated "smoothed histogram" of those values at different snapshots in time.
+        Each snapshot shows the values that the script has recorded as "safe" to change the speed to,
+        in the expectation that it would then likely have no delay and be able to increase the speed again.
+      <p>
+        When the connection's actual speed changes dramatically, these samples will be less relevant,
+        and the hunt for correct speed will cause the range of values to change.
+        If these curves have wildly changing shapes it indicates very rapid changes in the actual line performance.
+      <p>
+        Staying constant for long periods indicates a reliable range of speeds that the script can use.
     </details>
     <br>
     <img src="uphist.gif" alt="uphist.gif">
