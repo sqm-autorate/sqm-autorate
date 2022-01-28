@@ -581,7 +581,7 @@ local function ratecontrol()
                         down_del[#down_del + 1] = owd_recent[reflector_ip].down_ewma -
                                                       owd_baseline[reflector_ip].down_ewma
 
-                        logger(loglevel.INFO, "reflector: " .. reflector_ip .. " delay: " .. up_del[#up_del] ..
+                        logger(loglevel.DEBUG, "reflector: " .. reflector_ip .. " delay: " .. up_del[#up_del] ..
                             "  down_del: " .. down_del[#down_del])
                     end
                 end
@@ -615,7 +615,7 @@ local function ratecontrol()
                         prev_tx_bytes = cur_tx_bytes
                         next_ul_rate = cur_ul_rate
                         next_dl_rate = cur_dl_rate
-                        logger(loglevel.INFO, "up_del_stat " .. up_del_stat .. " down_del_stat " .. down_del_stat)
+                        logger(loglevel.DEBUG, "up_del_stat " .. up_del_stat .. " down_del_stat " .. down_del_stat)
                         if up_del_stat and up_del_stat < ul_max_delta_owd and tx_load > high_load_level then
                             safe_ul_rates[nrate_up] = floor(cur_ul_rate * tx_load)
                             local max_ul = maximum(safe_ul_rates)
@@ -654,9 +654,12 @@ local function ratecontrol()
                             "One or both stats files could not be read. Skipping rate control algorithm.")
                     end
                 end
-                logger(loglevel.INFO, "next_ul_rate " .. next_ul_rate .. " next_dl_rate " .. next_dl_rate)
                 next_ul_rate = floor(max(min_ul_rate, next_ul_rate))
                 next_dl_rate = floor(max(min_dl_rate, next_dl_rate))
+
+                if next_ul_rate ~= cur_ul_rate or next_dl_rate ~= cur_dl_rate then
+                    logger(loglevel.INFO, "next_ul_rate " .. next_ul_rate .. " next_dl_rate " .. next_dl_rate)
+                end
 
                 -- TC modification
                 if next_dl_rate ~= cur_dl_rate then
@@ -795,14 +798,14 @@ local function baseline_calculator()
                 for ref, val in pairs(owd_baseline) do
                     local up_ewma = a_else_b(val.up_ewma, "?")
                     local down_ewma = a_else_b(val.down_ewma, "?")
-                    logger(loglevel.INFO,
+                    logger(loglevel.DEBUG,
                         "Reflector " .. ref .. " up baseline = " .. up_ewma .. " down baseline = " .. down_ewma)
                 end
 
                 for ref, val in pairs(owd_recent) do
                     local up_ewma = a_else_b(val.up_ewma, "?")
                     local down_ewma = a_else_b(val.down_ewma, "?")
-                    logger(loglevel.INFO, "Reflector " .. ref .. "recent up baseline = " .. up_ewma ..
+                    logger(loglevel.DEBUG, "Reflector " .. ref .. "recent up baseline = " .. up_ewma ..
                         "recent down baseline = " .. down_ewma)
                 end
             end
@@ -870,9 +873,9 @@ local function reflector_peer_selector()
                 local down_del = owd_recent[peer].down_ewma
                 local rtt = up_del + down_del
                 candidates[#candidates + 1] = {peer, rtt}
-                logger(loglevel.INFO, "Candidate reflector: " .. peer .. " RTT: " .. rtt)
+                logger(loglevel.DEBUG, "Candidate reflector: " .. peer .. " RTT: " .. rtt)
             else
-                logger(loglevel.INFO, "No data found from candidate reflector: " .. peer .. " - skipping")
+                logger(loglevel.DEBUG, "No data found from candidate reflector: " .. peer .. " - skipping")
             end
         end
 
@@ -888,7 +891,7 @@ local function reflector_peer_selector()
             end
         end
         for i, v in ipairs(candidates) do
-            logger(loglevel.INFO, "Fastest candidate " .. i .. ": " .. v[1] .. " - RTT: " .. v[2])
+            logger(loglevel.DEBUG, "Fastest candidate " .. i .. ": " .. v[1] .. " - RTT: " .. v[2])
         end
 
         -- Shuffle the deck so we avoid overwhelming good reflectors
