@@ -90,7 +90,8 @@ tc -s qdisc | grep capacity
 cat /etc/config/sqm | grep load
 cat /etc/config/sqm
 cat /etc/config/sqm-autorate
-head -n 10 /tmp/sqm-autorate.log ; tail /tmp/sqm-autorate.csv ; tail /tmp/sqm-speedhist.csv
+head -n 10 /tmp/sqm-autorate.log
+tail -n 20 /tmp/sqm-autorate.csv ; tail -n 20 /tmp/sqm-speedhist.csv ; tail -n 20 /tmp/sqm-autorate.log
 top -b | head -n 20
 du -sh / ; du -sh /*
 EOF
@@ -110,6 +111,7 @@ while read LINE; do
     display_command "$LINE"
 done <<EOF
 ifconfig
+logread
 dmesg
 EOF
 
