@@ -87,6 +87,7 @@ function M.initialise(requires, version)
     local loglevel = utilities.loglevel
     local logger = utilities.logger
     local set_loglevel = utilities.set_loglevel
+    local get_loglevel = utilities.get_loglevel
     local is_module_available = utilities.is_module_available
 
     local lanes = requires.lanes
@@ -360,7 +361,8 @@ function M.initialise(requires, version)
     end
 
 
-    M.enable_verbose_baseline_output = false    -- TODO - merge into logger TRACE level
+    M.enable_verbose_baseline_output = get_loglevel() == "TRACE" or
+        get_loglevel() == "DEBUG"
 
     M.tick_duration = 0.5 -- Frequency in seconds
     M.min_change_interval = 0.5 -- don't change speeds unless this many seconds has passed since last change

@@ -67,6 +67,10 @@ function M.set_loglevel(log_level)
   use_loglevel = loglevel[log_level]
 end
 
+function M.get_loglevel()
+    return use_loglevel.NAME
+end
+
 -- Basic homegrown logger to keep us from having to import yet another module
 function M.logger(loglevel, message)
   if (loglevel.level <= use_loglevel.level) then
