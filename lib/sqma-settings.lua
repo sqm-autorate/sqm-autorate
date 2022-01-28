@@ -148,6 +148,8 @@ function M.initialise(requires, version)
             parser:option("--high-load-level", "the relative load ratio considered high for rate change purposes; range 0.67 to 0.95; default 0.8")
             parser:option("--reflector-type", "not yet operable; default icmp")
 
+            parser:flag("--suppress-statistics --no-statistics -ns", "suppress output to the statistics files")
+
             parser:flag("-v --version", "Displays the SQM Autorate version.")
             parser:flag("-s --show-settings", "shows all of the settings values after initialisation")
 
@@ -333,6 +335,28 @@ function M.initialise(requires, version)
             reflector_type = "icmp"
 --        end
         M.reflector_type = reflector_type
+    end
+
+    do
+        local suppress_statistics = true
+        if uci_settings then
+            suppress_statistics = uci_settings:get("sqm-autorate", "@output[0]", "no_statistics")
+            if suppress_statistics then
+                suppress_statistics = suppress_statistics == "1" or
+                    string.lower(suppress_statistics) == "true" or
+                    string.lower(suppress_statistics) == "yes" or
+                    string.lower(suppress_statistics) == "y"
+            end
+        end
+        suppress_statistics = suppress_statistics or ( args and args.no_statistics )
+        if not suppress_statistics then
+            suppress_statistics = os.getenv("SQMA_NO_STATISTICS")
+            suppress_statistics = suppress_statistics == "1" or
+                string.lower(suppress_statistics) == "true" or
+                string.lower(suppress_statistics) == "yes" or
+                string.lower(suppress_statistics) == "y"
+        end
+        M.output_statistics = not suppress_statistics
     end
 
 

@@ -133,6 +133,7 @@ local ul_max_delta_owd = settings.ul_max_delta_owd          -- the upload delay 
 local dl_max_delta_owd = settings.dl_max_delta_owd          -- the delay threshold to trigger a download speed change
 local high_load_level = settings.high_load_level            -- the relative load (to current speed) that is copnsidered 'high'
 local reflector_type = settings.reflector_type              -- reflector type icmp or udp (udp is not well supported)
+local output_statistics = settings.output_statistics        -- controls output to the statistics file
 
 ---------------------------- Begin Internal Local Variables ----------------------------
 
@@ -540,11 +541,15 @@ local function ratecontrol()
     local nrate_up = 0
     local nrate_down = 0
 
-    local csv_fd = io.open(stats_file, "w")
-    local speeddump_fd = io.open(speedhist_file, "w")
+    local csv_fd = nil
+    local speeddump_fd = nil
+    if output_statistics then
+        csv_fd = io.open(stats_file, "w")
+        speeddump_fd = io.open(speedhist_file, "w")
 
-    csv_fd:write("times,timens,rxload,txload,deltadelaydown,deltadelayup,dlrate,uprate\n")
-    speeddump_fd:write("time,counter,upspeed,downspeed\n")
+        csv_fd:write("times,timens,rxload,txload,deltadelaydown,deltadelayup,dlrate,uprate\n")
+        speeddump_fd:write("time,counter,upspeed,downspeed\n")
+    end
 
     while true do
         local now_s, now_ns = get_current_time()
@@ -678,9 +683,11 @@ local function ratecontrol()
                         string.format("%d,%d,%f,%f,%f,%f,%d,%d\n", lastchg_s, lastchg_ns, rx_load, tx_load,
                             down_del_stat, up_del_stat, cur_dl_rate, cur_ul_rate))
 
-                    -- output to log file before doing delta on the time
-                    csv_fd:write(string.format("%d,%d,%f,%f,%f,%f,%d,%d\n", lastchg_s, lastchg_ns, rx_load, tx_load,
-                        down_del_stat, up_del_stat, cur_dl_rate, cur_ul_rate))
+                    if output_statistics then
+                        -- output to log file before doing delta on the time
+                        csv_fd:write(string.format("%d,%d,%f,%f,%f,%f,%d,%d\n", lastchg_s, lastchg_ns, rx_load, tx_load,
+                            down_del_stat, up_del_stat, cur_dl_rate, cur_ul_rate))
+                    end
                 else
                     logger(loglevel.DEBUG,
                         string.format(
@@ -694,7 +701,7 @@ local function ratecontrol()
             end
         end
 
-        if now_t - lastdump_t > 300 then
+        if output_statistics and now_t - lastdump_t > 300 then
             for i = 0, histsize - 1 do
                 speeddump_fd:write(string.format("%f,%d,%f,%f\n", now_t, i, safe_ul_rates[i], safe_dl_rates[i]))
             end
