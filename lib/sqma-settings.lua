@@ -132,7 +132,7 @@ function M.initialise(requires, version)
         local argparse = require "argparse"
         if argparse then
             local parser = argparse("sqm-autorate.lua", "CAKE with Adaptive Bandwidth - 'autorate'",
-                "For more info, please visit: https://github.com/Fail-Safe/sqm-autorate")
+                "For more info, please visit: https://github.com/sqm-autorate/sqm-autorate")
 
             parser:option("--upload-interface -ul", "the device name of the upload interface; no default")
             parser:option("--download-interface -dl", "the device name of the download interface; no default")
