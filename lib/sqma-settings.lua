@@ -113,6 +113,8 @@ function M.initialise(requires, version)
     if is_module_available("luci.model.uci") then
         local uci_lib = lanes.require("luci.model.uci")
         uci_settings = uci_lib.cursor()
+    else
+        logger(loglevel.WARN, "did not find uci library")
     end
 
     -- If we have luci-app-sqm installed, but it is disabled, this whole thing is moot. Let's bail early in that case.
@@ -134,22 +136,22 @@ function M.initialise(requires, version)
             local parser = argparse("sqm-autorate.lua", "CAKE with Adaptive Bandwidth - 'autorate'",
                 "For more info, please visit: https://github.com/sqm-autorate/sqm-autorate")
 
-            parser:option("--upload-interface -ul", "the device name of the upload interface; no default")
-            parser:option("--download-interface -dl", "the device name of the download interface; no default")
-            parser:option("--upload-base-kbits -ub", "the expected consistent rate in kbit/s of the upload interface; default 10000")
-            parser:option("--download-base-kbits -db", "the expected consistent rate in kbit/s of the download interface; default 10000")
-            parser:option("--upload-min-percent -up", "the worst case tolerable percentage of the kbits of the upload rate; range 10 to 60; default=20")
-            parser:option("--download-min-percent -dp", "the worst case tolerable percentage of the kbits of the upload rate; range 10 to 60; default=20")
-            parser:option("--upload-delay-ms -ud", "the tolerable additional delay on upload in ms; default 15")
-            parser:option("--download-delay-ms -dd", "the tolerable additional delay on download in ms; default 15")
-            parser:option("--log-level", "the verbosity of the messages in the log file; TRACE, DEBUG, INFO, WARN, ERROR, FATAL; default INFO")
+            parser:option("--upload-interface --ul", "the device name of the upload interface; no default")
+            parser:option("--download-interface --dl", "the device name of the download interface; no default")
+            parser:option("--upload-base-kbits --ub", "the expected consistent rate in kbit/s of the upload interface; default 10000")
+            parser:option("--download-base-kbits --db", "the expected consistent rate in kbit/s of the download interface; default 10000")
+            parser:option("--upload-min-percent --up", "the worst case tolerable percentage of the kbits of the upload rate; range 10 to 60; default=20")
+            parser:option("--download-min-percent --dp", "the worst case tolerable percentage of the kbits of the upload rate; range 10 to 60; default=20")
+            parser:option("--upload-delay-ms --ud", "the tolerable additional delay on upload in ms; default 15")
+            parser:option("--download-delay-ms --dd", "the tolerable additional delay on download in ms; default 15")
+            parser:option("--log-level --ll", "the verbosity of the messages in the log file; TRACE, DEBUG, INFO, WARN, ERROR, FATAL; default INFO")
             parser:option("--stats-file", "the location of the output stats file; default /tmp/sqm-autorate.csv")
             parser:option("--speed-hist-file", "the location of the output speed history file; default /tmp/sqm-speedhist.csv")
             parser:option("--speed-hist-size", "the number of usable speeds to keep in the history; default 100")
             parser:option("--high-load-level", "the relative load ratio considered high for rate change purposes; range 0.67 to 0.95; default 0.8")
             parser:option("--reflector-type", "not yet operable; default icmp")
 
-            parser:flag("--suppress-statistics --no-statistics -ns", "suppress output to the statistics files")
+            parser:flag("--suppress-statistics --no-statistics --ns", "suppress output to the statistics files; default output statistics")
 
             parser:flag("-v --version", "Displays the SQM Autorate version.")
             parser:flag("-s --show-settings", "shows all of the settings values after initialisation")
@@ -211,7 +213,7 @@ function M.initialise(requires, version)
         upload_base_kbits = uci_settings and uci_settings:get("sqm-autorate", "@network[0]", "upload_base_kbits")
         upload_base_kbits = upload_base_kbits or ( args and args.upload_base_kbits )
         upload_base_kbits = upload_base_kbits or os.getenv("SQMA_UPLOAD_BASE_KBITS")
-        M.base_ul_rate = floor(tonumber(upload_base_kbits, 10)) or 10000
+        M.base_ul_rate = floor(tonumber(upload_base_kbits, 10) or 10000)
     end
 
     do
@@ -219,7 +221,7 @@ function M.initialise(requires, version)
         download_base_kbits = uci_settings and uci_settings:get("sqm-autorate", "@network[0]", "download_base_kbits")
         download_base_kbits = download_base_kbits or ( args and args.download_base_kbits )
         download_base_kbits = download_base_kbits or ( os.getenv("SQMA_DOWNLOAD_BASE_KBITS") )
-        M.base_dl_rate = floor(tonumber(download_base_kbits, 10)) or 10000
+        M.base_dl_rate = floor(tonumber(download_base_kbits, 10) or 10000)
     end
 
     do
@@ -280,6 +282,7 @@ function M.initialise(requires, version)
         end
         log_level = string.upper(log_level)
         set_loglevel(log_level)
+        M.log_level = get_loglevel()
     end
 
     do

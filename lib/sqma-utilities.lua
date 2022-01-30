@@ -68,7 +68,7 @@ function M.set_loglevel(log_level)
 end
 
 function M.get_loglevel()
-    return use_loglevel.NAME
+    return use_loglevel.name
 end
 
 -- Basic homegrown logger to keep us from having to import yet another module
