@@ -266,30 +266,31 @@ CAKE with Adaptive Bandwidth - 'autorate'
 
 Options:
    --upload-interface <upload_interface>,
-                  -ul <upload_interface>
+                 --ul <upload_interface>
                          the device name of the upload interface; no default
    --download-interface <download_interface>,
-                    -dl <download_interface>
+                   --dl <download_interface>
                          the device name of the download interface; no default
    --upload-base-kbits <upload_base_kbits>,
-                   -ub <upload_base_kbits>
+                  --ub <upload_base_kbits>
                          the expected consistent rate in kbit/s of the upload interface; default 10000
    --download-base-kbits <download_base_kbits>,
-                     -db <download_base_kbits>
+                    --db <download_base_kbits>
                          the expected consistent rate in kbit/s of the download interface; default 10000
    --upload-min-percent <upload_min_percent>,
-                    -up <upload_min_percent>
+                   --up <upload_min_percent>
                          the worst case tolerable percentage of the kbits of the upload rate; range 10 to 60; default=20
    --download-min-percent <download_min_percent>,
-                      -dp <download_min_percent>
+                     --dp <download_min_percent>
                          the worst case tolerable percentage of the kbits of the upload rate; range 10 to 60; default=20
    --upload-delay-ms <upload_delay_ms>,
-                 -ud <upload_delay_ms>
+                --ud <upload_delay_ms>
                          the tolerable additional delay on upload in ms; default 15
    --download-delay-ms <download_delay_ms>,
-                   -dd <download_delay_ms>
+                  --dd <download_delay_ms>
                          the tolerable additional delay on download in ms; default 15
-   --log-level <log_level>
+   --log-level <log_level>,
+          --ll <log_level>
                          the verbosity of the messages in the log file; TRACE, DEBUG, INFO, WARN, ERROR, FATAL; default INFO
    --stats-file <stats_file>
                          the location of the output stats file; default /tmp/sqm-autorate.csv
@@ -301,8 +302,8 @@ Options:
                          the relative load ratio considered high for rate change purposes; range 0.67 to 0.95; default 0.8
    --reflector-type <reflector_type>
                          not yet operable; default icmp
-   --suppress-statistics, --no-statistics, -ns
-                         suppress output to the statistics files
+   --suppress-statistics, --no-statistics, --ns
+                         suppress output to the statistics files; default output statistics
    -v, --version         Displays the SQM Autorate version.
    -s, --show-settings   shows all of the settings values after initialisation
    -h, --help            Show this help message and exit.
@@ -328,7 +329,7 @@ All environment variables for this script have a prefix of `SQMA_`.
 * SQMA_DOWNLOAD_DELAY_MS
 * SQMA_HIGH_LEVEL_LOAD
 * SQMA_REFLECTOR_TYPE
-* SQMA_NO_STATISTICS
+* SQMA_SUPPRESS_STATISTICS
 
 ### Verbosity Options
 
