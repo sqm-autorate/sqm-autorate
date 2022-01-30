@@ -339,9 +339,9 @@ function M.initialise(requires, version)
     end
 
     do
-        local suppress_statistics = true
+        local suppress_statistics = false
         if uci_settings then
-            suppress_statistics = uci_settings:get("sqm-autorate", "@output[0]", "no_statistics")
+            suppress_statistics = tostring(uci_settings:get("sqm-autorate", "@output[0]", "suppress_statistics"))
             if suppress_statistics then
                 suppress_statistics = suppress_statistics == "1" or
                     string.lower(suppress_statistics) == "true" or
@@ -349,9 +349,9 @@ function M.initialise(requires, version)
                     string.lower(suppress_statistics) == "y"
             end
         end
-        suppress_statistics = suppress_statistics or ( args and args.no_statistics )
+        suppress_statistics = suppress_statistics or ( args and args.suppress_statistics )
         if not suppress_statistics then
-            suppress_statistics = os.getenv("SQMA_NO_STATISTICS")
+            suppress_statistics = tostring(os.getenv("SQMA_SUPPRESS_STATISTICS"))
             suppress_statistics = suppress_statistics == "1" or
                 string.lower(suppress_statistics) == "true" or
                 string.lower(suppress_statistics) == "yes" or
@@ -361,7 +361,8 @@ function M.initialise(requires, version)
     end
 
 
-    M.enable_verbose_baseline_output = get_loglevel() == "TRACE" or
+    M.enable_verbose_baseline_output =
+        get_loglevel() == "TRACE" or
         get_loglevel() == "DEBUG"
 
     M.tick_duration = 0.5 -- Frequency in seconds
