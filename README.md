@@ -14,36 +14,26 @@ We do try to keep up and occasionally succeed!
 * [About _sqm-autorate_](#about-sqm-autorate)
 * [Table of Contents](#table-of-contents)
 * [Introduction](#introduction)
+* [Request to testers](#request-to-testers)
+* [Installation](#installation)
+* [Configuration](#configuration)
+* [Graphical Analysis](#graphical-analysis)
+* [Troubleshooting](#troubleshooting)
+* [Manual Execution](#manual-execution)
+* [Upgrading](#upgrading)
+* [Removal](#removal)
+* [Development](#development)
+* [Output and Monitoring](#output-and-monitoring)
+
+## Introduction
+* [Table of Contents](#table-of-contents)
+* [Introduction](#introduction)
   * [Use cases of _sqm-autorate_](#use-cases-of-sqm-autorate)
   * [What is the problem that _sqm-autorate_ solves?](#what-is-the-problem-that-sqm-autorate-solves)
   * [What does _sqm-autorate_ do?](#what-does-sqm-autorate-do)
   * [What happens when _sqm-autorate_ is running?](#what-happens-when-sqm-autorate-is-running)
   * [How to see what _sqm-autorate_ is doing?](#how-to-see-what-sqm-autorate-is-doing)
 * [Request to testers](#request-to-testers)
-* [Installation](#installation)
-* [Configuration](#configuration)
-  * [Verbosity Options](#verbosity-options)
-* [Graphical Analysis](#graphical-analysis)
-  * [Julia installation and first time use](#julia-installation-and-first-time-use)
-  * [Running plotstats.jl](#running-plotstatsjl)
-  * [timeseries.png](#timeseriespng)
-  * [delayupecdf.png and delaydownecdf.png](#delayupecdfpng-and-delaydownecdfpng)
-  * [uphist.gif and downhist.gif](#uphistgif-and-downhistgif)
-  * [zoomedts.png](#zoomedtspng)
-* [Troubleshooting](#troubleshooting)
-  * [Error Reporting Script](#error-reporting-script)
-* [Manual Execution](#manual-execution)
-* [Upgrading](#upgrading)
-* [Removal](#removal)
-* [Development](#development)
-  * [sqm-autorate.lua](#sqm-autoratelua)
-  * [Lua Threads Algorithm](#lua-threads-algorithm)
-  * [Algorithm In Action](#algorithm-in-action)
-* [Output and Monitoring](#output-and-monitoring)
-  * [View of Processes](#view-of-processes)
-  * [Log Output](#log-output)
-
-## Introduction
 
 ### Use cases of _sqm-autorate_
 The primary use of _sqm-autorate_ is for managing the network speed and latency for DOCIS/cable and LTE/wireless connections
@@ -132,9 +122,13 @@ On very stable connections, the algorithmic stabilisation might never complete, 
 The shell command to use on the router to see the current CAKE bandwidth setting is `tc qdisc`.
 Reading the output of this may initially be quite difficult, but is instant.
 
-For [graphical analysis](#graphical-analysis) of results, _sqm-autorate_ provides a number of scripts written in [Julia](https://julialang.org/). See [Graphical Analysis](#graphical-analysis)
+For [graphical analysis](#graphical-analysis) of results, _sqm-autorate_ provides a number of scripts written in [Julia](https://julialang.org/).
+See [Graphical Analysis](#graphical-analysis)
 
 ## Request to Testers
+* [Introduction](#introduction)
+* [Request to testers](#request-to-testers)
+* [Installation](#installation)
 
 Please post your overall experience on this
 [OpenWrt Forum thread.](https://forum.openwrt.org/t/cake-w-adaptive-bandwidth/108848/312)
@@ -149,6 +143,9 @@ Details can be found here:
 [https://github.com/sqm-autorate/sqm-autorate/issues/32#issuecomment-1002584519](https://github.com/sqm-autorate/sqm-autorate/issues/32#issuecomment-1002584519)
 
 ## Installation
+* [Request to testers](#request-to-testers)
+* [Installation](#installation)
+* [Configuration](#configuration)
 
 1. Install the **SQM QoS** package (from the LuCI web GUI) or `opkg install sqm-scripts` from the command line
 
@@ -208,8 +205,21 @@ Details can be found here:
 [https://github.com/sqm-autorate/sqm-autorate/issues/32#issuecomment-1002584519](https://github.com/sqm-autorate/sqm-autorate/issues/32#issuecomment-1002584519)
 
 ## Configuration
+* [Installation](#installation)
+* [Configuration](#configuration)
+  * [/etc/config](#etcconfig)
+  * [Command line](#command-line)
+  * [Environment variables](#environment-variables)
+  * [Verbosity Options](#verbosity-options)
+* [Graphical Analysis](#graphical-analysis)
 
-Generally, configuration should be performed via the `/etc/config/sqm-autorate` file.
+Configuration is available via 3 mechanisms.
+[/etc/config](#etcconfig) is checked first, then the [command line](#command-line), and finally [environment variables](#environment-variables).
+
+### /etc/config
+
+Generally, configuration on OpenWRT should be performed via the `/etc/config/sqm-autorate` file.
+Values loaded from this mechanism override value supplied via the command line or via environment variables
 
 | Section | Option Name | Value Description | Default |
 | - | - | - | - |
@@ -222,6 +232,7 @@ Generally, configuration should be performed via the `/etc/config/sqm-autorate` 
 | output | log_level | Used to set the highest level of logging verbosity. e.g. setting to 'INFO' will output all log levels at the set level or lower (in terms of verbosity). [Verbosity Options](#verbosity-options) | 'INFO' |
 | output | stats_file | The location to which the autorate OWD reflector stats will be written. | '/tmp/sqm-autorate.csv' |
 | output | speed_hist_file | The location to which autorate speed adjustment history will be written. | '/tmp/sqm-speedhist.csv' |
+| output | suppress_statistics | Suppress the output of statistics. **Added in v0.5.0** | 'false' |
 | advanced_settings | speed_hist_size | The amount of "safe" speed history which the algorithm will maintain for reference during times of increased latency/congestion. Set too high, the algorithm will take days or weeks to stabilise. Set too low, the algorithm may not have enough good values to stabilise on.  | '100' |
 | advanced_settings | upload_delay_ms | The amount of delay that indicates bufferbloat for uploads. For high speed and relatively stable fiber connections, this can be reduced as low as 2. For LTE and DOCIS/cable connections, the default should be a reasonable starting point and may be increased. | '15' |
 | advanced_settings | download_delay_ms | As upload_delay_trigger but for downloads. | '15' |
@@ -230,9 +241,100 @@ Generally, configuration should be performed via the `/etc/config/sqm-autorate` 
 
 Advanced users may override values (following comments) directly in `/usr/lib/sqm-autorate/sqm-autorate.lua` as comfort level dictates.
 
+### Command line
+Settings may be set from the command line as follows.
+The command line options are pre-empted by settings loaded from [/etc/config](#etcconfig and supersede those loaded from [environment variables](#environment-variables).
+These settings match those described for [/etc/config](#etcconfig).
+```
+# sqm-autorate.lua -h
+Usage: sqm-autorate.lua [--upload-interface <upload_interface>]
+       [--download-interface <download_interface>]
+       [--upload-base-kbits <upload_base_kbits>]
+       [--download-base-kbits <download_base_kbits>]
+       [--upload-min-percent <upload_min_percent>]
+       [--download-min-percent <download_min_percent>]
+       [--upload-delay-ms <upload_delay_ms>]
+       [--download-delay-ms <download_delay_ms>]
+       [--log-level <log_level>] [--stats-file <stats_file>]
+       [--speed-hist-file <speed_hist_file>]
+       [--speed-hist-size <speed_hist_size>]
+       [--high-load-level <high_load_level>]
+       [--reflector-type <reflector_type>] [--suppress-statistics]
+       [-v] [-s] [-h]
+
+CAKE with Adaptive Bandwidth - 'autorate'
+
+Options:
+   --upload-interface <upload_interface>,
+                 --ul <upload_interface>
+                         the device name of the upload interface; no default
+   --download-interface <download_interface>,
+                   --dl <download_interface>
+                         the device name of the download interface; no default
+   --upload-base-kbits <upload_base_kbits>,
+                  --ub <upload_base_kbits>
+                         the expected consistent rate in kbit/s of the upload interface; default 10000
+   --download-base-kbits <download_base_kbits>,
+                    --db <download_base_kbits>
+                         the expected consistent rate in kbit/s of the download interface; default 10000
+   --upload-min-percent <upload_min_percent>,
+                   --up <upload_min_percent>
+                         the worst case tolerable percentage of the kbits of the upload rate; range 10 to 60; default=20
+   --download-min-percent <download_min_percent>,
+                     --dp <download_min_percent>
+                         the worst case tolerable percentage of the kbits of the upload rate; range 10 to 60; default=20
+   --upload-delay-ms <upload_delay_ms>,
+                --ud <upload_delay_ms>
+                         the tolerable additional delay on upload in ms; default 15
+   --download-delay-ms <download_delay_ms>,
+                  --dd <download_delay_ms>
+                         the tolerable additional delay on download in ms; default 15
+   --log-level <log_level>,
+          --ll <log_level>
+                         the verbosity of the messages in the log file; TRACE, DEBUG, INFO, WARN, ERROR, FATAL; default INFO
+   --stats-file <stats_file>
+                         the location of the output stats file; default /tmp/sqm-autorate.csv
+   --speed-hist-file <speed_hist_file>
+                         the location of the output speed history file; default /tmp/sqm-speedhist.csv
+   --speed-hist-size <speed_hist_size>
+                         the number of usable speeds to keep in the history; default 100
+   --high-load-level <high_load_level>
+                         the relative load ratio considered high for rate change purposes; range 0.67 to 0.95; default 0.8
+   --reflector-type <reflector_type>
+                         not yet operable; default icmp
+   --suppress-statistics, --no-statistics, --ns
+                         suppress output to the statistics files; default output statistics
+   -v, --version         Displays the SQM Autorate version.
+   -s, --show-settings   shows all of the settings values after initialisation
+   -h, --help            Show this help message and exit.
+
+For more info, please visit: https://github.com/sqm-autorate/sqm-autorate
+```
+
+### Environment variables
+The environment variables are checked last and are superseded by [/etc/config](#etcconfig) and [command line](#command-line).
+They have the same meanings as described in [/etc/config](#etcconfig).
+All environment variables for this script have a prefix of `SQMA_`.
+* SQMA_UPLOAD_INTERFACE
+* SQMA_DOWNLOAD_INTERFACE
+* SQMA_UPLOAD_BASE_KBITS
+* SQMA_DOWNLOAD_BASE_KBITS
+* SQMA_UPLOAD_MIN_PERCENT
+* SQMA_DOWNLOAD_MIN_PERCENT
+* SQMA_STATS_FILE
+* SQMA_SPEED_HIST_FILE
+* SQMA_LOG_LEVEL
+* SQMA_SPEED_HIST_SIZE
+* SQMA_UPLOAD_DELAY_MS
+* SQMA_DOWNLOAD_DELAY_MS
+* SQMA_HIGH_LEVEL_LOAD
+* SQMA_REFLECTOR_TYPE
+* SQMA_SUPPRESS_STATISTICS
+
 ### Verbosity Options
 
-The overall verbosity of the script can be adjusted via the `option log_level` in `/etc/config/sqm-autorate`.
+The overall verbosity of the script can be adjusted via the `option log_level` in `/etc/config/sqm-autorate`,
+or the alternatives from the command line or from environment variables.
 
 The available values are one of the following, in order of decreasing overall verbosity:
 
@@ -243,13 +345,18 @@ The available values are one of the following, in order of decreasing overall ve
 - ERROR
 - FATAL
 
-The script can additionally output statistics about various internal variables to the terminal. To enable higher levels of verbosity for testing and tuning, you may toggle the following setting:
-
-```
-local enable_verbose_baseline_output = false
-```
+The log level defaults to **INFO**.
 
 ## Graphical Analysis
+* [Configuration](#configuration)
+* [Graphical Analysis](#graphical-analysis)
+  * [Julia installation and first time use](#julia-installation-and-first-time-use)
+  * [Running plotstats.jl](#running-plotstatsjl)
+  * [timeseries.png](#timeseriespng)
+  * [delayupecdf.png and delaydownecdf.png](#delayupecdfpng-and-delaydownecdfpng)
+  * [uphist.gif and downhist.gif](#uphistgif-and-downhistgif)
+  * [zoomedts.png](#zoomedtspng)
+* [Troubleshooting](#troubleshooting)
 
 Analysis of the CSV outputs can be performed via MS Excel, or more preferably, via Julia (aka [JuliaLang](https://julialang.org/)).
 
@@ -282,15 +389,18 @@ include("plotstats.jl")
 ```
 
 After a few minutes, the outputs will be available as PNG and GIF files in the current directory.
+This script may be re-run multiple times within a single Julia session.
 
 ### timeseries.png
 _timeseries.png_ shows several measures of the behavior of the network interfaces and CAKE over time
 
    The _Bandwidth Fractional utilisation_ shows the proportion of the maximum threshold set in CAKE that is currently in use over time.
 
-   The _Delay through time_ should be compared with the _Bandwidth fractional utilisation_ above. When there is high utilization and high delay is when the script should be responding by dropping the CAKE speed setting.
+   The _Delay through time_ should be compared with the _Bandwidth fractional utilisation_ above.
+   When there is high utilization and high delay is when the script should be responding by dropping the CAKE speed setting.
 
-   The _CAKE Bandwith Setting_ shows the bandwith settings for CAKE over time. It should be compared with the _Bandwith fractional utilisation_ and _Delay through time_ above it.
+   The _CAKE Bandwith Setting_ shows the bandwith settings for CAKE over time.
+   It should be compared with the _Bandwith fractional utilisation_ and _Delay through time_ above it.
 If there is a high load and low delay, then the bandwidth is increased.
 If there is a high delay, then the bandwidth is decreased, sometimes radically, especially if the delay occurs during low load conditions.
 If delay goes away, then bandwidth is rapidly increased.
@@ -302,7 +412,8 @@ This graph has a 'good' shape if the blue line rises steeply alongside the verti
 
    The shape is not so good if the blue line slopes quickly away from the vertical axis, showing that large delays occur more frequently.
 These graphs can be helpful in determining whether the advanced settings `upload_delay_ms` and `download_delay_ms` should be changed from the default of 15.
-If the logs are analysed from, say, 10 minutes of operations during which you do not utilize your network very much at all, the vertical (green) line may be a starting point for a good value. Good values will range from around 10ms to around 30 or 40, as typical realtime events on a network such as VOIP packets are sent every 20ms and we want to avoid delays that are large multiples of this "tick".
+If the logs are analysed from, say, 10 minutes of operations during which you do not utilize your network very much at all, the vertical (green) line may be a starting point for a good value.
+Good values will range from around 10ms to around 30 or 40, as typical realtime events on a network such as VOIP packets are sent every 20ms and we want to avoid delays that are large multiples of this "tick".
 
 ### uphist.gif and downhist.gif
 _uphist.gif_ and _downhist.gif_ are animated graphs of the "smoothed histogram" of the known good speeds at various times.
@@ -319,9 +430,18 @@ Staying constant for long periods indicates a reliable range of speeds that the 
 _datavis.html_ is provided to quickly load the above output images into a browser, acompanied by some explanatory text.
 
 ### zoomedts.png
-to be done
+The _zoomedts.png_ is a zoomed view of _timeseries.png_.
+It is generated by default to show the first 100 seconds of statistics.
+This view may be regenerated many times with a different start and end time (in seconds).
+Immediately after `include("plotstats.jl")` completes (and within the same Julia session),
+type the command `plotts(dat,"zoomedts.png",(250,600))` to create a new _zoomedts.png_,
+showing the detailed period from 250 seconds into the statistics until 600 seconds.
+Similarly, `plotts(dat,"zoomedts.png",(500,10800))` shows the (less detailed) period from 500 seconds to 3 hours into the statistics.
 
 ## Troubleshooting
+* [Graphical Analysis](#graphical-analysis)
+* [Troubleshooting](#troubleshooting)
+* [Manual Execution](#manual-execution)
 
 ### Error Reporting Script
 
@@ -346,8 +466,11 @@ For testing/tuning, invoke the `sqm-autorate.lua` script from the command line:
 export LUA_CPATH="/usr/lib/lua/5.1/?.so;./?.so;/usr/lib/lua/?.so;/usr/lib/lua/loadall.so"
 export LUA_PATH="/usr/share/lua/5.1/?.lua;/usr/share/lua/5.1/?/init.lua;./?.lua;/usr/share/lua/?.lua;/usr/share/lua/?/init.lua;/usr/lib/lua/?.lua;/usr/lib/lua/?/init.lua"
 
+# change to the script directory to allow it to load its component modules
+cd /usr/lib/sqm-autorate/
+
 # Run this command to execute the script
-lua /usr/lib/sqm-autorate/sqm-autorate.lua
+lua sqm-autorate.lua
 ```
 
 To view the current CAKE speeds, use the shell command
@@ -355,12 +478,20 @@ To view the current CAKE speeds, use the shell command
 ```bash
 tc qdisc
 ```
+or
+```bash
+tc qdisc | grep -i cake
+```
 
+See the [Verbosity](#Verbosity_Options) options for controlling the logging messages sent to the terminal or to `/tmp/sqm-autorate.csv` (when run as a service).
 The script logs information to `/tmp/sqm-autorate.csv` and speed history data to `/tmp/sqm-speedhist.csv`.
-See the [Verbosity](#Verbosity_Options) options (below)
-for controlling the logging messages.
+This may be stopped with the `suppress_statistics` option.
 
 ## Upgrading
+* [Manual Execution](#manual-execution)
+* [Upgrading](#upgrading)
+* [Removal](#removal)
+
 `sqm-autorate` is frequently updated in response to test reports and user requests.
 The following shell commands will upgrade it to the latest version
 1. Stop the service
@@ -377,6 +508,9 @@ The following shell commands will upgrade it to the latest version
    ```
 
 ## Removal
+* [Upgrading](#upgrading)
+* [Removal](#removal)
+* [Development](#development)
 
 _(We hope that you will never need to uninstall this autorate program, but if you want to...)_
 Run the following removal script to remove the operational files:
@@ -386,6 +520,12 @@ sh -c "$(wget -q -O- https://raw.githubusercontent.com/sqm-autorate/sqm-autorate
 ```
 
 ## Development
+* [Removal](#removal)
+* [Development](#development)
+  * [sqm-autorate.lua](#sqm-autoratelua)
+  * [Lua Threads Algorithm](#lua-threads-algorithm)
+  * [Algorithm In Action](#algorithm-in-action)
+* [Output and Monitoring](#output-and-monitoring)
 
 This _sqm-autorate_ program is written primarily for OpenWrt 21.02.
 The current developers are not against extending it for OpenWrt 19.07,
@@ -417,7 +557,13 @@ _For Test builds, Jan 2022:_ In its current iteration this script can react poor
 
 If this happens to you, please try to set or adjust the advanced setting `upload_delay_ms` or `download_delay_ms` options to a higher value. See the section 'Output Analysis' below for guidance.
 
-The functionality in this Lua version is a culmination of progressive iterations to the original shell version as introduced by @Lynx (OpenWrt Forum). ~~Refer to the [Original Shell Version](#original-shell-version) (below) for details as to the original goal and theory.~~
+The functionality in this Lua version is a culmination of progressive iterations to the original shell version as introduced by @Lynx (OpenWrt Forum).
+~~Refer to the [Original Shell Version](#original-shell-version) (below) for details as to the original goal and theory.~~
+
+_sqm-autorate.lua_ is in process to be split into several modules.
+See `/usr/lib/sqm-autorate/sqma_*.lua` for more details.
+Eventually, this modularisation process will allow plugins to be developed and run in the script to enhance or even replace current processing.
+See https://github.com/sqm-autorate/sqm-autorate/blob/develop/plugin/lib/delay_threshold_auto.lua for a preview of what will be possible.
 
 ### Lua Threads Algorithm
 
@@ -425,13 +571,27 @@ Per @dlakelan (OpenWrt Forum):
 
 The script operates in essentially three "normal" regimes (and one unfortunate tricky regime):
 
-1. Low latency, low load: in this situation, the script just monitors latency leaving the speed setting constant. If you don't stress the line much, then it can stay constant for long periods of time. As long as latency is controlled, this is normal.
+1. Low latency, low load: in this situation, the script just monitors latency leaving the speed setting constant.
+   If you don't stress the line much, then it can stay constant for long periods of time.
+   As long as latency is controlled, this is normal.
 
-2. Low latency, high load: As the load increases above 80% of the current threshold, the script opens up the threshold so long as latency stays low. In order to find what is the true maximum it is expected that it will increase so long as latency stays low. When it starts much lower than the nominal rate, the increase is exponential, and this gradually tapers off to become linear as it increases into "unknown territory". As it increases the threshold, it constantly updates a database of actual loads at which it was able to increase. So it learns what speeds normally allow it to increase. The script may choose rates above the nominal "base" rates, and even above what you know your line can handle. This is ok because:
+2. Low latency, high load: As the load increases above 80% of the current threshold, the script opens up the threshold so long as latency stays low.
+   In order to find what is the true maximum it is expected that it will increase so long as latency stays low.
+   When it starts much lower than the nominal rate, the increase is exponential, and this gradually tapers off to become linear as it increases into "unknown territory".
+   As it increases the threshold, it constantly updates a database of actual loads at which it was able to increase.
+   So it learns what speeds normally allow it to increase.
+   The script may choose rates above the nominal "base" rates, and even above what you know your line can handle.
+   This is ok because:
 
-3. High latency, high load: When the load increases beyond what the ISP's connection can actually handle, latency will increase and the script will detect this through the pings it sends continuously. When this occurs, it will use its database of speeds to try to pick something that will be below the true capacity. It ensures that this value is also always less than 0.9 times the current actual transfer rate, ensuring that the speed plummets extremely rapidly (at least exponentially). This can be seen as discontinuous drops in the speed, typically choking off latency below the threshold rapidly. However:
+3. High latency, high load: When the load increases beyond what the ISP's connection can actually handle, latency will increase and the script will detect this through the pings it sends continuously.
+   When this occurs, it will use its database of speeds to try to pick something that will be below the true capacity.
+   It ensures that this value is also always less than 0.9 times the current actual transfer rate, ensuring that the speed plummets extremely rapidly (at least exponentially).
+   This can be seen as discontinuous drops in the speed, typically choking off latency below the threshold rapidly.
+   However:
 
-5. There is no way for the script to easily distinguish between high latency and low load because of a random latency fluctuation vs because the ISP capacity suddenly dropped. Hence, if there are random increases in latency that are not related to your own load, the script will plummet the speed threshold rapidly down to the minimum. Ensure that your minimum really is acceptably fast for your use! In addition, if you experience random latency increases even without load, try to set the trigger threshold higher, perhaps to 20-30ms or more.
+5. There is no way for the script to easily distinguish between high latency and low load because of a random latency fluctuation vs because the ISP capacity suddenly dropped.
+   Hence, if there are random increases in latency that are not related to your own load, the script will plummet the speed threshold rapidly down to the minimum.
+   Ensure that your minimum really is acceptably fast for your use! In addition, if you experience random latency increases even without load, try to set the trigger threshold higher, perhaps to 20-30ms or more.
 
 ### Algorithm In Action
 
@@ -449,6 +609,10 @@ and possibly new charts showing new axis labels._
 ![Fraction of Up Delay](.readme/6104d5c3f849d07b00f55590ceab2363ef0ce1e2.png)
 
 ## Output and Monitoring
+* [Development](#development)
+* [Output and Monitoring](#output-and-monitoring)
+  * [View of Processes](#view-of-processes)
+  * [Log Output](#log-output)
 
 ### View of Processes
 
@@ -467,5 +631,7 @@ Threads:    7
 
 ### Log Output
 
-- **sqm-autorate.csv**: The location to which the autorate OWD reflector stats will be written. By default, this file is stored in `/tmp`.
-- **sqm-speedhist.csv**: The location to which autorate speed adjustment history will be written. By default, this file is stored in `/tmp`.
+- **sqm-autorate.csv**: The location to which the autorate OWD reflector stats will be written.
+  By default, this file is stored in `/tmp`.
+- **sqm-speedhist.csv**: The location to which autorate speed adjustment history will be written.
+  By default, this file is stored in `/tmp`.

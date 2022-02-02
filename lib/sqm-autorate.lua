@@ -35,7 +35,27 @@
 -- ** Recommended style guide: https://github.com/luarocks/lua-style-guide **
 --
 -- The versioning value for this script
-local _VERSION = "0.4.5"
+local _VERSION = "0.5.0"
+
+local requires = {}
+
+local lanes = require"lanes".configure()
+requires.lanes = lanes
+
+local math = lanes.require "math"
+requires.math = math
+
+local posix = lanes.require "posix"
+requires.posix = posix
+
+local socket = lanes.require "posix.sys.socket"
+requires.socket = socket
+
+local time = lanes.require "posix.time"
+requires.time = time
+
+local vstruct = lanes.require "vstruct"
+requires.vstruct = vstruct
 --
 -- Found this clever function here: https://stackoverflow.com/a/15434737
 -- This function will assist in compatibility given differences between OpenWrt, Turris OS, etc.
@@ -54,19 +74,68 @@ local function is_module_available(name)
     end
 end
 
-local lanes = require"lanes".configure()
-
--- Try to load argparse if it's installed
-local argparse = nil
-if is_module_available("argparse") then
-    argparse = lanes.require "argparse"
+local bit = nil
+local bit_mod = nil
+if is_module_available("bit") then
+  bit = lanes.require "bit"
+  bit_mod = "bit"
+elseif is_module_available("bit32") then
+  bit = lanes.require "bit32"
+  bit_mod = "bit32"
+else
+  print "FATAL: No bitwise module found"
+  os.exit(1, true)
 end
+requires.bit = bit
+requires.bit_mod = bit_mod
 
-local math = lanes.require "math"
-local posix = lanes.require "posix"
-local socket = lanes.require "posix.sys.socket"
-local time = lanes.require "posix.time"
-local vstruct = lanes.require "vstruct"
+local utilities = lanes.require("sqma-utilities").initialise(requires)
+requires.utilities = utilities
+
+local loglevel = utilities.loglevel
+local logger = utilities.logger
+local nsleep = utilities.nsleep
+local get_current_time = utilities.get_current_time
+local get_time_after_midnight_ms = utilities.get_time_after_midnight_ms
+local calculate_checksum = utilities.calculate_checksum
+local a_else_b = utilities.a_else_b
+local get_table_position = utilities.get_table_position
+local shuffle_table = utilities.shuffle_table
+local maximum = utilities.maximum
+
+-- inject this one back into utilities
+utilities.is_module_available = is_module_available
+
+-- are these needed ?
+local dec_to_hex = utilities.dec_to_hex
+local bnot = utilities.bnot
+
+---------------------------- Begin Local Variables - Settings ----------------------------
+
+local settings = lanes.require("sqma-settings").initialise(requires, _VERSION)
+
+local ul_if = settings.ul_if                                -- upload interface
+local dl_if = settings.dl_if                                -- download interface
+local base_ul_rate = settings.base_ul_rate                  -- expected stable upload speed
+local base_dl_rate = settings.base_dl_rate                  -- expected stable download speed
+local min_ul_rate = settings.min_ul_rate                    -- minimum acceptable upload speed
+local min_dl_rate = settings.min_dl_rate                    -- minimum acceptable download speed
+local stats_file = settings.stats_file                      -- the file location of the output statisics
+local speedhist_file = settings.speedhist_file              -- the location of the output speed history
+local enable_verbose_baseline_output =                      -- additional verbosity     - retire or merge into TRACE?
+        settings.enable_verbose_baseline_output
+local tick_duration = settings.tick_duration                -- the interval between 'pings'
+local min_change_interval = settings.min_change_interval    -- the minimum interval between speed changes
+local reflector_list_icmp = settings.reflector_list_icmp    -- the location of the input icmp reflector list
+local reflector_list_udp = settings.reflector_list_udp      -- the location of the input udp reflector list
+local histsize = settings.histsize                          -- the number of good speed settings to remember
+local ul_max_delta_owd = settings.ul_max_delta_owd          -- the upload delay threshold to trigger an upload speed change
+local dl_max_delta_owd = settings.dl_max_delta_owd          -- the delay threshold to trigger a download speed change
+local high_load_level = settings.high_load_level            -- the relative load (to current speed) that is copnsidered 'high'
+local reflector_type = settings.reflector_type              -- reflector type icmp or udp (udp is not well supported)
+local output_statistics = settings.output_statistics        -- controls output to the statistics file
+
+---------------------------- Begin Internal Local Variables ----------------------------
 
 -- The stats_queue is intended to be a true FIFO queue.
 -- The purpose of the queue is to hold the processed timestamp packets that are
@@ -94,151 +163,6 @@ reflector_data:set("reflector_tables", {
 })
 
 local reselector_channel = lanes.linda()
-
-local loglevel = {
-    TRACE = {
-        level = 6,
-        name = "TRACE"
-    },
-    DEBUG = {
-        level = 5,
-        name = "DEBUG"
-    },
-    INFO = {
-        level = 4,
-        name = "INFO"
-    },
-    WARN = {
-        level = 3,
-        name = "WARN"
-    },
-    ERROR = {
-        level = 2,
-        name = "ERROR"
-    },
-    FATAL = {
-        level = 1,
-        name = "FATAL"
-    }
-}
-
--- Set a default log level here, until we've got one from UCI
-local use_loglevel = loglevel.INFO
-
--- logger for CSV files: Observes the passed-in loglevel
-local function csv_logger(fd, loglevel, message)
-    if (loglevel.level <= use_loglevel.level) then
-        fd:write(message)
-    end
-end
-
-
--- Basic homegrown logger to keep us from having to import yet another module
-local function logger(loglevel, message)
-    if (loglevel.level <= use_loglevel.level) then
-        local cur_date = os.date("%Y%m%dT%H:%M:%S")
-        -- local cur_date = os.date("%c")
-        local out_str = string.format("[%s - %s]: %s", loglevel.name, cur_date, message)
-        print(out_str)
-    end
-end
-
-local bit = nil
-local bit_mod = nil
-if is_module_available("bit") then
-    bit = lanes.require "bit"
-    bit_mod = "bit"
-elseif is_module_available("bit32") then
-    bit = lanes.require "bit32"
-    bit_mod = "bit32"
-else
-    logger(loglevel.FATAL, "No bitwise module found")
-    os.exit(1, true)
-end
-
--- Figure out if we are running on OpenWrt here and load luci.model.uci if available...
-local uci_lib = nil
-local settings = nil
-if is_module_available("luci.model.uci") then
-    uci_lib = require("luci.model.uci")
-    settings = uci_lib.cursor()
-end
-
--- If we have luci-app-sqm installed, but it is disabled, this whole thing is moot. Let's bail early in that case.
-if settings then
-    local sqm_enabled = tonumber(settings:get("sqm", "@queue[0]", "enabled"), 10)
-    if sqm_enabled == 0 then
-        logger(loglevel.FATAL,
-            "SQM is not enabled on this OpenWrt system. Please enable it before starting sqm-autorate.")
-        os.exit(1, true)
-    end
-end
-
----------------------------- Begin Local Variables - External Settings ----------------------------
-
--- Interface names: leave empty to use values from SQM config or place values here to override SQM config
-local ul_if = settings and settings:get("sqm-autorate", "@network[0]", "upload_interface") or "<UPLOAD INTERFACE NAME>" -- upload interface
-local dl_if = settings and settings:get("sqm-autorate", "@network[0]", "download_interface") or
-                  "<DOWNLOAD INTERFACE NAME>" -- download interface
-
-local base_ul_rate = settings and
-                         math.floor(tonumber(settings:get("sqm-autorate", "@network[0]", "upload_base_kbits"), 10)) or
-                         10000
-local base_dl_rate = settings and
-                         math.floor(tonumber(settings:get("sqm-autorate", "@network[0]", "download_base_kbits"), 10)) or
-                         10000
-
-local min_ul_rate = math.floor(base_ul_rate / 5)
-local min_dl_rate = math.floor(base_dl_rate / 5)
-do -- create a scope for temporary local variables
-    local min_ul_percent =
-        settings and tonumber(settings:get("sqm-autorate", "@network[0]", "upload_min_percent"), 10) or 20
-    min_ul_percent = math.min(math.max(min_ul_percent, 10), 60)
-    min_ul_rate = math.floor(base_ul_rate * min_ul_percent / 100)
-
-    local min_dl_percent = settings and
-                               tonumber(settings:get("sqm-autorate", "@network[0]", "download_min_percent"), 10) or 20
-    min_dl_percent = math.min(math.max(min_dl_percent, 10), 60)
-    min_dl_rate = math.floor(base_dl_rate * min_dl_percent / 100)
-end
-
-local stats_file = settings and settings:get("sqm-autorate", "@output[0]", "stats_file") or "<STATS FILE NAME/PATH>"
-local speedhist_file = settings and settings:get("sqm-autorate", "@output[0]", "speed_hist_file") or
-                           "<HIST FILE NAME/PATH>"
-
-use_loglevel = loglevel[string.upper(settings and settings:get("sqm-autorate", "@output[0]", "log_level") or "INFO")]
-
----------------------------- Begin Advanced User-Configurable Local Variables ----------------------------
-local enable_verbose_baseline_output = false
-
-local tick_duration = 0.5 -- Frequency in seconds
-local min_change_interval = 0.5 -- don't change speeds unless this many seconds has passed since last change
-
-local reflector_list_icmp = "/usr/lib/sqm-autorate/reflectors-icmp.csv"
-local reflector_list_udp = "/usr/lib/sqm-autorate/reflectors-udp.csv"
-
-local histsize = settings and tonumber(settings:get("sqm-autorate", "@advanced_settings[0]", "speed_hist_size"), 10) or
-                     100 -- the number of 'good' speeds to remember
--- reducing this value could result in the algorithm remembering too few speeds to truly stabilise
--- increasing this value could result in the algorithm taking too long to stabilise
-
-local ul_max_delta_owd = settings and
-                             tonumber(settings:get("sqm-autorate", "@advanced_settings[0]", "upload_delay_ms"), 10) or
-                             15 -- increase from baseline RTT for detection of bufferbloat
-local dl_max_delta_owd = settings and
-                             tonumber(settings:get("sqm-autorate", "@advanced_settings[0]", "download_delay_ms"), 10) or
-                             15 -- increase from baseline RTT for detection of bufferbloat
--- 15 is good for networks with very variable RTT values, such as LTE and DOCIS/cable networks
--- 5 might be appropriate for high speed and relatively stable networks such as fiber
-
-local high_load_level = settings and
-                            tonumber(settings:get("sqm-autorate", "@advanced_settings[0]", "high_load_level"), 10) or
-                            0.8
-high_load_level = math.min(math.max(high_load_level, 0.67), 0.95)
-
-local reflector_type = settings and settings:get("sqm-autorate", "@advanced_settings[0]", "reflector_type") or "icmp"
-
----------------------------- Begin Internal Local Variables ----------------------------
 
 local cur_process_id = posix.getpid()
 if type(cur_process_id) == "table" then
@@ -316,101 +240,6 @@ local function baseline_reflector_list(tbl)
     end
 end
 
-local function a_else_b(a, b)
-    if a then
-        return a
-    else
-        return b
-    end
-end
-
-local function nsleep(s, ns)
-    -- nanosleep requires integers
-    local floor = math.floor
-    time.nanosleep({
-        tv_sec = floor(s),
-        tv_nsec = floor(((s % 1.0) * 1e9) + ns)
-    })
-end
-
-local function get_current_time()
-    local time_s, time_ns = 0, 0
-    local val1, val2 = time.clock_gettime(time.CLOCK_REALTIME)
-    if type(val1) == "table" then
-        time_s = val1.tv_sec
-        time_ns = val1.tv_nsec
-    else
-        time_s = val1
-        time_ns = val2
-    end
-    return time_s, time_ns
-end
-
-local function get_time_after_midnight_ms()
-    local time_s, time_ns = get_current_time()
-    return (time_s % 86400 * 1000) + (math.floor(time_ns / 1000000))
-end
-
-local function dec_to_hex(number, digits)
-    local bit_mask = (bit.lshift(1, (digits * 4))) - 1
-    local str_fmt = "%0" .. digits .. "X"
-    return string.format(str_fmt, bit.band(number, bit_mask))
-end
-
--- This exists because the "bit" version of bnot() differs from the "bit32" version
--- of bnot(). This mimics the behavior of the "bit32" version and will therefore be
--- used for both "bit" and "bit32" execution.
-local function bnot(data)
-    local MOD = 2 ^ 32
-    return (-1 - data) % MOD
-end
-
-local function calculate_checksum(data)
-    local checksum = 0
-    for i = 1, #data - 1, 2 do
-        checksum = checksum + (bit.lshift(string.byte(data, i), 8)) + string.byte(data, i + 1)
-    end
-    if bit.rshift(checksum, 16) then
-        checksum = bit.band(checksum, 0xffff) + bit.rshift(checksum, 16)
-    end
-    return bnot(checksum)
-end
-
-local function get_table_position(tbl, item)
-    for i, value in ipairs(tbl) do
-        if value == item then
-            return i
-        end
-    end
-    return 0
-end
-
-local function get_table_len(tbl)
-    local count = 0
-    for _ in pairs(tbl) do
-        count = count + 1
-    end
-    return count
-end
-
-local function shuffle_table(tbl)
-    -- Fisher-Yates shuffle
-    local random = math.random
-    for i = #tbl, 2, -1 do
-        local j = random(i)
-        tbl[i], tbl[j] = tbl[j], tbl[i]
-    end
-    return tbl
-end
-
-local function maximum(table)
-    local max = math.max
-    local m = -1 / 0
-    for _, v in pairs(table) do
-        m = max(v, m)
-    end
-    return m
-end
 
 local function update_cake_bandwidth(iface, rate_in_kbit)
     local is_changed = false
@@ -534,6 +363,7 @@ local function receive_udp_pkt(pkt_id)
 end
 
 local function ts_ping_receiver(pkt_id, pkt_type)
+    set_debug_threadname('ping_receiver')
     logger(loglevel.TRACE, "Entered ts_ping_receiver() with value: " .. pkt_id)
 
     local receive_func = nil
@@ -620,6 +450,7 @@ local function send_udp_pkt(reflector, pkt_id)
 end
 
 local function ts_ping_sender(pkt_type, pkt_id, freq)
+    set_debug_threadname('ping_sender')
     logger(loglevel.TRACE, "Entered ts_ping_sender() with values: " .. freq .. " | " .. pkt_type .. " | " .. pkt_id)
 
     local floor = math.floor
@@ -660,12 +491,17 @@ local function ts_ping_sender(pkt_type, pkt_id, freq)
 end
 
 local function read_stats_file(file)
+    if not file then
+        return
+    end
     file:seek("set", 0)
     local bytes = file:read()
     return bytes
 end
 
 local function ratecontrol()
+    set_debug_threadname('ratecontroller')
+
     local floor = math.floor
     local max = math.max
     local min = math.min
@@ -696,7 +532,6 @@ local function ratecontrol()
     local prev_rx_bytes = read_stats_file(rx_bytes_file)
     local prev_tx_bytes = read_stats_file(tx_bytes_file)
     local t_prev_bytes = lastchg_t
-    local t_cur_bytes = lastchg_t
 
     local safe_dl_rates = {}
     local safe_ul_rates = {}
@@ -708,14 +543,15 @@ local function ratecontrol()
     local nrate_up = 0
     local nrate_down = 0
 
-    local csv_fd = io.open(stats_file, "w")
-    local speeddump_fd = io.open(speedhist_file, "w")
+    local csv_fd = nil
+    local speeddump_fd = nil
+    if output_statistics then
+        csv_fd = io.open(stats_file, "w")
+        speeddump_fd = io.open(speedhist_file, "w")
 
-    csv_logger(csv_fd, loglevel.INFO,"times,timens,rxload,txload,deltadelaydown,deltadelayup,dlrate,uprate\n")
-    csv_logger(speeddump_fd, loglevel.INFO,"time,counter,upspeed,downspeed\n")
-
-    -- csv_fd:write("times,timens,rxload,txload,deltadelaydown,deltadelayup,dlrate,uprate\n")
-    -- speeddump_fd:write("time,counter,upspeed,downspeed\n")
+        csv_fd:write("times,timens,rxload,txload,deltadelaydown,deltadelayup,dlrate,uprate\n")
+        speeddump_fd:write("time,counter,upspeed,downspeed\n")
+    end
 
     while true do
         local now_s, now_ns = get_current_time()
@@ -752,7 +588,7 @@ local function ratecontrol()
                         down_del[#down_del + 1] = owd_recent[reflector_ip].down_ewma -
                                                       owd_baseline[reflector_ip].down_ewma
 
-                        logger(loglevel.INFO, "reflector: " .. reflector_ip .. " delay: " .. up_del[#up_del] ..
+                        logger(loglevel.DEBUG, "reflector: " .. reflector_ip .. " delay: " .. up_del[#up_del] ..
                             "  down_del: " .. down_del[#down_del])
                     end
                 end
@@ -764,7 +600,26 @@ local function ratecontrol()
                 local cur_rx_bytes = read_stats_file(rx_bytes_file)
                 local cur_tx_bytes = read_stats_file(tx_bytes_file)
 
-                if #up_del == 0 or #down_del == 0 then
+                if not cur_rx_bytes or not cur_tx_bytes then
+                    logger(loglevel.WARN,
+                        "One or both stats files could not be read. Skipping rate control algorithm.")
+
+                    if rx_bytes_file then
+                        io.close(rx_bytes_file)
+                    end
+                    if tx_bytes_file then
+                        io.close(tx_bytes_file)
+                    end
+
+                    rx_bytes_file = io.open(rx_bytes_path)
+                    tx_bytes_file = io.open(tx_bytes_path)
+
+                    cur_rx_bytes = read_stats_file(rx_bytes_file)
+                    cur_tx_bytes = read_stats_file(tx_bytes_file)
+
+                    next_ul_rate = cur_ul_rate
+                    next_dl_rate = cur_dl_rate
+                elseif #up_del == 0 or #down_del == 0 then
                     next_dl_rate = min_dl_rate
                     next_ul_rate = min_ul_rate
                 else
@@ -774,19 +629,14 @@ local function ratecontrol()
                     up_del_stat = a_else_b(up_del[3], up_del[1])
                     down_del_stat = a_else_b(down_del[3], down_del[1])
 
-                    if cur_rx_bytes and cur_tx_bytes and up_del_stat and down_del_stat then
-                        t_prev_bytes = t_cur_bytes
-                        t_cur_bytes = now_t
-
-                        rx_load = (8 / 1000) * (cur_rx_bytes - prev_rx_bytes) / (t_cur_bytes - t_prev_bytes) /
+                    if up_del_stat and down_del_stat then
+                        rx_load = (8 / 1000) * (cur_rx_bytes - prev_rx_bytes) / (now_t - t_prev_bytes) /
                                       cur_dl_rate
-                        tx_load = (8 / 1000) * (cur_tx_bytes - prev_tx_bytes) / (t_cur_bytes - t_prev_bytes) /
+                        tx_load = (8 / 1000) * (cur_tx_bytes - prev_tx_bytes) / (now_t - t_prev_bytes) /
                                       cur_ul_rate
-                        prev_rx_bytes = cur_rx_bytes
-                        prev_tx_bytes = cur_tx_bytes
                         next_ul_rate = cur_ul_rate
                         next_dl_rate = cur_dl_rate
-                        logger(loglevel.INFO, "up_del_stat " .. up_del_stat .. " down_del_stat " .. down_del_stat)
+                        logger(loglevel.DEBUG, "up_del_stat " .. up_del_stat .. " down_del_stat " .. down_del_stat)
                         if up_del_stat and up_del_stat < ul_max_delta_owd and tx_load > high_load_level then
                             safe_ul_rates[nrate_up] = floor(cur_ul_rate * tx_load)
                             local max_ul = maximum(safe_ul_rates)
@@ -820,14 +670,19 @@ local function ratecontrol()
                                 next_dl_rate = 0.9 * cur_dl_rate * rx_load
                             end
                         end
-                    else
-                        logger(loglevel.WARN,
-                            "One or both stats files could not be read. Skipping rate control algorithm.")
                     end
                 end
-                logger(loglevel.INFO, "next_ul_rate " .. next_ul_rate .. " next_dl_rate " .. next_dl_rate)
+
+                t_prev_bytes = now_t
+                prev_rx_bytes = cur_rx_bytes
+                prev_tx_bytes = cur_tx_bytes
+
                 next_ul_rate = floor(max(min_ul_rate, next_ul_rate))
                 next_dl_rate = floor(max(min_dl_rate, next_dl_rate))
+
+                if next_ul_rate ~= cur_ul_rate or next_dl_rate ~= cur_dl_rate then
+                    logger(loglevel.INFO, "next_ul_rate " .. next_ul_rate .. " next_dl_rate " .. next_dl_rate)
+                end
 
                 -- TC modification
                 if next_dl_rate ~= cur_dl_rate then
@@ -846,12 +701,11 @@ local function ratecontrol()
                         string.format("%d,%d,%f,%f,%f,%f,%d,%d\n", lastchg_s, lastchg_ns, rx_load, tx_load,
                             down_del_stat, up_del_stat, cur_dl_rate, cur_ul_rate))
 
-                    -- output to log file before doing delta on the time
-                    csv_logger(csv_fd, loglevel.INFO,string.format("%d,%d,%f,%f,%f,%f,%d,%d\n", 
-                        lastchg_s, lastchg_ns, rx_load, tx_load,
-                        down_del_stat, up_del_stat, cur_dl_rate, cur_ul_rate))
-                    -- csv_fd:write(string.format("%d,%d,%f,%f,%f,%f,%d,%d\n", lastchg_s, lastchg_ns, rx_load, tx_load,
-                    --     down_del_stat, up_del_stat, cur_dl_rate, cur_ul_rate))
+                    if output_statistics then
+                        -- output to log file before doing delta on the time
+                        csv_fd:write(string.format("%d,%d,%f,%f,%f,%f,%d,%d\n", lastchg_s, lastchg_ns, rx_load, tx_load,
+                            down_del_stat, up_del_stat, cur_dl_rate, cur_ul_rate))
+                    end
                 else
                     logger(loglevel.DEBUG,
                         string.format(
@@ -865,10 +719,9 @@ local function ratecontrol()
             end
         end
 
-        if now_t - lastdump_t > 300 then
+        if output_statistics and now_t - lastdump_t > 300 then
             for i = 0, histsize - 1 do
-                csv_logger(speeddump_fd, loglevel.INFO, string.format("%f,%d,%f,%f\n", now_t, i, safe_ul_rates[i], safe_dl_rates[i]))
-                -- speeddump_fd:write(string.format("%f,%d,%f,%f\n", now_t, i, safe_ul_rates[i], safe_dl_rates[i]))
+                speeddump_fd:write(string.format("%f,%d,%f,%f\n", now_t, i, safe_ul_rates[i], safe_dl_rates[i]))
             end
             lastdump_t = now_t
         end
@@ -878,6 +731,8 @@ local function ratecontrol()
 end
 
 local function baseline_calculator()
+    set_debug_threadname('baseliner')
+
     local min = math.min
     -- 135 seconds to decay to 50% for the slow factor and
     -- 0.4 seconds to decay to 50% for the fast factor.
@@ -968,14 +823,14 @@ local function baseline_calculator()
                 for ref, val in pairs(owd_baseline) do
                     local up_ewma = a_else_b(val.up_ewma, "?")
                     local down_ewma = a_else_b(val.down_ewma, "?")
-                    logger(loglevel.INFO,
+                    logger(loglevel.DEBUG,
                         "Reflector " .. ref .. " up baseline = " .. up_ewma .. " down baseline = " .. down_ewma)
                 end
 
                 for ref, val in pairs(owd_recent) do
                     local up_ewma = a_else_b(val.up_ewma, "?")
                     local down_ewma = a_else_b(val.down_ewma, "?")
-                    logger(loglevel.INFO, "Reflector " .. ref .. "recent up baseline = " .. up_ewma ..
+                    logger(loglevel.DEBUG, "Reflector " .. ref .. "recent up baseline = " .. up_ewma ..
                         "recent down baseline = " .. down_ewma)
                 end
             end
@@ -988,6 +843,7 @@ local function rtt_compare(a, b)
 end
 
 local function reflector_peer_selector()
+    set_debug_threadname('peer_selector')
     local floor = math.floor
     local pi = math.pi
     local random = math.random
@@ -1042,9 +898,9 @@ local function reflector_peer_selector()
                 local down_del = owd_recent[peer].down_ewma
                 local rtt = up_del + down_del
                 candidates[#candidates + 1] = {peer, rtt}
-                logger(loglevel.INFO, "Candidate reflector: " .. peer .. " RTT: " .. rtt)
+                logger(loglevel.DEBUG, "Candidate reflector: " .. peer .. " RTT: " .. rtt)
             else
-                logger(loglevel.INFO, "No data found from candidate reflector: " .. peer .. " - skipping")
+                logger(loglevel.DEBUG, "No data found from candidate reflector: " .. peer .. " - skipping")
             end
         end
 
@@ -1060,7 +916,7 @@ local function reflector_peer_selector()
             end
         end
         for i, v in ipairs(candidates) do
-            logger(loglevel.INFO, "Fastest candidate " .. i .. ": " .. v[1] .. " - RTT: " .. v[2])
+            logger(loglevel.DEBUG, "Fastest candidate " .. i .. ": " .. v[1] .. " - RTT: " .. v[2])
         end
 
         -- Shuffle the deck so we avoid overwhelming good reflectors
@@ -1096,37 +952,13 @@ local function conductor()
     local nows, nowns = get_current_time()
     math.randomseed(nowns)
 
-    -- Figure out the interfaces in play here
-    -- if ul_if == "" then
-    --     ul_if = settings and settings:get("sqm", "@queue[0]", "interface")
-    --     if not ul_if then
-    --         logger(loglevel.FATAL, "Upload interface not found in SQM config and was not overriden. Cannot continue.")
-    --         os.exit(1, true)
-    --     end
-    -- end
-
-    -- if dl_if == "" then
-    --     local fh = io.popen(string.format("tc -p filter show parent ffff: dev %s", ul_if))
-    --     local tc_filter = fh:read("*a")
-    --     fh:close()
-
-    --     local ifb_name = string.match(tc_filter, "ifb[%a%d]+")
-    --     if not ifb_name then
-    --         local ifb_name = string.match(tc_filter, "veth[%a%d]+")
-    --     end
-    --     if not ifb_name then
-    --         logger(loglevel.FATAL, string.format(
-    --             "Download interface not found for upload interface %s and was not overriden. Cannot continue.", ul_if))
-    --         os.exit(1, true)
-    --     end
-
-    --     dl_if = ifb_name
-    -- end
     logger(loglevel.DEBUG, "Upload iface: " .. ul_if .. " | Download iface: " .. dl_if)
 
     -- Verify these are correct using "cat /sys/class/..."
     if dl_if:find("^ifb.+") or dl_if:find("^veth.+") then
         rx_bytes_path = "/sys/class/net/" .. dl_if .. "/statistics/tx_bytes"
+    elseif dl_if == "br-lan" then
+        rx_bytes_path = "/sys/class/net/" .. ul_if .. "/statistics/rx_bytes"
     else
         rx_bytes_path = "/sys/class/net/" .. dl_if .. "/statistics/rx_bytes"
     end
@@ -1257,19 +1089,5 @@ local function conductor()
     end
 end
 ---------------------------- End Conductor Loop ----------------------------
-
-if argparse then
-    local parser = argparse("sqm-autorate.lua", "CAKE with Adaptive Bandwidth - 'autorate'",
-        "For more info, please visit: https://github.com/sqm-autorate/sqm-autorate")
-
-    parser:flag("-v --version", "Displays the SQM Autorate version.")
-    local args = parser:parse()
-
-    -- Print the version and then exit
-    if args.version then
-        print(_VERSION)
-        os.exit(0, true)
-    end
-end
 
 conductor() -- go!
