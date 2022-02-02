@@ -35,7 +35,7 @@
 -- ** Recommended style guide: https://github.com/luarocks/lua-style-guide **
 --
 -- The versioning value for this script
-local _VERSION = "0.4.4"
+local _VERSION = "0.5.0"
 
 local requires = {}
 
@@ -613,7 +613,7 @@ local function ratecontrol()
 
                     rx_bytes_file = io.open(rx_bytes_path)
                     tx_bytes_file = io.open(tx_bytes_path)
-                    
+
                     cur_rx_bytes = read_stats_file(rx_bytes_file)
                     cur_tx_bytes = read_stats_file(tx_bytes_file)
 
@@ -676,7 +676,7 @@ local function ratecontrol()
                 t_prev_bytes = now_t
                 prev_rx_bytes = cur_rx_bytes
                 prev_tx_bytes = cur_tx_bytes
-                
+
                 next_ul_rate = floor(max(min_ul_rate, next_ul_rate))
                 next_dl_rate = floor(max(min_dl_rate, next_dl_rate))
 
