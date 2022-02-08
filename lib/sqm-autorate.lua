@@ -397,6 +397,9 @@ local function send_icmp_pkt(reflector, pkt_id)
 
     logger(loglevel.TRACE, "Entered send_icmp_pkt() with values: " .. reflector .. " | " .. pkt_id)
 
+    -- Bind socket to the upload device prior to send
+    socket.setsockopt(sock, socket.SOL_SOCKET, socket.SO_BINDTODEVICE, ul_if)
+
     -- Create a raw ICMP timestamp request message
     local time_after_midnight_ms = get_time_after_midnight_ms()
     local ts_req = vstruct.write("> 2*u1 3*u2 3*u4", {13, 0, 0, pkt_id, 0, time_after_midnight_ms, 0, 0})
@@ -430,6 +433,9 @@ local function send_udp_pkt(reflector, pkt_id)
     -- Transmit timestamp (nanoseconds) - 4 bytes
 
     logger(loglevel.TRACE, "Entered send_udp_pkt() with values: " .. reflector .. " | " .. pkt_id)
+
+    -- Bind socket to the upload device prior to send
+    socket.setsockopt(sock, socket.SOL_SOCKET, socket.SO_BINDTODEVICE, ul_if)
 
     -- Create a raw ICMP timestamp request message
     local time, time_ns = get_current_time()
