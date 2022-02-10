@@ -737,7 +737,9 @@ local function ratecontrol()
 end
 
 local function baseline_calculator()
-    require("jit.p").start('a')
+    if is_module_available("jit.p") then
+        require("jit.p").start('a')
+    end
 
     set_debug_threadname('baseliner')
 
@@ -846,7 +848,9 @@ local function baseline_calculator()
         end
     end
 
-    require("jit.p").stop()
+    if is_module_available("jit.p") then
+        require("jit.p").stop()
+    end
 end
 
 local function rtt_compare(a, b)
