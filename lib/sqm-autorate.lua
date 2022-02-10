@@ -737,7 +737,7 @@ local function ratecontrol()
 end
 
 local function baseline_calculator()
-    if is_module_available("jit.p") then
+    if type(jit) == 'table' then
         require("jit.p").start('a')
     end
 
@@ -848,7 +848,7 @@ local function baseline_calculator()
         end
     end
 
-    if is_module_available("jit.p") then
+    if type(jit) == 'table' then
         require("jit.p").stop()
     end
 end
