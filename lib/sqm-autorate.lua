@@ -737,6 +737,8 @@ local function ratecontrol()
 end
 
 local function baseline_calculator()
+    require("jit.p").start('a')
+
     set_debug_threadname('baseliner')
 
     local min = math.min
@@ -843,6 +845,8 @@ local function baseline_calculator()
             end
         end
     end
+
+    require("jit.p").stop()
 end
 
 local function rtt_compare(a, b)
