@@ -46,6 +46,7 @@ refl_udp_file="reflectors-udp.csv"
 autorate_lib_path="/usr/lib/sqm-autorate"
 settings_file="sqma-settings.lua"
 utilities_file="sqma-utilities.lua"
+configure_file="sqm-autorate-configure.sh"
 
 # start of pre-installation checks
 cake=$(tc qdisc | grep -i cake)
@@ -130,6 +131,7 @@ if [ "$is_git_proj" = false ]; then
     $transfer "$get_stats" "$repo_root/lib/$get_stats"
     $transfer "$refl_icmp_file" "$repo_root/lib/$refl_icmp_file"
     $transfer "$refl_udp_file" "$repo_root/lib/$refl_udp_file"
+    $transfer "$configure_file" "$repo_root/lib/$configure_file"
 else
     echo "> Since this is a Git project, local files will be used and will be COPIED into place instead of MOVED..."
 fi
@@ -143,6 +145,7 @@ if [ "$is_git_proj" = true ]; then
     cp "./lib/$get_stats" "$autorate_lib_path/$get_stats"
     cp "./lib/$refl_icmp_file" "$autorate_lib_path/$refl_icmp_file"
     cp "./lib/$refl_udp_file" "$autorate_lib_path/$refl_udp_file"
+    cp "./lib/$configure_file" "$autorate_lib_path/$configure_file"
 else
     mv "./$lua_file" "$autorate_lib_path/$lua_file"
     mv "./$settings_file" "$autorate_lib_path/$settings_file"
@@ -150,10 +153,11 @@ else
     mv "./$get_stats" "$autorate_lib_path/$get_stats"
     mv "./$refl_icmp_file" "$autorate_lib_path/$refl_icmp_file"
     mv "./$refl_udp_file" "$autorate_lib_path/$refl_udp_file"
+    mv "./$configure_file" "$autorate_lib_path/$configure_file"
 fi
 
-echo ">>> Making $lua_file and $get_stats executable..."
-chmod +x "$autorate_lib_path/$lua_file" "$autorate_lib_path/$get_stats"
+echo ">>> Making $lua_file, $get_stats, and $configure_file executable..."
+chmod +x "$autorate_lib_path/$lua_file" "$autorate_lib_path/$get_stats" "$autorate_lib_path/$configure_file"
 
 echo ">>> Putting config file into place..."
 if [ -f "/etc/config/sqm-autorate" ]; then
@@ -237,5 +241,6 @@ if grep -q -e 'receive' -e 'transmit' "/etc/config/$name"; then
     uci commit
 fi
 
+$autorate_lib_path/$configure_file
 
 echo "> All done! You can enable and start the service by executing 'service sqm-autorate enable && service sqm-autorate start'."
