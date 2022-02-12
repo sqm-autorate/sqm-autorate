@@ -393,7 +393,8 @@ restarting input
         service sqm-autorate enable
     fi
     if [ "${START_NOW}" == "Yes" ]; then
-        service sqm-autorate start
+        service sqm-autorate stop 2>/dev/null
+        service sqm-autorate restart
     fi
 fi
 echo "
