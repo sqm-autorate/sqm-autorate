@@ -35,6 +35,10 @@ if [ -z "${do_config}" ] || [ "${do_config}" == "y" ] || [ "${do_config}" == "ye
     network_flush_cache
     network_find_wan WAN_IF
     WAN_DEVICE=$(uci -q get network.$WAN_IF.device)
+    SETTINGS_UPLOAD_DEVICE=$(uci -q get sqm-autorate.@network[0].upload_interface)
+    SETTINGS_DOWNLOAD_DEVICE=$(uci -q get sqm-autorate.@network[0].download_interface)
+    SETTINGS_UPLOAD_SPEED=$(uci -q get sqm-autorate.@network[0].upload_base_kbits)
+    SETTINGS_DOWNLOAD_SPEED=$(uci -q get sqm-autorate.@network[0].download_base_kbits)
 
     INPUT=Y
     while [ $INPUT == "Y" ]; do
@@ -45,7 +49,13 @@ You may be required to manually find and type the network device names
 Here's the list of network devices known to CAKE:
 $(tc qdisc | grep -i cake | grep -o ' dev [[:alnum:]]* ' | cut -d ' ' -f 3)"
 
-        UPLOAD_DEVICE=$(tc qdisc | grep -i cake | grep -o -- " dev ${WAN_DEVICE} " | cut -d ' ' -f 3)
+        if [ -n "${SETTINGS_UPLOAD_DEVICE}" ]; then
+            UPLOAD_DEVICE=$(tc qdisc | grep -i cake | grep -o -- " dev ${SETTINGS_UPLOAD_DEVICE} " | cut -d ' ' -f 3)
+        fi
+        if [ -z "${UPLOAD_DEVICE}" ]; then
+            UPLOAD_DEVICE=$(tc qdisc | grep -i cake | grep -o -- " dev ${WAN_DEVICE} " | cut -d ' ' -f 3)
+        fi
+
         if [ -n "${UPLOAD_DEVICE}" ]; then
             read -p "
 press return to accept detected network upload device [${UPLOAD_DEVICE}]: " ACCEPT
@@ -69,7 +79,13 @@ Please type in the upload network device name: " UPLOAD_DEVICE
             fi
         done
 
-        DOWNLOAD_DEVICE=$(tc qdisc | grep -i cake | grep -o -- " dev ifb4${UPLOAD_DEVICE} " | cut -d ' ' -f 3)
+        if [ -n "${SETTINGS_DOWNLOAD_DEVICE}" ]; then
+            DOWNLOAD_DEVICE=$(tc qdisc | grep -i cake | grep -o -- " dev ${SETTINGS_DOWNLOAD_DEVICE} " | cut -d ' ' -f 3)
+        fi
+        if [ -z "${DOWNLOAD_DEVICE}" ]; then
+            DOWNLOAD_DEVICE=$(tc qdisc | grep -i cake | grep -o -- " dev ifb4${UPLOAD_DEVICE} " | cut -d ' ' -f 3)
+        fi
+
         if [ -z "${DOWNLOAD_DEVICE}" ]; then
             DOWNLOAD_DEVICE=$(tc qdisc | grep -i cake | grep -o -- " dev veth.* " | cut -d ' ' -f 3)
         fi
@@ -104,9 +120,17 @@ kbits per second, where 1 mbit = 1000 kbits, and 1 gbit = 1000000 kbits.
 The speed should be input with just digits and no punctuation
 "
         BAD=Y
+        if [ -n "${SETTINGS_UPLOAD_SPEED}" ] && [[ $SETTINGS_UPLOAD_SPEED =~ ^[0-9]+$ ]]; then
+            DEFAULT=" [${SETTINGS_UPLOAD_SPEED}]"
+        else
+            DEFAULT=""
+        fi
         while [ $BAD == "Y" ]; do
-            read -p "upload speed: " UPLOAD_SPEED
-            if [[ $UPLOAD_SPEED =~ ^[0-9]+$ ]]; then
+            read -p "upload speed${DEFAULT}: " UPLOAD_SPEED
+            if [ -n "${SETTINGS_UPLOAD_SPEED}" ] && [ -z "${UPLOAD_SPEED}" ]; then
+                UPLOAD_SPEED=$SETTINGS_UPLOAD_SPEED
+                BAD=N
+            elif [[ $UPLOAD_SPEED =~ ^[0-9]+$ ]]; then
                 BAD=N
             else
                 echo "
@@ -116,8 +140,16 @@ please input digits only"
 
         BAD=Y
         while [ $BAD == "Y" ]; do
-            read -p "download speed: " DOWNLOAD_SPEED
-            if [[ $DOWNLOAD_SPEED =~ ^[0-9]+$ ]]; then
+            if [ -n "${SETTINGS_DOWNLOAD_SPEED}" ] && [[ $SETTINGS_DOWNLOAD_SPEED =~ ^[0-9]+$ ]]; then
+                DEFAULT=" [${SETTINGS_DOWNLOAD_SPEED}]"
+            else
+                DEFAULT=""
+            fi
+            read -p "download speed${DEFAULT}: " DOWNLOAD_SPEED
+            if [ -n "${SETTINGS_DOWNLOAD_SPEED}" ] && [ -z "${DOWNLOAD_SPEED}" ]; then
+                DOWNLOAD_SPEED=$SETTINGS_DOWNLOAD_SPEED
+                BAD=N
+            elif [[ $DOWNLOAD_SPEED =~ ^[0-9]+$ ]]; then
                 BAD=N
             else
                 echo "
