@@ -82,6 +82,10 @@ if [ "${is_openwrt}" != "OpenWrt" ]; then
     fi
 fi
 
+echo "
+Stopping 'sqm-autorate' (if installed)"
+service sqm-autorate stop 2>/dev/null
+
 # work out whether to use curl or wget based on available images
 curl=''
 transfer=''
@@ -241,6 +245,6 @@ if grep -q -e 'receive' -e 'transmit' "/etc/config/$name"; then
     uci commit
 fi
 
-$autorate_lib_path/$configure_file
+echo "> Installation complete, about to start configuration. You can enable and start the service by executing 'service sqm-autorate enable && service sqm-autorate start'."
 
-echo "> All done! You can enable and start the service by executing 'service sqm-autorate enable && service sqm-autorate start'."
+$autorate_lib_path/$configure_file

@@ -140,8 +140,8 @@ function M.initialise(requires, version)
             parser:option("--download-interface --dl", "the device name of the download interface; no default")
             parser:option("--upload-base-kbits --ub", "the expected consistent rate in kbit/s of the upload interface; default 10000")
             parser:option("--download-base-kbits --db", "the expected consistent rate in kbit/s of the download interface; default 10000")
-            parser:option("--upload-min-percent --up", "the worst case tolerable percentage of the kbits of the upload rate; range 10 to 60; default=20")
-            parser:option("--download-min-percent --dp", "the worst case tolerable percentage of the kbits of the upload rate; range 10 to 60; default=20")
+            parser:option("--upload-min-percent --up", "the worst case tolerable percentage of the kbits of the upload rate; range 10 to 75; default=20")
+            parser:option("--download-min-percent --dp", "the worst case tolerable percentage of the kbits of the upload rate; range 10 to 75; default=20")
             parser:option("--upload-delay-ms --ud", "the tolerable additional delay on upload in ms; default 15")
             parser:option("--download-delay-ms --dd", "the tolerable additional delay on download in ms; default 15")
             parser:option("--log-level --ll", "the verbosity of the messages in the log file; TRACE, DEBUG, INFO, WARN, ERROR, FATAL; default INFO")
@@ -232,7 +232,7 @@ function M.initialise(requires, version)
         if upload_min_percent == nil then
             M.min_ul_rate = floor(M.base_ul_rate / 5)   -- 20%
         else
-            upload_min_percent = limit(tonumber(upload_min_percent), 10, 60)
+            upload_min_percent = limit(tonumber(upload_min_percent), 10, 75)
             M.min_ul_rate = floor(M.base_ul_rate * upload_min_percent / 100)
         end
     end
@@ -245,7 +245,7 @@ function M.initialise(requires, version)
         if download_min_percent == nil then
             M.min_dl_rate = floor(M.base_dl_rate / 5)   -- 20%
         else
-            download_min_percent = limit(tonumber(download_min_percent), 10, 60)
+            download_min_percent = limit(tonumber(download_min_percent), 10, 75)
             M.min_dl_rate = floor(M.base_dl_rate * download_min_percent / 100)
         end
     end

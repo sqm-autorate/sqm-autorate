@@ -173,7 +173,7 @@ If you have some kind of DSL connection, read the
    * `download_base_kbits` to the expected download speed
 
    You may want to adjust the minimum rates, which are controlled by:
-   * `upload_min_percent` the percentage of your `upload_base_kbits` that is the minimum bandwidth that you can accept when there is high bufferbloat. This is defaulted to 20 (%) and can be between 10 and 60
+   * `upload_min_percent` the percentage of your `upload_base_kbits` that is the minimum bandwidth that you can accept when there is high bufferbloat. This is defaulted to 20 (%) and can be between 10 and 75
    * `download_min_percent` as above but for 'download_base_kbits'
 
    If you want the value in `upload_base_kbits` or `download_base_kbits` to be 30 megabits/second, enter `30000`.
@@ -227,8 +227,8 @@ Values loaded from this mechanism override value supplied via the command line o
 | network | download_interface | The download interface name which is typically created as a virtual interface when CAKE is active. This typically begins with 'ifb4' or 'veth'. | 'ifb4wan' |
 | network | upload_base_kbits | The highest speed in kbit/s at which bufferbloat typically is non-existent for outbound traffic on the given connection. This is used for reference in determining safe speeds via learning, but is not a hard floor or ceiling. | '10000' |
 | network | download_base_kbits | The highest speed in kbit/s at which bufferbloat typically is non-existent for inbound traffic on the given connection. This is used for reference in determining safe speeds via learning, but is not a hard floor or ceiling. | '10000' |
-| network | upload_min_percent | The absolute minimum acceptable outbound speed as a percentage of `upload_base_kbits` that the autorate algorithm is allowed to fall back to in cases of extreme congestion, at the expense of allowing latency to exceed `upload_delay_ms`. | '20' |
-| network | download_min_percent | The absolute minimum acceptable inbound speed as a percentage of `download_base_kbits` that the autorate algorithm is allowed to fall back to in cases of extreme congestion, at the expense of allowing latency to exceed `download_delay_ms`. | '20' |
+| network | upload_min_percent | The absolute minimum acceptable outbound speed as a percentage of `upload_base_kbits` that the autorate algorithm is allowed to fall back to in cases of extreme congestion, at the expense of allowing latency to exceed `upload_delay_ms`. Between 10 and 75. | '20' |
+| network | download_min_percent | The absolute minimum acceptable inbound speed as a percentage of `download_base_kbits` that the autorate algorithm is allowed to fall back to in cases of extreme congestion, at the expense of allowing latency to exceed `download_delay_ms`. Between 10 and 75. | '20' |
 | output | log_level | Used to set the highest level of logging verbosity. e.g. setting to 'INFO' will output all log levels at the set level or lower (in terms of verbosity). [Verbosity Options](#verbosity-options) | 'INFO' |
 | output | stats_file | The location to which the autorate OWD reflector stats will be written. | '/tmp/sqm-autorate.csv' |
 | output | speed_hist_file | The location to which autorate speed adjustment history will be written. | '/tmp/sqm-speedhist.csv' |
@@ -279,10 +279,10 @@ Options:
                          the expected consistent rate in kbit/s of the download interface; default 10000
    --upload-min-percent <upload_min_percent>,
                    --up <upload_min_percent>
-                         the worst case tolerable percentage of the kbits of the upload rate; range 10 to 60; default=20
+                         the worst case tolerable percentage of the kbits of the upload rate; range 10 to 75; default=20
    --download-min-percent <download_min_percent>,
                      --dp <download_min_percent>
-                         the worst case tolerable percentage of the kbits of the upload rate; range 10 to 60; default=20
+                         the worst case tolerable percentage of the kbits of the upload rate; range 10 to 75; default=20
    --upload-delay-ms <upload_delay_ms>,
                 --ud <upload_delay_ms>
                          the tolerable additional delay on upload in ms; default 15
