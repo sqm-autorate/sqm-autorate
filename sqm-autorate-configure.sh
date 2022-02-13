@@ -42,6 +42,9 @@ function handle_ctlc ()
     SIGINT..."
     print_rerun
 
+    # cleanup the trap
+    trap "-" 2
+
     # exit program without quiting a remote ssh session - abuse of api :D
     exit -1 2>/dev/null
 }
@@ -443,4 +446,8 @@ Note that the above forum requires registration before posting."
     fi
 
 fi
+# tell the user how to rerun
 print_rerun
+
+# clear the trap before exit
+trap "-" 2
