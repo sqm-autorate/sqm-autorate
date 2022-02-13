@@ -21,14 +21,40 @@
 #   authorized under this License except under this disclaimer.
 #
 
+function print_rerun ()
+{
+    echo "
+
+================================================================================
+
+To re-run this configuration at any time, type the following command at the
+router shell prompt: '/usr/lib/sqm-autorate/sqm-autorate-configure.sh'
+
+"
+}
+
+# trap control-c and print a message
+function handle_ctlc ()
+{
+    # print the notice about re-running
+    echo "
+
+    SIGINT..."
+    print_rerun
+
+    # exit program without quiting a remote ssh session - abuse of api :D
+    exit -1 2>/dev/null
+}
+trap "handle_ctlc" 2
+
 read -p "
 >> Starting the 'sqm-autorate' configuration script.
 
 You may interupt this script and re-run later. To re-run, at the router shell
 prompt, type '/usr/lib/sqm-autorate/sqm-autorate-configure.sh'
 
-Press return or type y or yes if you want guided assistance to set up a ready to
-   run configuration file for 'sqm-autorate' [Y/n]: " do_config
+Press return, or type y or yes if you want guided assistance to set up a ready
+   to run configuration file for 'sqm-autorate' [Y/n]: " do_config
 do_config=$(echo "${do_config}" | awk '{ print tolower($0) }')
 if [ -z "${do_config}" ] || [ "${do_config}" == "y" ] || [ "${do_config}" == "yes" ]; then
     . /lib/functions/network.sh
@@ -375,6 +401,25 @@ restarting input
             INPUT=Y
         fi
     done
+
+    if [ $UPLOAD_SPEED -le 3000 ] || [ $DOWNLOAD_SPEED -le 3000 ]; then
+        echo "
+================================================================================
+
+Please visit https://forum.openwrt.org/t/cake-w-adaptive-bandwidth/108848
+and ask about further measures that may help in improving experience on a
+relatively low bandwidth link.
+
+This suggestion is provided because either your upload or download has a
+maximum speed of 3 Mbits per second or lower.
+
+At speeds below 3Mbps, low latency applications may not work well, even with
+good queue management. The cause of this is that individual packets take longer
+and longer to send, causing disruptions even with perfect queueing.
+
+Note that the above forum requires registration before posting."
+    fi
+
     uci set sqm-autorate.@network[0].upload_interface="${UPLOAD_DEVICE}"
     uci set sqm-autorate.@network[0].download_interface="${DOWNLOAD_DEVICE}"
 
@@ -396,7 +441,6 @@ restarting input
         service sqm-autorate stop 2>/dev/null
         service sqm-autorate restart
     fi
+
 fi
-echo "
-to re-run this configuration at any time, type the following command at the
-router shell prompt: '/usr/lib/sqm-autorate/sqm-autorate-configure.sh'"
+print_rerun
