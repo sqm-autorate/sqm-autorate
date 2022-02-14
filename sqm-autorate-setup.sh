@@ -135,7 +135,7 @@ if [ "$is_git_proj" = false ]; then
     $transfer "$get_stats" "$repo_root/lib/$get_stats"
     $transfer "$refl_icmp_file" "$repo_root/lib/$refl_icmp_file"
     $transfer "$refl_udp_file" "$repo_root/lib/$refl_udp_file"
-    $transfer "$configure_file" "$repo_root/lib/$configure_file"
+    $transfer "$configure_file" "$repo_root/$configure_file"
 else
     echo "> Since this is a Git project, local files will be used and will be COPIED into place instead of MOVED..."
 fi
