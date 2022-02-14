@@ -39,7 +39,7 @@ function handle_ctlc ()
     # print the notice about re-running
     echo "
 
-    SIGINT..."
+SIGINT..."
     print_rerun
 
     # cleanup the trap
@@ -337,8 +337,8 @@ Type in one of the log levels, or press return to accept [WARN]: " LOG_LEVEL
         done
 
         read -p "
-
-sqm-autorate can output statistics that can be analysed with Julia scripts,
+sqm-autorate can output statistics that may be analysed with Julia scripts
+( https://github.com/sqm-autorate/sqm-autorate/tree/testing/lua-threads#graphical-analysis ),
 spreadsheets, or other statistical software.
 The statistics use about 12 Mb of storage per day on the router
 
@@ -438,11 +438,15 @@ Note that the above forum requires registration before posting."
     uci commit
 
     if [ "${START_AUTO}" == "Yes" ]; then
+        echo "
+Enabling sqm-autorate service"
         service sqm-autorate enable
     fi
     if [ "${START_NOW}" == "Yes" ]; then
+        echo "
+Starting sqm-autorate service"
         service sqm-autorate stop 2>/dev/null
-        service sqm-autorate restart
+        service sqm-autorate start
     fi
 
 fi
