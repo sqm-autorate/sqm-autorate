@@ -82,9 +82,9 @@ if [ "${is_openwrt}" != "OpenWrt" ]; then
     fi
 fi
 
-echo "
-Stopping 'sqm-autorate' (if installed)"
-service sqm-autorate stop 2>/dev/null
+echo ">>> Stopping 'sqm-autorate'.
+    Ignore error if not previously installed or if manually stopped."
+service sqm-autorate stop
 
 # work out whether to use curl or wget based on available images
 curl=''
@@ -124,9 +124,13 @@ luarocks install vstruct
 
 [ -d "./.git" ] && is_git_proj=true || is_git_proj=false
 
+echo ">>> creating ${autorate_lib_path}"
+mkdir -p "${autorate_lib_path}"
+
 if [ "$is_git_proj" = false ]; then
     # Need to wget some stuff down...
-    echo ">>> Pulling down sqm-autorate operational files..."
+    echo ">>> Downloading sqm-autorate files..."
+    cd "${autorate_lib_path}"
     $transfer "$config_file" "$repo_root/config/$config_file"
     $transfer "$service_file" "$repo_root/service/$service_file"
     $transfer "$lua_file" "$repo_root/lib/$lua_file"
@@ -136,13 +140,11 @@ if [ "$is_git_proj" = false ]; then
     $transfer "$refl_icmp_file" "$repo_root/lib/$refl_icmp_file"
     $transfer "$refl_udp_file" "$repo_root/lib/$refl_udp_file"
     $transfer "$configure_file" "$repo_root/lib/$configure_file"
-else
-    echo "> Since this is a Git project, local files will be used and will be COPIED into place instead of MOVED..."
+    cd -
 fi
 
-echo ">>> Putting sqm-autorate lib files into place..."
-mkdir -p "$autorate_lib_path"
 if [ "$is_git_proj" = true ]; then
+    echo ">>> Copying sqm-autorate lib files into place..."
     cp "./lib/$lua_file" "$autorate_lib_path/$lua_file"
     cp "./lib/$settings_file" "$autorate_lib_path/$settings_file"
     cp "./lib/$utilities_file" "$autorate_lib_path/$utilities_file"
@@ -150,14 +152,6 @@ if [ "$is_git_proj" = true ]; then
     cp "./lib/$refl_icmp_file" "$autorate_lib_path/$refl_icmp_file"
     cp "./lib/$refl_udp_file" "$autorate_lib_path/$refl_udp_file"
     cp "./lib/$configure_file" "$autorate_lib_path/$configure_file"
-else
-    mv "./$lua_file" "$autorate_lib_path/$lua_file"
-    mv "./$settings_file" "$autorate_lib_path/$settings_file"
-    mv "./$utilities_file" "$autorate_lib_path/$utilities_file"
-    mv "./$get_stats" "$autorate_lib_path/$get_stats"
-    mv "./$refl_icmp_file" "$autorate_lib_path/$refl_icmp_file"
-    mv "./$refl_udp_file" "$autorate_lib_path/$refl_udp_file"
-    mv "./$configure_file" "$autorate_lib_path/$configure_file"
 fi
 
 echo ">>> Making $lua_file, $get_stats, and $configure_file executable..."
@@ -169,13 +163,13 @@ if [ -f "/etc/config/sqm-autorate" ]; then
     if [ "$is_git_proj" = true ]; then
         cp "./config/$config_file" "/etc/config/$name-NEW"
     else
-        mv "./$config_file" "/etc/config/$name-NEW"
+        mv "${autorate_lib_path}/$config_file" "/etc/config/$name-NEW"
     fi
 else
     if [ "$is_git_proj" = true ]; then
         cp "./config/$config_file" "/etc/config/$name"
     else
-        mv "./$config_file" "/etc/config/$name"
+        mv "${autorate_lib_path}/$config_file" "/etc/config/$name"
     fi
 fi
 
@@ -183,7 +177,7 @@ echo ">>> Putting service file into place..."
 if [ "$is_git_proj" = true ]; then
     cp "./service/$service_file" "/etc/init.d/$name"
 else
-    mv "./$service_file" "/etc/init.d/$name"
+    mv "${autorate_lib_path}/$service_file" "/etc/init.d/$name"
 fi
 chmod a+x "/etc/init.d/$name"
 
@@ -245,7 +239,7 @@ if grep -q -e 'receive' -e 'transmit' "/etc/config/$name"; then
     uci commit
 fi
 
-# transition section 2 - to be removed for release v0.5.1 or v0.6
+# transition section 2 - to be removed after next release v0.5.1 or v0.6
 rm "${autorate_lib_path}/sqm-autorate-configure.sh" 2>/dev/null
 
 
