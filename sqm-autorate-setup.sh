@@ -82,9 +82,10 @@ if [ "${is_openwrt}" != "OpenWrt" ]; then
     fi
 fi
 
-echo ">>> Stopping 'sqm-autorate'.
-    Ignore error if not previously installed or if manually stopped."
-service sqm-autorate stop
+if [ -e /etc/init.d/sqm-autorate ]; then
+    echo ">>> Stopping 'sqm-autorate'"
+    /etc/init.d/sqm-autorate stop
+fi
 
 # work out whether to use curl or wget based on available images
 curl=''

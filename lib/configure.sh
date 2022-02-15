@@ -312,7 +312,7 @@ please input digits only and ensure that the minimum is less than the original"
         GOOD=N
         while [ $GOOD == "N" ]; do
             read -p "
-sqm-autorate logging uses storage on the router
+'sqm-autorate' logging uses storage on the router
 Choose one of the following log levels
 - FATAL     - minimal
 - ERROR     - minimal
@@ -397,11 +397,11 @@ Type y or yes to confirm the above input and continue;
         RESPONSE=$(echo "${RESPONSE}" | awk '{ print tolower($0) }')
         if [ "${RESPONSE}" == "y" ] || [ "${RESPONSE}" == "yes" ]; then
             INPUT=N
+        else
+            INPUT=Y
             echo "
 restarting input
             "
-        else
-            INPUT=Y
         fi
     done
 
@@ -439,17 +439,18 @@ Note that the above forum requires registration before posting."
 
     if [ "${START_AUTO}" == "Yes" ]; then
         echo "
-Enabling sqm-autorate service"
-        service sqm-autorate enable
+Enabling 'sqm-autorate' service"
+        /etc/init.d/sqm-autorate enable
     fi
     if [ "${START_NOW}" == "Yes" ]; then
         echo "
-Starting sqm-autorate service"
-        service sqm-autorate stop 2>/dev/null
-        service sqm-autorate start
+Starting 'sqm-autorate' service"
+        /etc/init.d/sqm-autorate stop
+        /etc/init.d/sqm-autorate start
     fi
 
 fi
+
 # tell the user how to rerun
 print_rerun
 
