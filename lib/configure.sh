@@ -1,5 +1,5 @@
 #!/bin/sh
-#   sqm-autorate-configure.sh: configures /etc/config/sqm-autorate
+#   configure.sh: configures /etc/config/sqm-autorate
 #
 #   Copyright (C) 2022
 #       Charles Corrigan mailto:chas-iot@runegate.org (github @chas-iot)
@@ -28,7 +28,7 @@ function print_rerun ()
 ================================================================================
 
 To re-run this configuration at any time, type the following command at the
-router shell prompt: '/usr/lib/sqm-autorate/sqm-autorate-configure.sh'
+router shell prompt: '/usr/lib/sqm-autorate/configure.sh'
 
 "
 }
@@ -54,7 +54,7 @@ read -p "
 >> Starting the 'sqm-autorate' configuration script.
 
 You may interupt this script and re-run later. To re-run, at the router shell
-prompt, type '/usr/lib/sqm-autorate/sqm-autorate-configure.sh'
+prompt, type '/usr/lib/sqm-autorate/configure.sh'
 
 Press return, or type y or yes if you want guided assistance to set up a ready
    to run configuration file for 'sqm-autorate' [Y/n]: " do_config

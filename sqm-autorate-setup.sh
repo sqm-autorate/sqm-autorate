@@ -46,7 +46,7 @@ refl_udp_file="reflectors-udp.csv"
 autorate_lib_path="/usr/lib/sqm-autorate"
 settings_file="sqma-settings.lua"
 utilities_file="sqma-utilities.lua"
-configure_file="sqm-autorate-configure.sh"
+configure_file="configure.sh"
 
 # start of pre-installation checks
 cake=$(tc qdisc | grep -i cake)
@@ -135,7 +135,7 @@ if [ "$is_git_proj" = false ]; then
     $transfer "$get_stats" "$repo_root/lib/$get_stats"
     $transfer "$refl_icmp_file" "$repo_root/lib/$refl_icmp_file"
     $transfer "$refl_udp_file" "$repo_root/lib/$refl_udp_file"
-    $transfer "$configure_file" "$repo_root/$configure_file"
+    $transfer "$configure_file" "$repo_root/lib/$configure_file"
 else
     echo "> Since this is a Git project, local files will be used and will be COPIED into place instead of MOVED..."
 fi
@@ -244,6 +244,10 @@ if grep -q -e 'receive' -e 'transmit' "/etc/config/$name"; then
 
     uci commit
 fi
+
+# transition section 2 - to be removed for release v0.5.1 or v0.6
+rm "${autorate_lib_path}/sqm-autorate-configure.sh" 2>/dev/null
+
 
 echo "> Installation complete, about to start configuration. You can enable and start the service by executing 'service sqm-autorate enable && service sqm-autorate start'."
 
