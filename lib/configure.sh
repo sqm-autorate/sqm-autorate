@@ -68,6 +68,7 @@ if [ -z "${do_config}" ] || [ "${do_config}" == "y" ] || [ "${do_config}" == "ye
     SETTINGS_DOWNLOAD_DEVICE=$(uci -q get sqm-autorate.@network[0].download_interface)
     SETTINGS_UPLOAD_SPEED=$(uci -q get sqm-autorate.@network[0].upload_base_kbits)
     SETTINGS_DOWNLOAD_SPEED=$(uci -q get sqm-autorate.@network[0].download_base_kbits)
+    SETTINGS_LOG_LEVEL=$(uci -q get sqm-autorate.@output[0].log_level)
 
     INPUT=Y
     while [ $INPUT == "Y" ]; do
@@ -317,14 +318,15 @@ Choose one of the following log levels
 - FATAL     - minimal
 - ERROR     - minimal
 - WARN      - minimal, recommended
-- INFO      - around 100 Kb per day, showing settings changes
+- INFO      - typically a very few Kb per day showing settings changes, however
+                could be more depending on the network activity
 - DEBUG     - for error finding, developers; use for short periods only
 - TRACE     - for developers; use for short periods only
 
-Type in one of the log levels, or press return to accept [WARN]: " LOG_LEVEL
+Type in one of the log levels, or press return to accept [${SETTINGS_LOG_LEVEL}]: " LOG_LEVEL
             LOG_LEVEL=$(echo "${LOG_LEVEL}" | awk '{ print toupper($0) }')
             if [ -z "${LOG_LEVEL}" ]; then
-                LOG_LEVEL=WARN
+                LOG_LEVEL="${SETTINGS_LOG_LEVEL}"
                 GOOD=Y
             elif [ "${LOG_LEVEL}" == "FATAL" ] ||
                 [ "${LOG_LEVEL}" == "ERROR" ] ||

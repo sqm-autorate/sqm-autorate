@@ -165,7 +165,17 @@ If you have some kind of DSL connection, read the
 
 4. If the setup script gives a warning about a configuration file `sqm-autorate-NEW`, use that file to replace `/etc/config/sqm-autorate` (first time installation only)
 
-5. When the setup script completes, edit the config file `/etc/config/sqm-autorate` to set:
+5. The setup script calls `/usr/lib/sqm-autorate/configure.sh`, which can optionally configure `/etc/config/sqm-autorate`.
+   _configure.sh_ may be invoked at any time after installation to update the configuration file.
+   The functions provided are:
+   - provide a list of network devices that are known to CAKE;
+   - prompt with settings from the existing `/etc/config/sqm-autorate` and allow to override;
+   - attempt to detect the WAN upload device and associated download device if there is no previous setting;
+   - recalculate the minimum speeds/percentages, using rules of thumb to recommend values;
+   - set the logging level and whether to record statistics, so as to control the amount of router storage used by output;
+   - optionally enable and/or stop and restart _sqm-autorate.lua_.
+
+6. When the setup script completes, you may manually edit the config file `/etc/config/sqm-autorate` to set:
    * `upload_interface` to the name of your WAN interface, usually something like `wan` or `eth0`.
      The output of the shell command `tc qdisc | grep cake` should show the two interface names.
    * `download_interface` to the name of the associated download interface, usually like `ifb4eth0` or `veth`
@@ -173,8 +183,8 @@ If you have some kind of DSL connection, read the
    * `download_base_kbits` to the expected download speed
 
    You may want to adjust the minimum rates, which are controlled by:
-   * `upload_min_percent` the percentage of your `upload_base_kbits` that is the minimum bandwidth that you can accept when there is high bufferbloat. This is defaulted to 20 (%) and can be between 10 and 75
-   * `download_min_percent` as above but for 'download_base_kbits'
+   * `upload_min_percent` the percentage of your `upload_base_kbits` that is the minimum bandwidth that you can accept when there is high bufferbloat
+   * `download_min_percent` as above but for `download_base_kbits`
 
    If you want the value in `upload_base_kbits` or `download_base_kbits` to be 30 megabits/second, enter `30000`.
 
@@ -187,10 +197,10 @@ Set these values high enough to avoid cutting off your communications entirely.
 The default is 20% of the base rates.
 This is good for mid-range to high-speed connections (above 20 Mbps).
 For very slow connections (below 5Mbps) perhaps use 50% of the nominal rate.
-For connections below 3Mbps be aware that even one packet will take about 4ms at 3Mbps and 12ms at 1Mbps.
+For connections below 3Mbps, we suggest to use 75% and be aware that even one packet will take about 4ms at 3Mbps and 12ms at 1Mbps.
 There is no way to get reliable low latency such as for gaming when your connection is much lower than 3Mbps.
 
-6. Run these commands to start and enable the _sqm-autorate_ service that runs continually:
+7. Run these commands to start and enable the _sqm-autorate_ service that runs continually (if not performed in the `configure.sh`):
    ```
    service sqm-autorate enable && service sqm-autorate start
    ```
@@ -219,7 +229,8 @@ Configuration is available via 3 mechanisms.
 ### /etc/config
 
 Generally, configuration on OpenWRT should be performed via the `/etc/config/sqm-autorate` file.
-Values loaded from this mechanism override value supplied via the command line or via environment variables
+_configure.sh_ provides guidance to set good initial values in this file.
+Values loaded from this configuration file override values supplied via the command line or via environment variables.
 
 | Section | Option Name | Value Description | Default |
 | - | - | - | - |
