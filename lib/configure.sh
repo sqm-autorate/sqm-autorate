@@ -50,10 +50,19 @@ SIGINT..."
 }
 trap "handle_ctlc" 2
 
-read -p "
+echo "
 >> Starting the 'sqm-autorate' configuration script.
 
-You may interupt this script and re-run later. To re-run, at the router shell
+"
+
+if [ ! -w /etc/config/sqm-autorate ]; then
+    echo "/etc/config/sqm-autorate not found or not writable - exiting with no change
+"
+    # exit program without quiting a remote ssh session - abuse of api :D
+    exit -1 2>/dev/null
+fi
+
+read -p "You may interupt this script and re-run later. To re-run, at the router shell
 prompt, type '/usr/lib/sqm-autorate/configure.sh'
 
 Press return, or type y or yes if you want guided assistance to set up a ready
@@ -352,22 +361,27 @@ Type y or yes to choose to output the statistics [y/N]: " STATS
             SUPPRESS_STATISTICS=Yes
         fi
 
-        read -p "
+        if [ ! -x /etc/init.d/sqm-autorate ]; then
+            echo "
+/etc/init.d/sqm-autorate - not found or not executable, skipping (auto)start"
+        else
+            read -p "
 Do you want to automatically start 'sqm-autorate' at reboot [Y/n]: " STARTAUTO
-        STARTAUTO=$(echo "${STARTAUTO}" | awk '{ print tolower($0) }')
-        if [ -z "${STARTAUTO}" ] || [ "${STARTAUTO}" == "y" ] || [ "${STARTAUTO}" == "yes" ]; then
-            START_AUTO=Yes
-        else
-            START_AUTO=No
-        fi
+            STARTAUTO=$(echo "${STARTAUTO}" | awk '{ print tolower($0) }')
+            if [ -z "${STARTAUTO}" ] || [ "${STARTAUTO}" == "y" ] || [ "${STARTAUTO}" == "yes" ]; then
+                START_AUTO=Yes
+            else
+                START_AUTO=No
+            fi
 
-        read -p "
+            read -p "
 Do you want to start 'sqm-autorate' now [Y/n]: " STARTNOW
-        STARTNOW=$(echo "${STARTNOW}" | awk '{ print tolower($0) }')
-        if [ -z "${STARTNOW}" ] || [ "${STARTNOW}" == "y" ] || [ "${STARTNOW}" == "yes" ]; then
-            START_NOW=Yes
-        else
-            START_NOW=No
+            STARTNOW=$(echo "${STARTNOW}" | awk '{ print tolower($0) }')
+            if [ -z "${STARTNOW}" ] || [ "${STARTNOW}" == "y" ] || [ "${STARTNOW}" == "yes" ]; then
+                START_NOW=Yes
+            else
+                START_NOW=No
+            fi
         fi
 
         read -p "
@@ -439,16 +453,18 @@ Note that the above forum requires registration before posting."
 
     uci commit
 
-    if [ "${START_AUTO}" == "Yes" ]; then
-        echo "
+    if [ -x /etc/init.d/sqm-autorate ]; then
+        if [ "${START_AUTO}" == "Yes" ]; then
+            echo "
 Enabling 'sqm-autorate' service"
-        /etc/init.d/sqm-autorate enable
-    fi
-    if [ "${START_NOW}" == "Yes" ]; then
-        echo "
+            /etc/init.d/sqm-autorate enable
+        fi
+        if [ "${START_NOW}" == "Yes" ]; then
+            echo "
 Starting 'sqm-autorate' service"
-        /etc/init.d/sqm-autorate stop
-        /etc/init.d/sqm-autorate start
+            /etc/init.d/sqm-autorate stop
+            /etc/init.d/sqm-autorate start
+        fi
     fi
 
 fi

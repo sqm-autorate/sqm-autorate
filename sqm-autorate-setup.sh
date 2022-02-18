@@ -88,7 +88,7 @@ if [ "${is_openwrt}" != "OpenWrt" ]; then
     fi
 fi
 
-if [ -e /etc/init.d/sqm-autorate ]; then
+if [ -x /etc/init.d/sqm-autorate ]; then
     echo ">>> Stopping 'sqm-autorate'"
     /etc/init.d/sqm-autorate stop
 fi
@@ -147,7 +147,7 @@ if [ "$is_git_proj" = false ]; then
     $transfer "$refl_icmp_file" "$repo_root/lib/$refl_icmp_file"
     $transfer "$refl_udp_file" "$repo_root/lib/$refl_udp_file"
     $transfer "$configure_file" "$repo_root/lib/$configure_file"
-    cd -
+    cd - >/dev/null
 fi
 
 if [ "$is_git_proj" = true ]; then
@@ -246,7 +246,7 @@ if grep -q -e 'receive' -e 'transmit' "/etc/config/$name"; then
     uci commit
 fi
 
-# transition section 2 - to be removed after next release v0.5.1 or v0.6
+# transition section 2 - to be removed after next release v0.5.1 or v0.6.0
 rm "${autorate_lib_path}/sqm-autorate-configure.sh" 2>/dev/null
 
 echo ">>> updating VERSION string to include: ${INSTALLATION}"
@@ -255,4 +255,8 @@ sed -i-orig "/n    /! s;^\([[:blank:]]*local[[:blank:]]*_VERSION[[:blank:]]*=[[:
 echo "
 >>> Installation complete, about to start configuration."
 
-$autorate_lib_path/$configure_file
+if [ ! -x $autorate_lib_path/$configure_file ]; then
+    echo "${autorate_lib_path}/${configure_file} is not found or not executable"
+else
+    $autorate_lib_path/$configure_file
+fi
