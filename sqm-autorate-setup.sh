@@ -28,7 +28,7 @@ TS=`date -u -Iminutes`      # to avoid identifying location by timezone
 
 if [ -z "$1" ]; then        # no parameters, use default repo and branch
     repo_root="https://raw.githubusercontent.com/sqm-autorate/sqm-autorate/testing/lua-threads"
-    INSTALLATION="\\\\n        release\\\\n        ${TS}"
+    INSTALLATION="  [release]"
 
 elif [ -z "$2" ]; then      # one parameter, use specified branch in default repo
     repo_root="https://raw.githubusercontent.com/sqm-autorate/sqm-autorate/${1}"
