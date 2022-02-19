@@ -937,7 +937,7 @@ local function reflector_peer_selector()
         end
 
         for _, v in ipairs(new_peers) do
-            logger(loglevel.INFO, "New selected peer: " .. v)
+            logger(loglevel.DEBUG, "New selected peer: " .. v)
         end
 
         reflector_data:set("reflector_tables", {
@@ -1002,7 +1002,7 @@ local function conductor()
         end
     end
     test_file:close()
-    logger(loglevel.INFO, "Rx stats file found! Continuing...")
+    logger(loglevel.DEBUG, "Download device stats file found! Continuing...")
 
     test_file = io.open(tx_bytes_path)
     if not test_file then
@@ -1027,7 +1027,7 @@ local function conductor()
         end
     end
     test_file:close()
-    logger(loglevel.INFO, "Tx stats file found! Continuing...")
+    logger(loglevel.DEBUG, "Upload device stats file found! Continuing...")
 
     -- Load up the reflectors temp table
     local tmp_reflectors = {}
@@ -1040,7 +1040,7 @@ local function conductor()
         os.exit(1, true)
     end
 
-    logger(loglevel.INFO, "Reflector Pool Size: " .. #tmp_reflectors)
+    logger(loglevel.DEBUG, "Reflector Pool Size: " .. #tmp_reflectors)
 
     -- Load up the reflectors shared tables
     -- seed the peers with a set of "good candidates", we will adjust using the peer selector through time

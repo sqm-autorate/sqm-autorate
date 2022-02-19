@@ -165,7 +165,17 @@ If you have some kind of DSL connection, read the
 
 4. If the setup script gives a warning about a configuration file `sqm-autorate-NEW`, use that file to replace `/etc/config/sqm-autorate` (first time installation only)
 
-5. When the setup script completes, edit the config file `/etc/config/sqm-autorate` to set:
+5. The setup script calls `/usr/lib/sqm-autorate/configure.sh`, which can optionally configure `/etc/config/sqm-autorate`.
+   _configure.sh_ may be invoked at any time after installation to update the configuration file.
+   The functions provided are:
+   - provide a list of network devices that are known to CAKE;
+   - prompt with settings from the existing `/etc/config/sqm-autorate` and allow to override;
+   - attempt to detect the WAN upload device and associated download device if there is no previous setting;
+   - recalculate the minimum speeds/percentages, using rules of thumb to recommend values;
+   - set the logging level and whether to record statistics, so as to control the amount of router storage used by output;
+   - optionally enable and/or stop and restart _sqm-autorate.lua_.
+
+6. When the setup script completes, you may manually edit the config file `/etc/config/sqm-autorate` to set:
    * `upload_interface` to the name of your WAN interface, usually something like `wan` or `eth0`.
      The output of the shell command `tc qdisc | grep cake` should show the two interface names.
    * `download_interface` to the name of the associated download interface, usually like `ifb4eth0` or `veth`
@@ -173,8 +183,8 @@ If you have some kind of DSL connection, read the
    * `download_base_kbits` to the expected download speed
 
    You may want to adjust the minimum rates, which are controlled by:
-   * `upload_min_percent` the percentage of your `upload_base_kbits` that is the minimum bandwidth that you can accept when there is high bufferbloat. This is defaulted to 20 (%) and can be between 10 and 60
-   * `download_min_percent` as above but for 'download_base_kbits'
+   * `upload_min_percent` the percentage of your `upload_base_kbits` that is the minimum bandwidth that you can accept when there is high bufferbloat
+   * `download_min_percent` as above but for `download_base_kbits`
 
    If you want the value in `upload_base_kbits` or `download_base_kbits` to be 30 megabits/second, enter `30000`.
 
@@ -187,10 +197,10 @@ Set these values high enough to avoid cutting off your communications entirely.
 The default is 20% of the base rates.
 This is good for mid-range to high-speed connections (above 20 Mbps).
 For very slow connections (below 5Mbps) perhaps use 50% of the nominal rate.
-For connections below 3Mbps be aware that even one packet will take about 4ms at 3Mbps and 12ms at 1Mbps.
+For connections below 3Mbps, we suggest to use 75% and be aware that even one packet will take about 4ms at 3Mbps and 12ms at 1Mbps.
 There is no way to get reliable low latency such as for gaming when your connection is much lower than 3Mbps.
 
-6. Run these commands to start and enable the _sqm-autorate_ service that runs continually:
+7. Run these commands to start and enable the _sqm-autorate_ service that runs continually (if not performed in the `configure.sh`):
    ```
    service sqm-autorate enable && service sqm-autorate start
    ```
@@ -219,7 +229,8 @@ Configuration is available via 3 mechanisms.
 ### /etc/config
 
 Generally, configuration on OpenWRT should be performed via the `/etc/config/sqm-autorate` file.
-Values loaded from this mechanism override value supplied via the command line or via environment variables
+_configure.sh_ provides guidance to set good initial values in this file.
+Values loaded from this configuration file override values supplied via the command line or via environment variables.
 
 | Section | Option Name | Value Description | Default |
 | - | - | - | - |
@@ -227,8 +238,8 @@ Values loaded from this mechanism override value supplied via the command line o
 | network | download_interface | The download interface name which is typically created as a virtual interface when CAKE is active. This typically begins with 'ifb4' or 'veth'. | 'ifb4wan' |
 | network | upload_base_kbits | The highest speed in kbit/s at which bufferbloat typically is non-existent for outbound traffic on the given connection. This is used for reference in determining safe speeds via learning, but is not a hard floor or ceiling. | '10000' |
 | network | download_base_kbits | The highest speed in kbit/s at which bufferbloat typically is non-existent for inbound traffic on the given connection. This is used for reference in determining safe speeds via learning, but is not a hard floor or ceiling. | '10000' |
-| network | upload_min_percent | The absolute minimum acceptable outbound speed as a percentage of `upload_base_kbits` that the autorate algorithm is allowed to fall back to in cases of extreme congestion, at the expense of allowing latency to exceed `upload_delay_ms`. | '20' |
-| network | download_min_percent | The absolute minimum acceptable inbound speed as a percentage of `download_base_kbits` that the autorate algorithm is allowed to fall back to in cases of extreme congestion, at the expense of allowing latency to exceed `download_delay_ms`. | '20' |
+| network | upload_min_percent | The absolute minimum acceptable outbound speed as a percentage of `upload_base_kbits` that the autorate algorithm is allowed to fall back to in cases of extreme congestion, at the expense of allowing latency to exceed `upload_delay_ms`. Between 10 and 75. | '20' |
+| network | download_min_percent | The absolute minimum acceptable inbound speed as a percentage of `download_base_kbits` that the autorate algorithm is allowed to fall back to in cases of extreme congestion, at the expense of allowing latency to exceed `download_delay_ms`. Between 10 and 75. | '20' |
 | output | log_level | Used to set the highest level of logging verbosity. e.g. setting to 'INFO' will output all log levels at the set level or lower (in terms of verbosity). [Verbosity Options](#verbosity-options) | 'INFO' |
 | output | stats_file | The location to which the autorate OWD reflector stats will be written. | '/tmp/sqm-autorate.csv' |
 | output | speed_hist_file | The location to which autorate speed adjustment history will be written. | '/tmp/sqm-speedhist.csv' |
@@ -279,10 +290,10 @@ Options:
                          the expected consistent rate in kbit/s of the download interface; default 10000
    --upload-min-percent <upload_min_percent>,
                    --up <upload_min_percent>
-                         the worst case tolerable percentage of the kbits of the upload rate; range 10 to 60; default=20
+                         the worst case tolerable percentage of the kbits of the upload rate; range 10 to 75; default=20
    --download-min-percent <download_min_percent>,
                      --dp <download_min_percent>
-                         the worst case tolerable percentage of the kbits of the upload rate; range 10 to 60; default=20
+                         the worst case tolerable percentage of the kbits of the upload rate; range 10 to 75; default=20
    --upload-delay-ms <upload_delay_ms>,
                 --ud <upload_delay_ms>
                          the tolerable additional delay on upload in ms; default 15
