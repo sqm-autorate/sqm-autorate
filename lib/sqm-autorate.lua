@@ -749,11 +749,12 @@ local function baseline_calculator()
     local slow_factor = ewma_factor(tick_duration, 135)
     local fast_factor = ewma_factor(tick_duration, 0.4)
 
+    local owd_tables = owd_data:get("owd_tables")
+    local owd_baseline = owd_tables["baseline"]
+    local owd_recent = owd_tables["recent"]
+
     while true do
         local _, time_data = stats_queue:receive(nil, "stats")
-        local owd_tables = owd_data:get("owd_tables")
-        local owd_baseline = owd_tables["baseline"]
-        local owd_recent = owd_tables["recent"]
 
         if time_data then
             if not owd_baseline[time_data.reflector] then
