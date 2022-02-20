@@ -738,6 +738,7 @@ end
 
 local function baseline_calculator()
     if type(jit) == 'table' then
+        jit.off()
         require("jit.p").start('a')
     end
 
