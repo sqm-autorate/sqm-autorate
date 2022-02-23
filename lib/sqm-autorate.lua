@@ -397,6 +397,9 @@ local function send_icmp_pkt(reflector, pkt_id)
 
     logger(loglevel.TRACE, "Entered send_icmp_pkt() with values: " .. reflector .. " | " .. pkt_id)
 
+    -- Bind socket to the upload device prior to send
+    socket.setsockopt(sock, socket.SOL_SOCKET, socket.SO_BINDTODEVICE, ul_if)
+
     -- Create a raw ICMP timestamp request message
     local time_after_midnight_ms = get_time_after_midnight_ms()
     local ts_req = vstruct.write("> 2*u1 3*u2 3*u4", {13, 0, 0, pkt_id, 0, time_after_midnight_ms, 0, 0})
@@ -430,6 +433,9 @@ local function send_udp_pkt(reflector, pkt_id)
     -- Transmit timestamp (nanoseconds) - 4 bytes
 
     logger(loglevel.TRACE, "Entered send_udp_pkt() with values: " .. reflector .. " | " .. pkt_id)
+
+    -- Bind socket to the upload device prior to send
+    socket.setsockopt(sock, socket.SOL_SOCKET, socket.SO_BINDTODEVICE, ul_if)
 
     -- Create a raw ICMP timestamp request message
     local time, time_ns = get_current_time()
@@ -743,11 +749,12 @@ local function baseline_calculator()
     local slow_factor = ewma_factor(tick_duration, 135)
     local fast_factor = ewma_factor(tick_duration, 0.4)
 
+    local owd_tables = owd_data:get("owd_tables")
+    local owd_baseline = owd_tables["baseline"]
+    local owd_recent = owd_tables["recent"]
+
     while true do
         local _, time_data = stats_queue:receive(nil, "stats")
-        local owd_tables = owd_data:get("owd_tables")
-        local owd_baseline = owd_tables["baseline"]
-        local owd_recent = owd_tables["recent"]
 
         if time_data then
             if not owd_baseline[time_data.reflector] then
@@ -931,7 +938,7 @@ local function reflector_peer_selector()
         end
 
         for _, v in ipairs(new_peers) do
-            logger(loglevel.INFO, "New selected peer: " .. v)
+            logger(loglevel.DEBUG, "New selected peer: " .. v)
         end
 
         reflector_data:set("reflector_tables", {
@@ -996,7 +1003,7 @@ local function conductor()
         end
     end
     test_file:close()
-    logger(loglevel.INFO, "Rx stats file found! Continuing...")
+    logger(loglevel.DEBUG, "Download device stats file found! Continuing...")
 
     test_file = io.open(tx_bytes_path)
     if not test_file then
@@ -1021,7 +1028,7 @@ local function conductor()
         end
     end
     test_file:close()
-    logger(loglevel.INFO, "Tx stats file found! Continuing...")
+    logger(loglevel.DEBUG, "Upload device stats file found! Continuing...")
 
     -- Load up the reflectors temp table
     local tmp_reflectors = {}
@@ -1034,7 +1041,7 @@ local function conductor()
         os.exit(1, true)
     end
 
-    logger(loglevel.INFO, "Reflector Pool Size: " .. #tmp_reflectors)
+    logger(loglevel.DEBUG, "Reflector Pool Size: " .. #tmp_reflectors)
 
     -- Load up the reflectors shared tables
     -- seed the peers with a set of "good candidates", we will adjust using the peer selector through time
