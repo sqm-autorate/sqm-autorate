@@ -720,6 +720,7 @@ return pretty_speeds
 ```
 
 The above file is designed to be re-used as the basis for further plugin development.
+[delay-histogram.lua](lib/delay-histogram.lua) and [log_readings.lua](lib/log_readings.lua) are examples of more complex plugins, licensed under the MPLv2.
 
 To add the _pretty_speed_ plugin to _sqm-autorate_ then
 1. copy [pretty_speeds.lua](lib/pretty_speeds.lua) to `usr/lib/sqm-autorate`
