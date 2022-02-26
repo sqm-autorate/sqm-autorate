@@ -247,9 +247,6 @@ if grep -q -e 'receive' -e 'transmit' "/etc/config/$name"; then
     uci commit
 fi
 
-# transition section 2 - to be removed after next release v0.5.1 or v0.6.0
-rm "${autorate_lib_path}/sqm-autorate-configure.sh" 2>/dev/null
-
 echo ">>> updating VERSION string to include: ${INSTALLATION}"
 sed -i-orig "/n    /! s;^\([[:blank:]]*local[[:blank:]]*_VERSION[[:blank:]]*=[[:blank:]]*\".*\)\"[[:blank:]]*$;\1${INSTALLATION}\";" "${autorate_lib_path}/${lua_file}"
 
