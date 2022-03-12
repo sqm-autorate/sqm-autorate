@@ -131,7 +131,7 @@ local reflector_list_udp = settings.reflector_list_udp      -- the location of t
 local histsize = settings.histsize                          -- the number of good speed settings to remember
 local ul_max_delta_owd = settings.ul_max_delta_owd          -- the upload delay threshold to trigger an upload speed change
 local dl_max_delta_owd = settings.dl_max_delta_owd          -- the delay threshold to trigger a download speed change
-local high_load_level = settings.high_load_level            -- the relative load (to current speed) that is copnsidered 'high'
+local high_load_level = settings.high_load_level            -- the relative load ratio (to current speed) that is considered 'high'
 local reflector_type = settings.reflector_type              -- reflector type icmp or udp (udp is not well supported)
 local output_statistics = settings.output_statistics        -- controls output to the statistics file
 
