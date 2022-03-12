@@ -73,6 +73,17 @@ local function print_all()
 end
 
 
+-- a stub for plugins to retrieve their UCI settings
+--  parameters
+--      plugin      - the name of the plugin. Do change '-' to '_' to avoid breaking UCI
+--  returns
+--      uci         - a table of UCI option values
+--
+function M.plugin(_plugin)
+    return {}
+end
+
+
 -- initialises the settings
 --  parameters
 --      requires    - a table of modules already setup. This module depends on lanes, math, and the utilities
@@ -115,6 +126,10 @@ function M.initialise(requires, version)
     if is_module_available("luci.model.uci") then
         local uci_lib = lanes.require("luci.model.uci")
         uci_settings = uci_lib.cursor()
+
+        M.plugin = function(plugin_name)
+            return uci_settings:get_all("sqm-autorate", "@" .. plugin_name .. "[0]")
+        end
     else
         logger(loglevel.WARN, "did not find uci library")
     end
@@ -152,6 +167,7 @@ function M.initialise(requires, version)
             parser:option("--speed-hist-size", "the number of usable speeds to keep in the history; default 100")
             parser:option("--high-load-level", "the relative load ratio considered high for rate change purposes; range 0.67 to 0.95; default 0.8")
             parser:option("--reflector-type", "not yet operable; default icmp")
+            parser:option("--plugin-ratecontrol", "load a named plugin into ratecontrol")
 
             parser:flag("--suppress-statistics --no-statistics --ns", "suppress output to the statistics files; default output statistics")
 
@@ -337,6 +353,13 @@ function M.initialise(requires, version)
         M.output_statistics = not suppress_statistics
     end
 
+    do
+        local plugin_ratecontrol = nil
+        plugin_ratecontrol = uci_settings and uci_settings:get("sqm-autorate", "@plugins[0]", "ratecontrol")
+        plugin_ratecontrol = plugin_ratecontrol or ( args and args.plugin_ratecontrol )
+        plugin_ratecontrol = plugin_ratecontrol or ( os.getenv("SQMA_PLUGIN_RATECONTROL") )
+        M.plugin_ratecontrol = plugin_ratecontrol
+    end
 
     M.enable_verbose_baseline_output =
         get_loglevel() == "TRACE" or

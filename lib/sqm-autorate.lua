@@ -135,6 +135,19 @@ local high_load_level = settings.high_load_level            -- the relative load
 local reflector_type = settings.reflector_type              -- reflector type icmp or udp (udp is not well supported)
 local output_statistics = settings.output_statistics        -- controls output to the statistics file
 
+print("Starting sqm-autorate.lua v" .. _VERSION)
+
+local plugin_ratecontrol = nil
+if settings.plugin_ratecontrol then
+    if is_module_available(settings.plugin_ratecontrol) then
+        logger(loglevel.WARN, "Loading plugin: " .. tostring(settings.plugin_ratecontrol))
+        plugin_ratecontrol = lanes.require(settings.plugin_ratecontrol).initialise(requires, settings)
+        requires.plugin_ratecontrol = plugin_ratecontrol
+    else
+        logger(loglevel.ERROR, "Could not find configured plugin: " .. tostring(settings.plugin_ratecontrol))
+    end
+end
+
 ---------------------------- Begin Internal Local Variables ----------------------------
 
 -- The stats_queue is intended to be a true FIFO queue.
@@ -583,7 +596,7 @@ local function ratecontrol()
             if reflector_list then
                 local up_del = {}
                 local down_del = {}
-                local next_dl_rate, next_ul_rate, rx_load, tx_load
+                local next_dl_rate, next_ul_rate, rx_load, tx_load, up_utilisation, down_utilisation
 
                 for _, reflector_ip in ipairs(reflector_list) do
                     -- only consider this data if it's less than 2 * tick_duration seconds old
@@ -636,10 +649,13 @@ local function ratecontrol()
                     down_del_stat = a_else_b(down_del[3], down_del[1])
 
                     if up_del_stat and down_del_stat then
-                        rx_load = (8 / 1000) * (cur_rx_bytes - prev_rx_bytes) / (now_t - t_prev_bytes) /
-                                      cur_dl_rate
-                        tx_load = (8 / 1000) * (cur_tx_bytes - prev_tx_bytes) / (now_t - t_prev_bytes) /
-                                      cur_ul_rate
+                        -- TODO - find where the (8 / 1000) comes from and
+                            -- i. convert to a pre-computed factor
+                            -- ii. ideally, see if it can be defined in terms of constants, eg ticks per second and number of active reflectors
+                        down_utilisation = (8 / 1000) * (cur_rx_bytes - prev_rx_bytes) / (now_t - t_prev_bytes)
+                        rx_load = down_utilisation / cur_dl_rate
+                        up_utilisation = (8 / 1000) * (cur_tx_bytes - prev_tx_bytes) / (now_t - t_prev_bytes)
+                        tx_load = up_utilisation / cur_ul_rate
                         next_ul_rate = cur_ul_rate
                         next_dl_rate = cur_dl_rate
                         logger(loglevel.DEBUG, "up_del_stat " .. up_del_stat .. " down_del_stat " .. down_del_stat)
@@ -676,6 +692,51 @@ local function ratecontrol()
                                 next_dl_rate = 0.9 * cur_dl_rate * rx_load
                             end
                         end
+
+                        if plugin_ratecontrol then
+                            local results = plugin_ratecontrol.process({
+                                now_s = now_s,
+                                tx_load = tx_load,
+                                rx_load = rx_load,
+                                up_del_stat = up_del_stat,
+                                down_del_stat = down_del_stat,
+                                up_utilisation = up_utilisation,
+                                down_utilisation = down_utilisation,
+                                cur_ul_rate = cur_ul_rate,
+                                cur_dl_rate = cur_dl_rate,
+                                next_ul_rate = next_ul_rate,
+                                next_dl_rate = next_dl_rate
+                            })
+                            local tmp
+                            local string_tbl = {}
+                            string_tbl[1] = "settings changed by plugin:"
+                            tmp = results.ul_max_delta_owd
+                            if tmp and tmp ~= ul_max_delta_owd then
+                                string_tbl[#string_tbl+1] = string.format("ul_max_delta_owd: %.1f -> %.1f", ul_max_delta_owd, tmp)
+                                ul_max_delta_owd = tmp
+                            end
+                            tmp = results.dl_max_delta_owd
+                            if tmp and tmp ~= dl_max_delta_owd then
+                                string_tbl[#string_tbl+1] = string.format("dl_max_delta_owd: %.1f -> %.1f", dl_max_delta_owd, tmp)
+                                dl_max_delta_owd = tmp
+                            end
+                            tmp = results.next_ul_rate
+                            if tmp and tmp ~= next_ul_rate then
+                                string_tbl[#string_tbl+1] = string.format("next_ul_rate: %.0f -> %.0f", next_ul_rate, tmp)
+                                next_ul_rate = tmp
+                            end
+                            tmp = results.next_dl_rate
+                            if tmp and tmp ~= next_dl_rate then
+                                string_tbl[#string_tbl+1] = string.format("next_dl_rate: %.0f -> %.0f", next_dl_rate, tmp)
+                                next_dl_rate = tmp
+                            end
+                            if #string_tbl > 1 then
+                                logger(loglevel.INFO, table.concat(string_tbl, "\n    "))
+                            end
+                        end
+                    else
+                        logger(loglevel.WARN,
+                            "One or both stats files could not be read. Skipping rate control algorithm.")
                     end
                 end
 
@@ -952,7 +1013,6 @@ end
 
 ---------------------------- Begin Conductor ----------------------------
 local function conductor()
-    print("Starting sqm-autorate.lua v" .. _VERSION)
     logger(loglevel.TRACE, "Entered conductor()")
 
     -- Random seed

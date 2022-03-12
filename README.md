@@ -24,6 +24,7 @@ We do try to keep up and occasionally succeed!
 * [Removal](#removal)
 * [Development](#development)
 * [Output and Monitoring](#output-and-monitoring)
+* [Plugins](#plugins)
 
 ## Introduction
 * [Table of Contents](#table-of-contents)
@@ -249,6 +250,7 @@ Values loaded from this configuration file override values supplied via the comm
 | advanced_settings | download_delay_ms | As upload_delay_trigger but for downloads. | '15' |
 | advanced_settings | high_load_level | The load factor used to signal high network load. Between 0.67 and 0.95. | '0.8' |
 | advanced_settings | reflector_type | This is intended for future use and details are TBD. | 'icmp' |
+| plugins | ratecontrol | The full path to a [plugin](#plugins) `lua` file _OR_, if the plugin is in `/usr/lib/sqm-autorate`, the plugin file name less the `.lua` extension | no default |
 
 Advanced users may override values (following comments) directly in `/usr/lib/sqm-autorate/sqm-autorate.lua` as comfort level dictates.
 
@@ -270,8 +272,9 @@ Usage: sqm-autorate.lua [--upload-interface <upload_interface>]
        [--speed-hist-file <speed_hist_file>]
        [--speed-hist-size <speed_hist_size>]
        [--high-load-level <high_load_level>]
-       [--reflector-type <reflector_type>] [--suppress-statistics]
-       [-v] [-s] [-h]
+       [--reflector-type <reflector_type>]
+       [--plugin-ratecontrol <plugin_ratecontrol>]
+       [--suppress-statistics] [-v] [-s] [-h]
 
 CAKE with Adaptive Bandwidth - 'autorate'
 
@@ -313,6 +316,8 @@ Options:
                          the relative load ratio considered high for rate change purposes; range 0.67 to 0.95; default 0.8
    --reflector-type <reflector_type>
                          not yet operable; default icmp
+   --plugin-ratecontrol <plugin_ratecontrol>
+                         load a named plugin into ratecontrol
    --suppress-statistics, --no-statistics, --ns
                          suppress output to the statistics files; default output statistics
    -v, --version         Displays the SQM Autorate version.
@@ -341,6 +346,7 @@ All environment variables for this script have a prefix of `SQMA_`.
 * SQMA_HIGH_LEVEL_LOAD
 * SQMA_REFLECTOR_TYPE
 * SQMA_SUPPRESS_STATISTICS
+* SQMA_PLUGIN_RATECONTROL
 
 ### Verbosity Options
 
@@ -624,6 +630,7 @@ and possibly new charts showing new axis labels._
 * [Output and Monitoring](#output-and-monitoring)
   * [View of Processes](#view-of-processes)
   * [Log Output](#log-output)
+* [Plugins](#plugins)
 
 ### View of Processes
 
@@ -646,3 +653,167 @@ Threads:    7
   By default, this file is stored in `/tmp`.
 - **sqm-speedhist.csv**: The location to which autorate speed adjustment history will be written.
   By default, this file is stored in `/tmp`.
+
+## Plugins
+* [Output and Monitoring](#output-and-monitoring)
+* [Plugins](#plugins)
+
+_sqm_autorate_ has a plugin interface to, at the users' option, add or change functionality in the _rate control_ thread.
+
+A minimal functional demonstration of a plugin follows.
+The source code is found in [pretty_speeds.lua](lib/pretty_speeds.lua).
+```lua
+--[[
+    pretty_speeds.lua: make the CAKE speed settings 'prettier'
+
+    Copyright © 2022
+        Charles Corrigan mailto:chas-iot@runegate.org (github @chas-iot)
+
+    This source code file contains a minimal functional demonstration of the
+    plugin interface for the sqm-autorate program. This file is licensed for
+    plugin development under any Open Source license that is compatible with
+    the MPLv2 of the sqm-autorate programs and, for that purpose, this file
+    may be re-used, with or without the copyright statement above.
+
+    THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+    IN THE SOFTWARE.
+
+]] --
+
+-- The module table to export
+local pretty_speeds = {}
+
+-- utility function to import in pretty_speeds.initialise
+local ceil = nil
+
+-- function initialise(requires, settings)
+--  parameters
+--      requires        -- table of requires from main
+--      settings        -- table of settings values from main
+--  returns
+--      pretty_speeds   -- the module, for a fluent interface
+function pretty_speeds.initialise(requires, settings)
+    local math = requires.math
+    ceil = math.ceil
+    return pretty_speeds
+end
+
+-- function process(readings)
+--  parameters
+--      readings        -- table of readings values from main
+--  returns
+--      results         -- table of results
+function pretty_speeds.process(readings)
+    return {
+        next_ul_rate = ceil(readings.next_ul_rate / 1000) * 1000,
+        next_dl_rate = ceil(readings.next_dl_rate / 1000) * 1000,
+    }
+end
+
+-- return the module
+return pretty_speeds
+```
+
+The above file is designed to be re-used as the basis for further plugin development.
+[delay-histogram.lua](lib/delay-histogram.lua) and [log_readings.lua](lib/log_readings.lua) are examples of more complex plugins, licensed under the MPLv2.
+
+To add the _pretty_speed_ plugin to _sqm-autorate_ then
+1. copy [pretty_speeds.lua](lib/pretty_speeds.lua) to `usr/lib/sqm-autorate`
+2. add the following lines to the end of `/etc/config/sqm-autorate`.
+   If you decide to place the plugin elsewhere on the filesystem, then `option ratecontrol` must contain the full path to the `lua` file (including the `.lua` part, if any).
+```
+config plugins
+        option ratecontrol 'pretty_speed'
+```
+
+3. At the shell prompt, type `service sqm-autorate restart`
+
+
+Each plugin is a `lua` module, so returns a table that contains the functions that implement the plugin interface.
+The plugin interface consists of two functions.
+
+| function | parameters | returns | purpose |
+|---|---|---|---|
+| **process** | _readings_ | _results_ | Called repeatedly by the _rate control_ thread, this function should quickly and efficiently process the current readings, and return the results with minimal overhead. |
+| **initialise** | _requires_, _settings_ | the module table | Performs any initialisation required by the plugin. As much preparation as possible should be performed here so as to reduce the load in the _plugin.process_. Once the initialisation is completed, the module table must be returned so the main program can keep a reference to the initialised values. |
+
+| parameter | description |
+|---|---|
+| [readings](#readings-parameter) | a table containing the name/value pairs of the current readings in this loop of the _rate control_ thread. See below for the contents; this list will change over time, so check the source code. |
+| [results](#results-return) | a table containing name/value pairs to be fed back into the _rate control_ thread. See below for the list of supported values; this list will change over time, so check the source code. Any name/value pair may be put into the table, however it will be ignored unless the name is supported. |
+| [requires](lib/sqm-autorate.lua) | a table containing the modules already required by the main program. Currently, these are: _lanes_, _math_, _posix_, _socket_, _times_, _vstruct_, _bit_ and [utilities](#settings-module). This list may change over time and may not be up-to-date, so check the [source code](lib/sqm-autorate.lua). If further requires are needed, then use `lanes.require` rather than bare `require`. |
+| [settings](#settings-parameter) | a table containing the name/value pairs of the internal settings of the main program. See below for the contents; this list will change over time, so check the [source code](lib/sqma-settings.lua). Please treat this table and contents as read-only. Remember that these are not the external settings names or values, though there are many similarities and identities. |
+
+### _readings_ parameter
+Contents of the _readings_ parameter to _plugin.process_
+
+| name | description |
+|---|---|
+| now_s | seconds since the program started |
+| tx_load | the estimation of the load on the upload interface, relative to the current speed. Ratio, 0..1 |
+| rx_load | the estimation of the load on the download interface, relative to the current speed. Ratio, 0..1 |
+| up_del_stat | the current upload delay. Milliseconds (ms) |
+| down_del_stat | the current download delay. ms |
+| up_utilisation | an estimation of the current absolute upload utilisation|
+| down_utilisation | an estimation of the current absolute download utilisation|
+| cur_ul_rate | The current upload speed. kbits/second |
+| cur_dl_rate | The current download speed. kbits/second |
+| next_ul_rate | The proposed next upload speed. kbits/second  |
+| next_dl_rate | The proposed next download speed. kbits/second |
+
+### _results_ return
+Supported name/value pairs used from **_results_** returned from _plugin.process_
+
+| name | If set, overrides |
+|---|---|
+| ul_max_delta_owd | the upload delay threshold from settings. Milliseconds (ms) |
+| dl_max_delta_owd | the download delay threshold from settings. ms |
+| next_ul_rate | the upload speed. kbits/second |
+| next_dl_rate | the download speed. kbits/second |
+
+### _settings_ parameter
+Contents of [**settings**](lib/sqma-settings.lua]) parameter to _plugin.initialise_
+
+| name | description |
+|---|---|
+| ul_if | upload interface name |
+| dl_if | download interface name |
+| base_ul_rate | expected stable upload speed. kbits/second  |
+| base_dl_rate | expected stable download speed. kbits/second |
+| min_ul_rate | minimum acceptable upload speed. kbits/second  |
+| min_dl_rate | minimum acceptable download speed. kbits/second  |
+| stats_file | the file location of the output statisics |
+| speedhist_file | the location of the output speed history |
+| enable_verbose_baseline_output | additional verbosity     - retire or merge into TRACE? |
+| tick_duration | the interval between 'pings'. seconds |
+| min_change_interval | the minimum interval between speed changes. seconds |
+| reflector_list_icmp | the location of the input icmp reflector list |
+| reflector_list_udp | the location of the input udp reflector list |
+| histsize | the number of good speed settings to remember |
+| ul_max_delta_owd | the upload delay threshold to trigger an upload speed change. Milliseconds (ms) |
+| dl_max_delta_owd | the delay threshold to trigger a download speed change. ms |
+| high_load_level | the relative load ratio (to current speed) that is considered 'high'. Ratio, 0..1 |
+| reflector_type | reflector type icmp or udp (udp is not well supported) |
+| output_statistics | controls output to the statistics file |
+
+### _utilities_ module
+Contents of [**utilities**](lib/sqma-utilities.lua) module in _requires_ parameter to _plugin.initialise_
+
+| name | (t)able or (f)unction | Important to plugins | description |
+|---|---|---|---|
+| loglevel | **t** | y | a table of the loglevel names |
+| logger | f | y | a function to log messages, used in conjection with loglevel |
+| get_current_time | f | y | based on time.clock_gettime |
+| is_module_available | f | | check is a named module available before attempting to require |
+| nsleep | f | | |
+| get_time_after_midnight_ms | f | | |
+| calculate_checksum | f | | |
+| a_else_b | f | | |
+| get_table_position | f | | |
+| shuffle_table | f | | |
+| maximum | f | | |
