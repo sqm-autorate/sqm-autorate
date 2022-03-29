@@ -21,8 +21,7 @@
 #   authorized under this License except under this disclaimer.
 #
 
-function print_rerun ()
-{
+print_rerun () {
     echo "
 
 ================================================================================
@@ -34,8 +33,7 @@ router shell prompt: '/usr/lib/sqm-autorate/configure.sh'
 }
 
 # trap control-c and print a message
-function handle_ctlc ()
-{
+handle_ctlc () {
     # print the notice about re-running
     echo "
 
@@ -62,7 +60,7 @@ if [ ! -w /etc/config/sqm-autorate ]; then
     exit -1 2>/dev/null
 fi
 
-read -p "You may interupt this script and re-run later. To re-run, at the router shell
+read -r -p "You may interupt this script and re-run later. To re-run, at the router shell
 prompt, type '/usr/lib/sqm-autorate/configure.sh'
 
 Press return, or type y or yes if you want guided assistance to set up a ready
@@ -72,7 +70,7 @@ if [ -z "${do_config}" ] || [ "${do_config}" == "y" ] || [ "${do_config}" == "ye
     . /lib/functions/network.sh
     network_flush_cache
     network_find_wan WAN_IF
-    WAN_DEVICE=$(uci -q get network.$WAN_IF.device)
+    WAN_DEVICE=$(uci -q get network."${WAN_IF}".device)
     SETTINGS_UPLOAD_DEVICE=$(uci -q get sqm-autorate.@network[0].upload_interface)
     SETTINGS_DOWNLOAD_DEVICE=$(uci -q get sqm-autorate.@network[0].download_interface)
     SETTINGS_UPLOAD_SPEED=$(uci -q get sqm-autorate.@network[0].upload_base_kbits)
@@ -96,7 +94,7 @@ $(tc qdisc | grep -i cake | grep -o ' dev [[:alnum:]]* ' | cut -d ' ' -f 3)"
         fi
 
         if [ -n "${UPLOAD_DEVICE}" ]; then
-            read -p "
+            read -r -p "
 press return to accept detected network upload device [${UPLOAD_DEVICE}]: " ACCEPT
             ACCEPT=$(echo "${ACCEPT}" | awk '{ print tolower($0) }')
             if [ -z "${ACCEPT}" ]; then
@@ -107,7 +105,7 @@ press return to accept detected network upload device [${UPLOAD_DEVICE}]: " ACCE
             GOOD=N
         fi
         while [ $GOOD == "N" ]; do
-            read -p "
+            read -r -p "
 These are the network devices known to CAKE
 $(tc qdisc | grep -i cake | grep -o ' dev [[:alnum:]]* ' | cut -d ' ' -f 3)
 
@@ -129,7 +127,7 @@ Please type in the upload network device name: " UPLOAD_DEVICE
             DOWNLOAD_DEVICE=$(tc qdisc | grep -i cake | grep -o -- " dev veth.* " | cut -d ' ' -f 3)
         fi
         if [ -n "${DOWNLOAD_DEVICE}" ]; then
-            read -p "
+            read -r -p "
 press return to accept detected network download device [${DOWNLOAD_DEVICE}]: " ACCEPT
             ACCEPT=$(echo "${ACCEPT}" | awk '{ print tolower($0) }')
             if [ -z "${ACCEPT}" ]; then
@@ -140,7 +138,7 @@ press return to accept detected network download device [${DOWNLOAD_DEVICE}]: " 
             GOOD=N
         fi
         while [ $GOOD == "N" ]; do
-            read -p "
+            read -r -p "
 These are the network devices known to CAKE
 $(tc qdisc | grep -i cake | grep -o ' dev [[:alnum:]]* ' | cut -d ' ' -f 3)
 
@@ -165,7 +163,7 @@ The speed should be input with just digits and no punctuation
             DEFAULT=""
         fi
         while [ $BAD == "Y" ]; do
-            read -p "upload speed${DEFAULT}: " UPLOAD_SPEED
+            read -r -p "upload speed${DEFAULT}: " UPLOAD_SPEED
             if [ -n "${SETTINGS_UPLOAD_SPEED}" ] && [ -z "${UPLOAD_SPEED}" ]; then
                 UPLOAD_SPEED=$SETTINGS_UPLOAD_SPEED
                 BAD=N
@@ -184,7 +182,7 @@ please input digits only"
             else
                 DEFAULT=""
             fi
-            read -p "download speed${DEFAULT}: " DOWNLOAD_SPEED
+            read -r -p "download speed${DEFAULT}: " DOWNLOAD_SPEED
             if [ -n "${SETTINGS_DOWNLOAD_SPEED}" ] && [ -z "${DOWNLOAD_SPEED}" ]; then
                 DOWNLOAD_SPEED=$SETTINGS_DOWNLOAD_SPEED
                 BAD=N
@@ -201,16 +199,16 @@ You may override the recommendation with care. The minimum must be lower than
 the original speed. The input may be recalculated slightly, and in that case,
 will be re-displayed for confirmation
 "
-        if [ $UPLOAD_SPEED -le 3000 ]; then
+        if [ "$UPLOAD_SPEED" -le 3000 ]; then
             UPLOAD_PERCENT=75
             UPLOAD_MINIMUM=$((UPLOAD_SPEED * 3 / 4))
             UPLOAD_HARD_MINIMUM=$UPLOAD_MINIMUM
 
-        elif [ $UPLOAD_SPEED -le 11250 ]; then
+        elif [ "$UPLOAD_SPEED" -le 11250 ]; then
             UPLOAD_PERCENT=$((2250 * 100 / UPLOAD_SPEED))
             UPLOAD_MINIMUM=$((UPLOAD_SPEED * UPLOAD_PERCENT / 100))
             t=$((UPLOAD_MINIMUM * 100 / UPLOAD_PERCENT))
-            while [ $t -lt $UPLOAD_SPEED ] || [ $UPLOAD_MINIMUM -lt 2250 ]; do
+            while [ $t -lt "$UPLOAD_SPEED" ] || [ $UPLOAD_MINIMUM -lt 2250 ]; do
                 UPLOAD_PERCENT=$((UPLOAD_PERCENT + 1))
                 UPLOAD_MINIMUM=$((UPLOAD_SPEED * UPLOAD_PERCENT / 100))
                 t=$((UPLOAD_MINIMUM * 100 / UPLOAD_PERCENT))
@@ -225,12 +223,12 @@ will be re-displayed for confirmation
 
         BAD=Y
         while [ $BAD == "Y" ]; do
-            read -p "upload minimum speed [${UPLOAD_MINIMUM}]: " OVERRIDE_UPLOAD
+            read -r -p "upload minimum speed [${UPLOAD_MINIMUM}]: " OVERRIDE_UPLOAD
             if [ -z "${OVERRIDE_UPLOAD}" ]; then
                 BAD=N
             elif [[ $OVERRIDE_UPLOAD =~ ^[0-9]+$ ]]; then
-                if [ $OVERRIDE_UPLOAD -lt $UPLOAD_SPEED ]; then
-                    if [ $OVERRIDE_UPLOAD -ne $UPLOAD_MINIMUM ]; then
+                if [ "$OVERRIDE_UPLOAD" -lt "$UPLOAD_SPEED" ]; then
+                    if [ "$OVERRIDE_UPLOAD" -ne $UPLOAD_MINIMUM ]; then
                         UPLOAD_PERCENT=$((OVERRIDE_UPLOAD * 100 / UPLOAD_SPEED))
                         UPLOAD_MINIMUM=$((UPLOAD_SPEED * UPLOAD_PERCENT / 100))
                         if [ $UPLOAD_PERCENT -lt 10 ]; then
@@ -243,7 +241,7 @@ will be re-displayed for confirmation
                         else
                             UPLOAD_MINIMUM=$((UPLOAD_SPEED * UPLOAD_PERCENT / 100))
                             t=$((UPLOAD_MINIMUM * 100 / UPLOAD_PERCENT))
-                            if [ $t -lt $UPLOAD_SPEED ]; then
+                            if [ $t -lt "$UPLOAD_SPEED" ]; then
                                 UPLOAD_PERCENT=$((UPLOAD_PERCENT + 1))
                             fi
                         fi
@@ -260,16 +258,16 @@ please input digits only and ensure that the minimum is less than the original"
             fi
         done
 
-        if [ $DOWNLOAD_SPEED -le 3000 ]; then
+        if [ "$DOWNLOAD_SPEED" -le 3000 ]; then
             DOWNLOAD_PERCENT=75
             DOWNLOAD_MINIMUM=$((DOWNLOAD_SPEED * 3 / 4))
             DOWNLOAD_HARD_MINIMUM=$DOWNLOAD_MINIMUM
 
-        elif [ $DOWNLOAD_SPEED -le 11250 ]; then
+        elif [ "$DOWNLOAD_SPEED" -le 11250 ]; then
             DOWNLOAD_PERCENT=$((2250 * 100 / DOWNLOAD_SPEED))
             DOWNLOAD_MINIMUM=$((DOWNLOAD_SPEED * DOWNLOAD_PERCENT / 100))
             t=$((DOWNLOAD_MINIMUM * 100 / DOWNLOAD_PERCENT))
-            while [ $t -lt $DOWNLOAD_SPEED ] || [ $DOWNLOAD_MINIMUM -lt 2250 ]; do
+            while [ $t -lt "$DOWNLOAD_SPEED" ] || [ $DOWNLOAD_MINIMUM -lt 2250 ]; do
                 DOWNLOAD_PERCENT=$((DOWNLOAD_PERCENT + 1))
                 DOWNLOAD_MINIMUM=$((DOWNLOAD_SPEED * DOWNLOAD_PERCENT / 100))
                 t=$((DOWNLOAD_MINIMUM * 100 / DOWNLOAD_PERCENT))
@@ -284,12 +282,12 @@ please input digits only and ensure that the minimum is less than the original"
 
         BAD=Y
         while [ $BAD == "Y" ]; do
-            read -p "download minimum speed [${DOWNLOAD_MINIMUM}]: " OVERRIDE_DOWNLOAD
+            read -r -p "download minimum speed [${DOWNLOAD_MINIMUM}]: " OVERRIDE_DOWNLOAD
             if [ -z "${OVERRIDE_DOWNLOAD}" ]; then
                 BAD=N
             elif [[ $OVERRIDE_DOWNLOAD =~ ^[0-9]+$ ]]; then
-                if [ $OVERRIDE_DOWNLOAD -lt $DOWNLOAD_SPEED ]; then
-                    if [ $OVERRIDE_DOWNLOAD -ne $DOWNLOAD_MINIMUM ]; then
+                if [ "$OVERRIDE_DOWNLOAD" -lt "$DOWNLOAD_SPEED" ]; then
+                    if [ "$OVERRIDE_DOWNLOAD" -ne $DOWNLOAD_MINIMUM ]; then
                         DOWNLOAD_PERCENT=$((OVERRIDE_DOWNLOAD * 100 / DOWNLOAD_SPEED))
                         DOWNLOAD_MINIMUM=$((DOWNLOAD_SPEED * DOWNLOAD_PERCENT / 100))
                         if [ $DOWNLOAD_PERCENT -lt 10 ]; then
@@ -302,7 +300,7 @@ please input digits only and ensure that the minimum is less than the original"
                         else
                             DOWNLOAD_MINIMUM=$((DOWNLOAD_SPEED * DOWNLOAD_PERCENT / 100))
                             t=$((DOWNLOAD_MINIMUM * 100 / DOWNLOAD_PERCENT))
-                            if [ $t -lt $DOWNLOAD_SPEED ]; then
+                            if [ $t -lt "$DOWNLOAD_SPEED" ]; then
                                 DOWNLOAD_PERCENT=$((DOWNLOAD_PERCENT + 1))
                             fi
                         fi
@@ -321,7 +319,7 @@ please input digits only and ensure that the minimum is less than the original"
 
         GOOD=N
         while [ $GOOD == "N" ]; do
-            read -p "
+            read -r -p "
 'sqm-autorate' logging uses storage on the router
 Choose one of the following log levels
 - FATAL     - minimal
@@ -347,7 +345,7 @@ Type in one of the log levels, or press return to accept [${SETTINGS_LOG_LEVEL}]
             fi
         done
 
-        read -p "
+        read -r -p "
 sqm-autorate can output statistics that may be analysed with Julia scripts
 ( https://github.com/sqm-autorate/sqm-autorate/tree/testing/lua-threads#graphical-analysis ),
 spreadsheets, or other statistical software.
@@ -365,7 +363,7 @@ Type y or yes to choose to output the statistics [y/N]: " STATS
             echo "
 /etc/init.d/sqm-autorate - not found or not executable, skipping (auto)start"
         else
-            read -p "
+            read -r -p "
 Do you want to automatically start 'sqm-autorate' at reboot [Y/n]: " STARTAUTO
             STARTAUTO=$(echo "${STARTAUTO}" | awk '{ print tolower($0) }')
             if [ -z "${STARTAUTO}" ] || [ "${STARTAUTO}" == "y" ] || [ "${STARTAUTO}" == "yes" ]; then
@@ -374,7 +372,7 @@ Do you want to automatically start 'sqm-autorate' at reboot [Y/n]: " STARTAUTO
                 START_AUTO=No
             fi
 
-            read -p "
+            read -r -p "
 Do you want to start 'sqm-autorate' now [Y/n]: " STARTNOW
             STARTNOW=$(echo "${STARTNOW}" | awk '{ print tolower($0) }')
             if [ -z "${STARTNOW}" ] || [ "${STARTNOW}" == "y" ] || [ "${STARTNOW}" == "yes" ]; then
@@ -384,7 +382,7 @@ Do you want to start 'sqm-autorate' now [Y/n]: " STARTNOW
             fi
         fi
 
-        read -p "
+        read -r -p "
 
 ================================================================================
 
@@ -421,7 +419,7 @@ restarting input
         fi
     done
 
-    if [ $UPLOAD_SPEED -le 3000 ] || [ $DOWNLOAD_SPEED -le 3000 ]; then
+    if [ "$UPLOAD_SPEED" -le 3000 ] || [ "$DOWNLOAD_SPEED" -le 3000 ]; then
         echo "
 ================================================================================
 

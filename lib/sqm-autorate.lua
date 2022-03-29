@@ -131,7 +131,7 @@ local reflector_list_udp = settings.reflector_list_udp      -- the location of t
 local histsize = settings.histsize                          -- the number of good speed settings to remember
 local ul_max_delta_owd = settings.ul_max_delta_owd          -- the upload delay threshold to trigger an upload speed change
 local dl_max_delta_owd = settings.dl_max_delta_owd          -- the delay threshold to trigger a download speed change
-local high_load_level = settings.high_load_level            -- the relative load (to current speed) that is copnsidered 'high'
+local high_load_level = settings.high_load_level            -- the relative load ratio (to current speed) that is considered 'high'
 local reflector_type = settings.reflector_type              -- reflector type icmp or udp (udp is not well supported)
 local output_statistics = settings.output_statistics        -- controls output to the statistics file
 
@@ -712,26 +712,26 @@ local function ratecontrol()
                             string_tbl[1] = "settings changed by plugin:"
                             tmp = results.ul_max_delta_owd
                             if tmp and tmp ~= ul_max_delta_owd then
-                                string_tbl[#string_tbl+1] = string.format("ul_max_delta_owd: %s -> %s", tostring(ul_max_delta_owd), tostring(tmp))
+                                string_tbl[#string_tbl+1] = string.format("ul_max_delta_owd: %.1f -> %.1f", ul_max_delta_owd, tmp)
                                 ul_max_delta_owd = tmp
                             end
                             tmp = results.dl_max_delta_owd
                             if tmp and tmp ~= dl_max_delta_owd then
-                                string_tbl[#string_tbl+1] = string.format("dl_max_delta_owd: %s -> %s", tostring(dl_max_delta_owd), tostring(tmp))
+                                string_tbl[#string_tbl+1] = string.format("dl_max_delta_owd: %.1f -> %.1f", dl_max_delta_owd, tmp)
                                 dl_max_delta_owd = tmp
                             end
                             tmp = results.next_ul_rate
                             if tmp and tmp ~= next_ul_rate then
-                                string_tbl[#string_tbl+1] = string.format("next_ul_rate: %s -> %s", tostring(next_ul_rate), tostring(tmp))
+                                string_tbl[#string_tbl+1] = string.format("next_ul_rate: %.0f -> %.0f", next_ul_rate, tmp)
                                 next_ul_rate = tmp
                             end
                             tmp = results.next_dl_rate
                             if tmp and tmp ~= next_dl_rate then
-                                string_tbl[#string_tbl+1] = string.format("next_dl_rate: %s -> %s", tostring(next_dl_rate), tostring(tmp))
+                                string_tbl[#string_tbl+1] = string.format("next_dl_rate: %.0f -> %.0f", next_dl_rate, tmp)
                                 next_dl_rate = tmp
                             end
                             if #string_tbl > 1 then
-                                logger(loglevel.INFO, table.concat(string_tbl, "\n        "))
+                                logger(loglevel.INFO, table.concat(string_tbl, "\n    "))
                             end
                         end
                     else

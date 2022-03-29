@@ -271,6 +271,8 @@ function M.initialise(requires, settings)
         initialise_histogram(i, 0)
     end
 
+    logger(histogram_log_level, "delay histogram - abbreviations - s: seconds;  ms: milliseconds of delay;  #: count;  p: proportion of total; c: cumulative proportion")
+
     -- return the module
     return M
 end
@@ -290,15 +292,14 @@ local function print_histogram(histogram_no, upload_highlight, download_highligh
 
     -- create a table of strings, it's much faster to concatenate with table.concat than repeatedly with `..`
     local string_table = {}
-    string_table[1] = "delay histogram    - current time (s): " .. tostring(now)
-    string_table[2] = "ms: milliseconds of delay;  #: count;  p: proportion of total; c: cumulative proportion"
+    string_table[1] = "delay histogram"
 
     local print_histo = function(histogram, total, description, highlight)
         if total > 0 then
             local count = 0
             string_table[#string_table+1] = string.format(
-                "%s readings count: %5d    start time (s): %d",
-                description, total, histogram_start_time[histogram_no])
+                "%4s    s: %5d  #: %5d",
+                description, (now - histogram_start_time[histogram_no]), total)
             for j = min_allowed_threshold, max_allowed_threshold do
                 count = count + histogram[j]
                 if histogram[j] > 0 or j == highlight then
@@ -310,10 +311,10 @@ local function print_histogram(histogram_no, upload_highlight, download_highligh
         end
     end
 
-    print_histo(upload_histogram[histogram_no], upload_count[histogram_no], "UP", upload_highlight)
+    print_histo(upload_histogram[histogram_no], upload_count[histogram_no], "UP  ", upload_highlight)
     print_histo(download_histogram[histogram_no], download_count[histogram_no], "DOWN", download_highlight)
 
-    logger(histogram_log_level, table.concat(string_table, "\n        "))
+    logger(histogram_log_level, table.concat(string_table, "\n    "))
 end
 
 
@@ -348,14 +349,11 @@ local function calculate_thresholds(histogram_no, print_it, now)
             -- a heuristic in case of relatively low counts (eg. during the long initial build of the histogram)
             -- find the lowest bucket with a count > 1
             if histogram[result] == 1 then
-                local r = min_allowed_threshold
-                for i = min_allowed_threshold + 1, max_allowed_threshold do
-                    if histogram[result] > 1 then
-                        r = i
+                for i = result - 1, min_allowed_threshold, -1 do
+                    if histogram[i] > 1 then
+                        result = i
+                        break
                     end
-                end
-                if result > r then
-                    result = r
                 end
             end
         end
@@ -449,7 +447,7 @@ function M.process(readings)
     end
 
     if ( use_relative_low_load and readings.tx_load <= low_load_threshold )
-    or ( readings.up_utilisation <= min_upload_speed ) then      -- ignore readings when the network is in use
+    or ( not use_relative_low_load and readings.up_utilisation <= min_upload_speed ) then      -- ignore readings when the network is in use
 
         -- the bottom and top buckets are 'asymmetric', covering many more delays that are 'less' interesting
         local upload_delay = limit(ceil(readings.up_del_stat), min_allowed_threshold, max_allowed_threshold)
@@ -464,7 +462,7 @@ function M.process(readings)
     end
 
     if ( use_relative_low_load and readings.rx_load <= low_load_threshold )
-    or ( readings.down_utilisation <= min_download_speed ) then      -- ignore readings when the network is in use
+    or ( not use_relative_low_load and readings.down_utilisation <= min_download_speed ) then      -- ignore readings when the network is in use
         local download_delay = limit(ceil(readings.down_del_stat), min_allowed_threshold, max_allowed_threshold)
         local t = nil
         for i = 1, number_of_histograms do
