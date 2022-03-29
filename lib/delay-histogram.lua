@@ -349,7 +349,7 @@ local function calculate_thresholds(histogram_no, print_it, now)
             -- a heuristic in case of relatively low counts (eg. during the long initial build of the histogram)
             -- find the lowest bucket with a count > 1
             if histogram[result] == 1 then
-                for i = result,min_allowed_threshold,-1 do
+                for i = result - 1, min_allowed_threshold, -1 do
                     if histogram[i] > 1 then
                         result = i
                         break
