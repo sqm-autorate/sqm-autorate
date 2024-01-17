@@ -1,29 +1,25 @@
 #!/bin/sh /etc/rc.common
-# Copyright (C) 2007 OpenWrt.org
-
-export PATH=/usr/sbin:/usr/bin:/sbin:/bin
-export LUA_CPATH="/usr/lib/lua/5.1/?.so;./?.so;/usr/lib/lua/?.so;/usr/lib/lua/loadall.so"
-export LUA_PATH="./?.lua;/usr/share/lua/5.1/?.lua;/usr/share/lua/5.1/?/init.lua;/usr/share/lua/?.lua;/usr/share/lua/?/init.lua;/usr/lib/lua/?.lua;/usr/lib/lua/?/init.lua"
-
+USE_PROCD=1
 START=97
 STOP=4
 
 PID_FILE=/tmp/run/sqm-autorate.pid
-
-exec &>/tmp/sqm-autorate.log
+SERVICE_NAME="sqm-autorate"
 
 service_triggers() {
-    procd_add_reload_trigger "sqm-autorate"
+    procd_add_reload_trigger $SERVICE_NAME
 }
 
-start() {
-    cd /usr/lib/sqm-autorate
-    lua sqm-autorate.lua &
-    echo $! >/tmp/run/sqm-autorate.pid
-}
+start_service() {
+    procd_open_instance
 
-stop() {
-    if [ -f $PID_FILE ]; then
-        kill -9 "$(cat $PID_FILE)" && rm -f $PID_FILE
-    fi
+    procd_set_param command /usr/bin/lua /usr/lib/sqm-autorate/sqm-autorate.lua
+    procd_set_param env PATH=/usr/sbin:/usr/bin:/sbin:/bin
+    procd_set_param env LUA_CPATH="/usr/lib/lua/5.1/?.so;./?.so;/usr/lib/lua/?.so;/usr/lib/lua/loadall.so"
+    procd_set_param env LUA_PATH="/usr/lib/sqm-autorate/?.lua;/usr/share/lua/5.1/?.lua;/usr/share/lua/5.1/?/init.lua;/usr/share/lua/?.lua;/usr/share/lua/?/init.lua;/usr/lib/lua/?.lua;/usr/lib/lua/?/init.lua"
+    procd_set_param respawn
+    procd_set_param pidfile $PID_FILE
+    procd_set_param file /etc/config/sqm-autorate
+
+    procd_close_instance
 }
