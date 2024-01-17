@@ -6,7 +6,7 @@
     Copyright (C) 2022
         Nils Andreas Svee mailto:contact@lochnair.net (github @Lochnair)
         Daniel Lakeland mailto:dlakelan@street-artists.org (github @dlakelan)
-        Mark Baker mailto:mark@e-bakers.com (github @Fail-Safe)
+        Mark Baker mailto:mark@vpost.net (github @Fail-Safe)
         Charles Corrigan mailto:chas-iot@runegate.org (github @chas-iot)
 
     This Source Code Form is subject to the terms of the Mozilla Public

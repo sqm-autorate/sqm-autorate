@@ -6,7 +6,7 @@
     Copyright (C) 2022
         Nils Andreas Svee mailto:contact@lochnair.net (github @Lochnair)
         Daniel Lakeland mailto:dlakelan@street-artists.org (github @dlakelan)
-        Mark Baker mailto:mark@e-bakers.com (github @Fail-Safe)
+        Mark Baker mailto:mark@vpost.net (github @Fail-Safe)
         Charles Corrigan mailto:chas-iot@runegate.org (github @chas-iot)
 
     This Source Code Form is subject to the terms of the Mozilla Public
@@ -23,51 +23,64 @@ local M = {}
 
 -- print all of the module exported values, ignoring functions
 local function print_all()
-    print "internal settings"
-    local t = nil
-    local o = {}
-    local kmax = 0
-    local vmax = 0
-    for k, v in pairs(M) do
-        if type(k) == "boolean" or type(k) == "number" then
-            k = tostring(k)
+    local type_name = nil
+    local tmp_tbl = {}
+    local name_max = 0
+    local value_max = 0
+    for name, value in pairs(M) do
+        if type(name) == "boolean" or type(name) == "number" then
+            name = tostring(name)
         end
-        t = type(v)
-        if k == "use_loglevel" then
-            v = v.name
-            t = "extracted from table"
+        type_name = type(value)
+        if name == "use_loglevel" then
+            value = value.name
+            type_name = "extracted from table"
         end
-        if t == "nil" then
-            v = "nil"
-        elseif t == "boolean" or t == "number" then
-            v = tostring(v)
-        elseif t == "table" or t == "function" then
-            v = ""
+        if type_name == "nil" then
+            value = "nil"
+        elseif type_name == "boolean" or type_name == "number" then
+            value = tostring(value)
+        elseif type_name == "table" or type_name == "function" then
+            value = ""
         end
-        if #k > kmax then
-            kmax = #k
+        if #name > name_max then
+            name_max = #name
         end
-        if #v > vmax then
-            vmax = #v
+        if #value > value_max then
+            value_max = #value
         end
-        if t ~= "function" then
-            o[#o + 1] = { k = k, v = v, t = t }
+        if type_name ~= "function" then
+            tmp_tbl[#tmp_tbl + 1] = { name = name, value = value, type = type_name }
         end
     end
-    table.sort(o,
+    table.sort(tmp_tbl,
         function (a, b)
-            return a.k < b.k
+            return a.name < b.name
         end)
-    local function pad(s,l,c)
+    local function pad(s, l, c)
         if c == nil then
             c = " "
         end
         return s .. string.rep(c, l - #s)
     end
-    for i = 1, #o do
-        print("  " .. pad(o[i].k, kmax) .. ": " .. pad(o[i].v, vmax) .. " (" .. o[i].t .. ")")
+    local string_tbl = {}
+    string_tbl[1] ="internal settings"
+    for i = 1, #tmp_tbl do
+        string_tbl[#string_tbl+1] = string.format("%s: %s (%s)", pad(tmp_tbl[i].name, name_max), pad(tmp_tbl[i].value, value_max), tmp_tbl[i].type)
     end
-    print "--"
+    string_tbl[#string_tbl+1] = "--"
+    print(table.concat(string_tbl, "\n        "))
+end
+
+
+-- a stub for plugins to retrieve their UCI settings
+--  parameters
+--      plugin      - the name of the plugin. Do change '-' to '_' to avoid breaking UCI
+--  returns
+--      uci         - a table of UCI option values
+--
+function M.plugin(_plugin)
+    return {}
 end
 
 
@@ -113,11 +126,15 @@ function M.initialise(requires, version)
     if is_module_available("luci.model.uci") then
         local uci_lib = lanes.require("luci.model.uci")
         uci_settings = uci_lib.cursor()
+
+        M.plugin = function(plugin_name)
+            return uci_settings:get_all("sqm-autorate", "@" .. plugin_name .. "[0]")
+        end
     else
         logger(loglevel.WARN, "did not find uci library")
     end
 
-    -- If we have luci-app-sqm installed, but it is disabled, this whole thing is moot. Let's bail early in that case.
+    -- If we have sqm installed, but it is disabled, this whole thing is moot. Let's bail early in that case.
     -- TODO is this the correct check? 'tc qdisc | grep -i cake' may be better
     if uci_settings then
         local sqm_enabled = tonumber(uci_settings:get("sqm", "@queue[0]", "enabled"), 10)
@@ -150,6 +167,7 @@ function M.initialise(requires, version)
             parser:option("--speed-hist-size", "the number of usable speeds to keep in the history; default 100")
             parser:option("--high-load-level", "the relative load ratio considered high for rate change purposes; range 0.67 to 0.95; default 0.8")
             parser:option("--reflector-type", "not yet operable; default icmp")
+            parser:option("--plugin-ratecontrol", "load a named plugin into ratecontrol")
 
             parser:flag("--suppress-statistics --no-statistics --ns", "suppress output to the statistics files; default output statistics")
 
@@ -172,34 +190,6 @@ function M.initialise(requires, version)
         download_interface = download_interface or ( args and args.download_interface )
         download_interface = download_interface or ( os.getenv("SQMA_DOWNLOAD_INTERFACE") )
         M.dl_if = download_interface
-
-
-        -- Figure out the interfaces in play here
-        -- if ul_if == "" then
-        --     ul_if = uci_settings and uci_settings:get("sqm", "@queue[0]", "interface")
-        --     if not ul_if then
-        --         logger(loglevel.FATAL, "Upload interface not found in SQM config and was not overriden. Cannot continue.")
-        --         os.exit(1, true)
-        --     end
-        -- end
-
-        -- if dl_if == "" then
-        --     local fh = io.popen(string.format("tc -p filter show parent ffff: dev %s", ul_if))
-        --     local tc_filter = fh:read("*a")
-        --     fh:close()
-
-        --     local ifb_name = string.match(tc_filter, "ifb[%a%d]+")
-        --     if not ifb_name then
-        --         local ifb_name = string.match(tc_filter, "veth[%a%d]+")
-        --     end
-        --     if not ifb_name then
-        --         logger(loglevel.FATAL, string.format(
-        --             "Download interface not found for upload interface %s and was not overriden. Cannot continue.", ul_if))
-        --         os.exit(1, true)
-        --     end
-
-        --     dl_if = ifb_name
-        -- end
 
         if upload_interface == nil or download_interface == nil then
             logger(loglevel.FATAL,
@@ -363,6 +353,13 @@ function M.initialise(requires, version)
         M.output_statistics = not suppress_statistics
     end
 
+    do
+        local plugin_ratecontrol = nil
+        plugin_ratecontrol = uci_settings and uci_settings:get("sqm-autorate", "@plugins[0]", "ratecontrol")
+        plugin_ratecontrol = plugin_ratecontrol or ( args and args.plugin_ratecontrol )
+        plugin_ratecontrol = plugin_ratecontrol or ( os.getenv("SQMA_PLUGIN_RATECONTROL") )
+        M.plugin_ratecontrol = plugin_ratecontrol
+    end
 
     M.enable_verbose_baseline_output =
         get_loglevel() == "TRACE" or

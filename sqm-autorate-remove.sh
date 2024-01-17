@@ -4,7 +4,7 @@
 #   Copyright (C) 2022
 #       Nils Andreas Svee mailto:contact@lochnair.net (github @Lochnair)
 #       Daniel Lakeland mailto:dlakelan@street-artists.org (github @dlakelan)
-#       Mark Baker mailto:mark@e-bakers.com (github @Fail-Safe)
+#       Mark Baker mailto:mark@vpost.net (github @Fail-Safe)
 #       Charles Corrigan mailto:chas-iot@runegate.org (github @chas-iot)
 #
 #   This Source Code Form is subject to the terms of the Mozilla Public
@@ -43,4 +43,4 @@ rm -f /tmp/sqm-autorate.log /tmp/sqm-autorate.csv /tmp/sqm-speedhist.csv
 echo "!!! If you would like to remove the Lua modules which this setup previously installed, please run the following command:"
 echo "!!! WARNING: Only run the following if no other applications are using these Lua modules..."
 echo ""
-echo "--> luarocks remove vstruct && opkg remove luarocks lua-bit32 luaposix lualanes lua-argparse <--"
+echo "--> luarocks remove vstruct && opkg remove luaposix && opkg remove luarocks lua-bit32 lualanes lua-argparse <--"
