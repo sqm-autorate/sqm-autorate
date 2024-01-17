@@ -4,7 +4,7 @@
 #   Copyright (C) 2022
 #       Nils Andreas Svee mailto:contact@lochnair.net (github @Lochnair)
 #       Daniel Lakeland mailto:dlakelan@street-artists.org (github @dlakelan)
-#       Mark Baker mailto:mark@e-bakers.com (github @Fail-Safe)
+#       Mark Baker mailto:mark@vpost.net (github @Fail-Safe)
 #       Charles Corrigan mailto:chas-iot@runegate.org (github @chas-iot)
 #
 #   This Source Code Form is subject to the terms of the Mozilla Public
@@ -24,17 +24,17 @@
 #   authorized under this License except under this disclaimer.
 #
 
-TS=$(date -u -Iminutes)      # to avoid identifying location by timezone
+TS=$(date -u -Iminutes) # to avoid identifying location by timezone
 
-if [ -z "$1" ]; then        # no parameters, use default repo and branch
+if [ -z "$1" ]; then # no parameters, use default repo and branch
     repo_root="https://raw.githubusercontent.com/sqm-autorate/sqm-autorate/testing/lua-threads"
     INSTALLATION="  [release]"
 
-elif [ -z "$2" ]; then      # one parameter, use specified branch in default repo
+elif [ -z "$2" ]; then # one parameter, use specified branch in default repo
     repo_root="https://raw.githubusercontent.com/sqm-autorate/sqm-autorate/${1}"
     INSTALLATION="\\\\n        branch ${1}\\\\n        ${TS}"
 
-else                        # two parameters, use specified repo and specified branch
+else # two parameters, use specified repo and specified branch
     repo_root="https://raw.githubusercontent.com/${1}/sqm-autorate/${2}"
     INSTALLATION="\\\\n        ${repo_root}\\\\n        ${TS}"
 
@@ -138,7 +138,10 @@ if [ "$is_git_proj" = false ]; then
     # Need to wget some stuff down...
     echo ">>> Downloading sqm-autorate files..."
     (
-        cd "${autorate_lib_path}" || { echo "ERROR: could not find ${autorate_lib_path}"; exit; }
+        cd "${autorate_lib_path}" || {
+            echo "ERROR: could not find ${autorate_lib_path}"
+            exit
+        }
         $transfer "$config_file" "$repo_root/config/$config_file"
         $transfer "$service_file" "$repo_root/service/$service_file"
         $transfer "$lua_file" "$repo_root/lib/$lua_file"
@@ -188,7 +191,6 @@ else
     mv "${autorate_lib_path}/$service_file" "/etc/init.d/$name"
 fi
 chmod a+x "/etc/init.d/$name"
-
 
 # transition section 1 - to be removed for release v0.6 or later
 if grep -q -e 'receive' -e 'transmit' "/etc/config/$name"; then
