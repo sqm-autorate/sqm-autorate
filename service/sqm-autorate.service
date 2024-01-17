@@ -3,12 +3,6 @@ USE_PROCD=1
 START=97
 STOP=4
 
-INTERFACE="wan"
-
-export PATH=/usr/sbin:/usr/bin:/sbin:/bin
-export LUA_CPATH="/usr/lib/lua/5.1/?.so;./?.so;/usr/lib/lua/?.so;/usr/lib/lua/loadall.so"
-export LUA_PATH="/usr/share/lua/5.1/?.lua;/usr/share/lua/5.1/?/init.lua;./?.lua;/usr/share/lua/?.lua;/usr/share/lua/?/init.lua;/usr/lib/lua/?.lua;/usr/lib/lua/?/init.lua"
-
 PID_FILE=/tmp/run/sqm-autorate.pid
 SERVICE_NAME="sqm-autorate"
 
@@ -17,20 +11,15 @@ service_triggers() {
 }
 
 start_service() {
-    config_load "$SERVICE_NAME"
-    local use_syslog
-
-    config_get use_syslog $INTERFACE use_system_log
-
     procd_open_instance
 
     procd_set_param command /usr/bin/lua /usr/lib/sqm-autorate/sqm-autorate.lua
-
-    procd_set_param respawn ${respawn_threshold:-3600} ${respawn_timeout:-5} ${respawn_retry:-5}
+    procd_set_param env PATH=/usr/sbin:/usr/bin:/sbin:/bin
+    procd_set_param env LUA_CPATH="/usr/lib/lua/5.1/?.so;./?.so;/usr/lib/lua/?.so;/usr/lib/lua/loadall.so"
+    procd_set_param env LUA_PATH="/usr/lib/sqm-autorate/?.lua;/usr/share/lua/5.1/?.lua;/usr/share/lua/5.1/?/init.lua;/usr/share/lua/?.lua;/usr/share/lua/?/init.lua;/usr/lib/lua/?.lua;/usr/lib/lua/?/init.lua"
+    procd_set_param respawn
     procd_set_param pidfile $PID_FILE
     procd_set_param file /etc/config/sqm-autorate
-    procd_set_param stdout $use_syslog
-    procd_set_param stderr $use_syslog
 
     procd_close_instance
 }
