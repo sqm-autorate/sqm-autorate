@@ -892,7 +892,7 @@ local function baseline_calculator()
                     local up_ewma = a_else_b(val.up_ewma, "?")
                     local down_ewma = a_else_b(val.down_ewma, "?")
                     logger(loglevel.DEBUG,
-                        "Reflector " .. ref .. " up baseline = " .. up_ewma .. " down baseline = " .. down_ewma)
+                        "Reflector " .. ref .. " up baseline = " .. up_ewma .. " | down baseline = " .. down_ewma)
                 end
 
                 for ref, val in pairs(owd_recent) do
