@@ -88,8 +88,8 @@ if [ "${is_openwrt}" != "OpenWrt" ]; then
     fi
 fi
 
-if [ -x /etc/init.d/sqm-autorate ]; then
-    echo ">>> Stopping 'sqm-autorate'"
+if [ -x /etc/init.d/sqm-autorate ] && /etc/init.d/sqm-autorate running; then
+    echo ">>> Stopping $name"
     /etc/init.d/sqm-autorate stop
 fi
 
