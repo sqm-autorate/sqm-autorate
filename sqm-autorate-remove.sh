@@ -43,4 +43,4 @@ rm -f /tmp/sqm-autorate.log /tmp/sqm-autorate.csv /tmp/sqm-speedhist.csv
 echo "!!! If you would like to remove the Lua modules which this setup previously installed, please run the following command:"
 echo "!!! WARNING: Only run the following if no other applications are using these Lua modules..."
 echo ""
-echo "--> luarocks remove vstruct && opkg remove luarocks lua-bit32 luaposix lualanes lua-argparse <--"
+echo "--> luarocks remove vstruct && opkg remove luaposix && opkg remove luarocks lua-bit32 lualanes lua-argparse <--"
