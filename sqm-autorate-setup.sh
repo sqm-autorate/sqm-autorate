@@ -132,7 +132,7 @@ luarocks install vstruct
 # Now copy the important files to their destinations
 [ -d "./.git" ] && is_git_proj=true || is_git_proj=false
 
-echo ">>> creating ${autorate_lib_path}"
+echo ">>> Creating ${autorate_lib_path}"
 mkdir -p "${autorate_lib_path}"
 
 if [ "$is_git_proj" = false ]; then
@@ -250,7 +250,7 @@ if grep -q -e 'receive' -e 'transmit' "/etc/config/$name"; then
     uci commit
 fi
 
-echo ">>> updating VERSION string to include: ${INSTALLATION}"
+echo ">>> Updating VERSION string to include: ${INSTALLATION}"
 sed -i-orig "/n    /! s;^\([[:blank:]]*local[[:blank:]]*_VERSION[[:blank:]]*=[[:blank:]]*\".*\)\"[[:blank:]]*$;\1${INSTALLATION}\";" "${autorate_lib_path}/${lua_file}"
 
 echo "

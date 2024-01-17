@@ -898,8 +898,8 @@ local function baseline_calculator()
                 for ref, val in pairs(owd_recent) do
                     local up_ewma = a_else_b(val.up_ewma, "?")
                     local down_ewma = a_else_b(val.down_ewma, "?")
-                    logger(loglevel.DEBUG, "Reflector " .. ref .. "recent up baseline = " .. up_ewma ..
-                        "recent down baseline = " .. down_ewma)
+                    logger(loglevel.DEBUG, "Reflector " .. ref .. " recent up baseline = " .. up_ewma ..
+                        " | recent down baseline = " .. down_ewma)
                 end
             end
         end
