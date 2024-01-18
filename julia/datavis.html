@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>sqm-autorate</title>
+  <style type="text/css">
+    body { max-width: 1210px; padding-left: 50px; padding-top: 50px; }
+    summary { font-size: 200%; font-weight: 700; }
+    summary::after { content: " - click to show explanation"; font-size: 40%; font-weight: 400;  }
+  </style>
+</head>
+<body>
+  <div id="delay">
+    <details>
+      <summary>What is the 'Delay'?</summary>
+        <p>
+          A large delay is a strong indicator of bufferbloat on the interface.
+          The delay is calculated from the amount of time that elapses between sending a ping and the ping returning.
+          Both are measured in milliseconds (ms).
+          The script uses timestamps so that both the upload trip time and the download trip time can be calculated independently.
+        <p>
+          Some network technologies show variable speed performance over time (examples include LTE, and DOCIS/cable).
+          This can be caused by overload/network sharing or even by weather conditions.
+          The <strong>delay</strong> is the difference between the recent behavior of upload/download times compared to a long running average.
+    </details>
+  </div>
+
+  <br><hr><br>
+
+  <div id="timeseries">
+    <details>
+      <summary>Time Series</summary>
+      <p>
+        This shows several measures of the behavior of the network interfaces and CAKE over time.
+      <p>
+        The <strong>Bandwidth Fractional utilisation</strong> shows the proportion of the maximum threshold set in CAKE
+        that is currently in use over time.
+      <p>
+        The <strong>Delay through time</strong> should be compared with the <em>Bandwidth fractional utilisation</em> above.
+        When there is high utilization and high delay is when the script should be responding by dropping the CAKE Bandwidth Setting.
+      <p>
+        The <strong>CAKE Bandwidth Setting</strong> shows the bandwidth settings for CAKE over time.
+        It should be compared with the <em>Bandwidth fractional utilisation</em> and <em>Delay through time</em> above it.
+        If there is a high load and low delay, then the bandwidth is increased.
+        If there is a high delay, then the bandwidth is decreased, sometimes radically,
+        especially if the delay occurs during low load conditions.
+        If delay goes away, then bandwidth is increased.
+    </details>
+    <br>
+    <img src="timeseries.png" alt="timeseries.png">
+  </div>
+
+  <br><hr><br>
+
+  <div id="delay">
+    <details>
+      <summary>Delay Profile</summary>
+      <p>
+        These graph the size distribution of the delays.
+        The vertical axis shows the cumulative proportion of delays less than the value shown on the x axis (in milliseconds).
+      <p>
+        These graphs have a 'good' shape if the blue line rises steeply alongside the vertical axis so that almost all the delay measures are small.
+        The shape is not so good if the blue line slopes quickly away from the vertical axis, showing that large delays occur more frequently.
+      <p>
+        These graphs show whether the delay is being well controlled or not.
+        They can be helpful in determining whether the advanced settings 'upload_delay_ms' and/or 'download_delay_ms' should be changed from the default of 15.
+    </details>
+    <br>
+    <img src="delayupecdf.png" alt="delayupecdf.png">
+    <img src="delaydownecdf.png" alt="delaydownecdf.png">
+  </div>
+
+  <br><hr><br>
+
+  <div id="hist">
+    <details>
+      <summary>Speed History</summary>
+      <p>
+        <cite>sqm-autorate</cite> uses a certain number of historical samples of speeds at which it was able to increase the speed because of no delay.
+        These graphs show an animated "smoothed histogram" of those values at different snapshots in time.
+        Each snapshot shows the values that the script has recorded as "safe" to change the speed to,
+        in the expectation that it would then likely have no delay and be able to increase the speed again.
+      <p>
+        When the connection's actual speed changes dramatically, these samples will be less relevant,
+        and the hunt for correct speed will cause the range of values to change.
+        If these curves have wildly changing shapes it indicates very rapid changes in the actual line performance.
+      <p>
+        Staying constant for long periods indicates a reliable range of speeds that the script can use.
+    </details>
+    <br>
+    <img src="uphist.gif" alt="uphist.gif">
+    <img src="downhist.gif" alt="downhist.gif">
+  </div>
+
+</body>
+</html>

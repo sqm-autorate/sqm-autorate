@@ -1,0 +1,27 @@
+Index: lanes-3.13.0/src/threading.h
+===================================================================
+--- lanes-3.13.0.orig/src/threading.h
++++ lanes-3.13.0/src/threading.h
+@@ -134,21 +134,7 @@ enum e_status { PENDING, RUNNING, WAITIN
+
+   void SIGNAL_ONE( SIGNAL_T *ref );
+
+-  // Yield is non-portable:
+-  //
+-  //    OS X 10.4.8/9 has pthread_yield_np()
+-  //    Linux 2.4   has pthread_yield() if _GNU_SOURCE is #defined
+-  //    FreeBSD 6.2 has pthread_yield()
+-  //    ...
+-  //
+-  #if defined( PLATFORM_OSX)
+-    #define YIELD() pthread_yield_np()
+-#elif defined( PLATFORM_WIN32) || defined( PLATFORM_POCKETPC) || defined(__ANDROID__) // no PTHREAD for PLATFORM_XBOX
+-    // for some reason win32-pthread doesn't have pthread_yield(), but sched_yield()
+-    #define YIELD() sched_yield()
+-  #else
+-    #define YIELD() pthread_yield()
+-  #endif
++  #define YIELD() sched_yield()
+ 	#define THREAD_CALLCONV
+ #endif //THREADAPI == THREADAPI_PTHREAD
+

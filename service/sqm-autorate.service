@@ -1,0 +1,32 @@
+#!/bin/sh /etc/rc.common
+USE_PROCD=1
+START=97
+STOP=4
+
+PID_FILE=/tmp/run/sqm-autorate.pid
+SERVICE_NAME="sqm-autorate"
+
+service_triggers() {
+    procd_add_reload_trigger $SERVICE_NAME
+}
+
+start_service() {
+    local syslog_out output_cfg_id
+
+    # Temporary until section naming can be implemented
+    output_cfg_id=$(uci show ${SERVICE_NAME}.@output[0] | head -n1 | sed -e 's/sqm-autorate.//' -e 's/=output//')
+    syslog_out=$(uci -q get ${SERVICE_NAME}.${output_cfg_id}.use_syslog)
+    if [ $? -eq 1 ]; then syslog_out=0; fi
+
+    procd_open_instance
+    procd_set_param command /usr/bin/lua /usr/lib/sqm-autorate/sqm-autorate.lua
+    procd_set_param env PATH=/usr/sbin:/usr/bin:/sbin:/bin
+    procd_set_param env LUA_CPATH="/usr/lib/lua/5.1/?.so;./?.so;/usr/lib/lua/?.so;/usr/lib/lua/loadall.so"
+    procd_set_param env LUA_PATH="/usr/lib/sqm-autorate/?.lua;/usr/share/lua/5.1/?.lua;/usr/share/lua/5.1/?/init.lua;/usr/share/lua/?.lua;/usr/share/lua/?/init.lua;/usr/lib/lua/?.lua;/usr/lib/lua/?/init.lua"
+    procd_set_param respawn
+    procd_set_param pidfile $PID_FILE
+    procd_set_param file /etc/config/sqm-autorate
+    procd_set_param stdout $syslog_out
+    procd_set_param stderr $syslog_out
+    procd_close_instance
+}
