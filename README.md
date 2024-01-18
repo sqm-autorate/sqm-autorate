@@ -245,6 +245,7 @@ Values loaded from this configuration file override values supplied via the comm
 | output | stats_file | The location to which the autorate OWD reflector stats will be written. | '/tmp/sqm-autorate.csv' |
 | output | speed_hist_file | The location to which autorate speed adjustment history will be written. | '/tmp/sqm-speedhist.csv' |
 | output | suppress_statistics | Suppress the output of statistics. **Added in v0.5.0** | 'false' |
+| output | use_syslog | Defines if logging should be output into the system log (syslog). Set to '1' to enable. | '0' |
 | advanced_settings | speed_hist_size | The amount of "safe" speed history which the algorithm will maintain for reference during times of increased latency/congestion. Set too high, the algorithm will take days or weeks to stabilise. Set too low, the algorithm may not have enough good values to stabilise on.  | '100' |
 | advanced_settings | upload_delay_ms | The amount of delay that indicates bufferbloat for uploads. For high speed and relatively stable fiber connections, this can be reduced as low as 2. For LTE and DOCIS/cable connections, the default should be a reasonable starting point and may be increased. | '15' |
 | advanced_settings | download_delay_ms | As upload_delay_trigger but for downloads. | '15' |
@@ -352,6 +353,8 @@ All environment variables for this script have a prefix of `SQMA_`.
 
 The overall verbosity of the script can be adjusted via the `option log_level` in `/etc/config/sqm-autorate`,
 or the alternatives from the command line or from environment variables.
+
+Logs may be sent to the system log (syslog) by enabling the `use_syslog` option.
 
 The available values are one of the following, in order of decreasing overall verbosity:
 
@@ -503,6 +506,8 @@ tc qdisc | grep -i cake
 See the [Verbosity](#Verbosity_Options) options for controlling the logging messages sent to the terminal or to `/tmp/sqm-autorate.csv` (when run as a service).
 The script logs information to `/tmp/sqm-autorate.csv` and speed history data to `/tmp/sqm-speedhist.csv`.
 This may be stopped with the `suppress_statistics` option.
+
+Logs may be sent to the system log (syslog) by enabling the `use_syslog` option.
 
 ## Upgrading
 * [Manual Execution](#manual-execution)
