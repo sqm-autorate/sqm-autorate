@@ -351,9 +351,9 @@ sqm-autorate can output log entries to your system log (syslog).
 Type y or yes to choose to output log entries to syslog [y/N]: " SYS_LOG
         STATS=$(echo "${SYS_LOG}" | awk '{ print tolower($0) }')
         if [ "${SYS_LOG}" == "y" ] || [ "${SYS_LOG}" == "yes" ]; then
-            USE_SYSLOG='0'
-        else
             USE_SYSLOG='1'
+        else
+            USE_SYSLOG='0'
         fi
 
         read -r -p "
@@ -411,7 +411,7 @@ Settings:
    DOWNLOAD MINIMUM: ${DOWNLOAD_MINIMUM}
 
           LOG LEVEL: ${LOG_LEVEL}
-         USE SYSLOG: ${USE_SYSLOG}
+         USE SYSLOG: $(if [ ${USE_SYSLOG} = '1' ]; then echo 'Yes'; else echo 'No'; fi)
 SUPPRESS STATISTICS: ${SUPPRESS_STATISTICS}
 
 Start automatically: ${START_AUTO}
