@@ -320,7 +320,7 @@ please input digits only and ensure that the minimum is less than the original"
         GOOD=N
         while [ $GOOD == "N" ]; do
             read -r -p "
-'sqm-autorate' logging uses storage on the router
+sqm-autorate logging uses storage on the router
 Choose one of the following log levels
 - FATAL     - minimal
 - ERROR     - minimal
