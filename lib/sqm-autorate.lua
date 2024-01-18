@@ -35,7 +35,7 @@
 -- ** Recommended style guide: https://github.com/luarocks/lua-style-guide **
 --
 -- The versioning value for this script
-local _VERSION = "0.5.1"
+local _VERSION = "0.5.2"
 
 local requires = {}
 
@@ -631,10 +631,26 @@ local function ratecontrol()
                     end
 
                     rx_bytes_file = io.open(rx_bytes_path)
+                    if not rx_bytes_file then
+                        logger(loglevel.ERROR, "Could re-open download stats file: "..rx_bytes_path)
+                    end
+
                     tx_bytes_file = io.open(tx_bytes_path)
+                    if not tx_bytes_file then
+                        logger(loglevel.ERROR, "Could re-open upload stats file: "..tx_bytes_path)
+                    end
 
                     cur_rx_bytes = read_stats_file(rx_bytes_file)
+                    if not cur_rx_bytes then
+                        logger(loglevel.ERROR,
+                            "Could not read download stats file after re-open: "..rx_bytes_file)
+                    end
+
                     cur_tx_bytes = read_stats_file(tx_bytes_file)
+                    if not cur_tx_bytes then
+                        logger(loglevel.ERROR,
+                            "Could not read upload stats file after re-open: "..tx_bytes_file)
+                    end
 
                     next_ul_rate = cur_ul_rate
                     next_dl_rate = cur_dl_rate

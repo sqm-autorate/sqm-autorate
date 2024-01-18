@@ -27,7 +27,7 @@
 TS=$(date -u -Iminutes) # to avoid identifying location by timezone
 
 if [ -z "$1" ]; then # no parameters, use default repo and branch
-    repo_root="https://raw.githubusercontent.com/sqm-autorate/sqm-autorate/testing/lua-threads"
+    repo_root="https://raw.githubusercontent.com/sqm-autorate/sqm-autorate/main"
     INSTALLATION="  [release]"
 
 elif [ -z "$2" ]; then # one parameter, use specified branch in default repo
@@ -129,7 +129,6 @@ $install
 echo ">>> Installing required packages via luarocks..."
 luarocks install vstruct
 
-# Now copy the important files to their destinations
 [ -d "./.git" ] && is_git_proj=true || is_git_proj=false
 
 echo ">>> Creating ${autorate_lib_path}"
