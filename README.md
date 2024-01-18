@@ -161,7 +161,7 @@ If you have some kind of DSL connection, read the
 
 3. Run the following command to run the setup script that downloads and installed the required files and packages:
    ```bash
-   sh -c "$(wget -q -O- https://raw.githubusercontent.com/sqm-autorate/sqm-autorate/testing/lua-threads/sqm-autorate-setup.sh)"
+   sh -c "$(wget -q -O- https://raw.githubusercontent.com/sqm-autorate/sqm-autorate/main/sqm-autorate-setup.sh)"
    ```
 
 4. If the setup script gives a warning about a configuration file `sqm-autorate-NEW`, use that file to replace `/etc/config/sqm-autorate` (first time installation only)
@@ -522,7 +522,7 @@ The following shell commands will upgrade it to the latest version
    ```
 2. Run the setup script
    ```bash
-   sh -c "$(wget -q -O- https://raw.githubusercontent.com/sqm-autorate/sqm-autorate/testing/lua-threads/sqm-autorate-setup.sh)"
+   sh -c "$(wget -q -O- https://raw.githubusercontent.com/sqm-autorate/sqm-autorate/main/sqm-autorate-setup.sh)"
    ```
 3. Start the service
    ```bash
@@ -538,7 +538,7 @@ _(We hope that you will never need to uninstall this autorate program, but if yo
 Run the following removal script to remove the operational files:
 
 ```bash
-sh -c "$(wget -q -O- https://raw.githubusercontent.com/sqm-autorate/sqm-autorate/testing/lua-threads/sqm-autorate-remove.sh)"
+sh -c "$(wget -q -O- https://raw.githubusercontent.com/sqm-autorate/sqm-autorate/main/sqm-autorate-remove.sh)"
 ```
 
 ## Development
@@ -564,7 +564,7 @@ and some shell scripting.
 The primary development git branch is [develop/main](../../../tree/develop/main),
 with bug fixes and features developed in feature branches before review and merging.
 
-Periodic releases are performed in the [testing/lua-threads](../../../tree/testing/lua-threads) branch.
+Periodic releases are performed in the [main](../../../tree/main) branch.
 
 ### _sqm-autorate.lua_
 _sqm-autorate.lua_ is a Lua implementation of an SQM auto-rate algorithm and it employs multiple [preemptive] threads to perform the following high-level actions in parallel:

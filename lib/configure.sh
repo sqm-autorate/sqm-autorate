@@ -21,7 +21,7 @@
 #   authorized under this License except under this disclaimer.
 #
 
-print_rerun () {
+print_rerun() {
     echo "
 
 ================================================================================
@@ -33,7 +33,7 @@ router shell prompt: '/usr/lib/sqm-autorate/configure.sh'
 }
 
 # trap control-c and print a message
-handle_ctlc () {
+handle_ctlc() {
     # print the notice about re-running
     echo "
 
@@ -79,7 +79,7 @@ if [ -z "${do_config}" ] || [ "${do_config}" == "y" ] || [ "${do_config}" == "ye
 
     INPUT=Y
     while [ $INPUT == "Y" ]; do
-    echo "
+        echo "
 This script does not reliably handle advanced or complex configurations of CAKE
 You may be required to manually find and type the network device names
 
@@ -246,7 +246,7 @@ will be re-displayed for confirmation
                             fi
                         fi
                         UPLOAD_MINIMUM=$((UPLOAD_SPEED * UPLOAD_PERCENT / 100))
-                            echo "
+                        echo "
 please confirm recalculated value"
                     else
                         BAD=N
@@ -305,7 +305,7 @@ please input digits only and ensure that the minimum is less than the original"
                             fi
                         fi
                         DOWNLOAD_MINIMUM=$((DOWNLOAD_SPEED * DOWNLOAD_PERCENT / 100))
-                            echo "
+                        echo "
 please confirm recalculated value"
                     else
                         BAD=N
@@ -346,8 +346,19 @@ Type in one of the log levels, or press return to accept [${SETTINGS_LOG_LEVEL}]
         done
 
         read -r -p "
+sqm-autorate can output log entries to your system log (syslog).
+
+Type y or yes to choose to output log entries to syslog [y/N]: " SYS_LOG
+        STATS=$(echo "${SYS_LOG}" | awk '{ print tolower($0) }')
+        if [ "${SYS_LOG}" == "y" ] || [ "${SYS_LOG}" == "yes" ]; then
+            USE_SYSLOG='0'
+        else
+            USE_SYSLOG='1'
+        fi
+
+        read -r -p "
 sqm-autorate can output statistics that may be analysed with Julia scripts
-( https://github.com/sqm-autorate/sqm-autorate/tree/testing/lua-threads#graphical-analysis ),
+( https://github.com/sqm-autorate/sqm-autorate/tree/main#graphical-analysis ),
 spreadsheets, or other statistical software.
 The statistics use about 12 Mb of storage per day on the router
 
@@ -400,6 +411,7 @@ Settings:
    DOWNLOAD MINIMUM: ${DOWNLOAD_MINIMUM}
 
           LOG LEVEL: ${LOG_LEVEL}
+         USE SYSLOG: ${USE_SYSLOG}
 SUPPRESS STATISTICS: ${SUPPRESS_STATISTICS}
 
 Start automatically: ${START_AUTO}
@@ -447,6 +459,7 @@ Note that the above forum requires registration before posting."
     uci set sqm-autorate.@network[0].download_min_percent="${DOWNLOAD_PERCENT}"
 
     uci set sqm-autorate.@output[0].log_level="${LOG_LEVEL}"
+    uci set sqm-autorate.@output[0].use_syslog="${USE_SYSLOG}"
     uci set sqm-autorate.@output[0].suppress_statistics="${SUPPRESS_STATISTICS}"
 
     uci commit
