@@ -26,10 +26,6 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v2
-
-    - name: Install Build Tools
-      run: |
-        sudo apt-get install build-essential
     
     - name: Install Luarocks
       run: |
