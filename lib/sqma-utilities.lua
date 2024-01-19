@@ -32,7 +32,7 @@ function M.initialise(requires)
     return M
 end
 
-local loglevel = {
+loglevel = {
     TRACE = {
         level = 6,
         name = "TRACE"
@@ -90,7 +90,7 @@ function M.nsleep(s, ns)
 end
 
 local function get_current_time()
-    local time_s, time_ns = 0, 0
+    local time_s, time_ns
     local val1, val2 = time.clock_gettime(time.CLOCK_REALTIME)
     if type(val1) == "table" then
         time_s = val1.tv_sec

@@ -123,23 +123,26 @@ M.initialise = nil
 --==--==--==-- end public interface --==--==--==--
 
 -- tunable values and assumptions (constants)
-local histogram_log_level = 'INFO'          -- the log level to report the histogram
-local histogram_offset_seconds = 30 * 60    -- 1/2 hour
-local number_of_histograms = 5              -- 5 buckets - so each bucket contains up to 2.5 hours given the offset above
-                                                -- from 2.5 hours after startup, there will be 2 to 2.5 hours of data in the 'oldest' histogram
-                                                -- every 30 mins, the 'oldest' will be initialised to counts of 0 to become the latest
-local low_load_threshold = 0.20             -- below this relative load factor, the network is not busy
-local sufficient_seconds = 60 * 10          -- 10 minutes of low load
-local recalculation_seconds = 60 * 5        -- recalculate the delay threshold every 5 minutes
-local cumulative_cutoff = 0.9995            -- the cumulative cutoff ratio for the delay threshold, allows 1/2000 above cutoff
-local min_allowed_threshold = 5             -- below this does not bring much benefit
-local max_allowed_threshold = 39            -- VOIP protocols have a 20ms cycle, it's not good to be more than twice that
-local use_relative_low_load = false         -- low load can be measure in relative (tx_load, rx_load, compared to low_load_threshold) or
-                                                -- absolute (up_utilsation, down_utilisation, compared to min_ul_rate, min_dl_rate) terms
+local histogram_log_level = 'INFO'       -- the log level to report the histogram
+local histogram_offset_seconds = 30 * 60 -- 1/2 hour
+local number_of_histograms = 5       -- 5 buckets - so each bucket contains up to 2.5 hours given the offset above
+                                        -- from 2.5 hours after startup, there will be 2 to 2.5 hours of data in
+                                        -- the 'oldest' histogram
+                                        -- every 30 mins, the 'oldest' will be initialised to counts of
+                                        -- 0 to become the latest
+local low_load_threshold = 0.20      -- below this relative load factor, the network is not busy
+local sufficient_seconds = 60 * 10   -- 10 minutes of low load
+local recalculation_seconds = 60 * 5 -- recalculate the delay threshold every 5 minutes
+local cumulative_cutoff = 0.9995     -- cumulative cutoff ratio for the delay threshold, allows 1/2000 above cutoff
+local min_allowed_threshold = 5      -- below this does not bring much benefit
+local max_allowed_threshold = 39     -- VOIP protocols have a 20ms cycle, it's not good to be more than twice that
+local use_relative_low_load = false  -- low load can be measure in relative (tx_load, rx_load, compared to
+                                     -- low_load_threshold) or absolute (up_utilsation, down_utilisation, compared
+                                     -- to min_ul_rate, min_dl_rate) terms
 -- end of tunables and assumptions
 
 -- values (constants) to be set in M.initialise from settings
-local sufficient_readings_count = nil   -- calculated from sufficient_seconds above
+local sufficient_readings_count = nil -- calculated from sufficient_seconds above
 local upload_threshold_default = nil
 local download_threshold_default = nil
 local min_upload_speed = nil
@@ -170,13 +173,11 @@ local last_recalculated_time = 90   -- start the first recalculation 90s later, 
 
 local function initialise_histogram(new_histogram, now)
     -- initialise the new slot
-    local t = nil
-
     histogram_start_time[new_histogram] = now
 
     upload_histogram[new_histogram] = {}
     upload_count[new_histogram] = 0
-    t = upload_histogram[new_histogram]
+    local t = upload_histogram[new_histogram]
     for i = min_allowed_threshold, max_allowed_threshold do
         t[i] = 0
     end
@@ -271,7 +272,8 @@ function M.initialise(requires, settings)
         initialise_histogram(i, 0)
     end
 
-    logger(histogram_log_level, "delay histogram - abbreviations - s: seconds;  ms: milliseconds of delay;  #: count;  p: proportion of total; c: cumulative proportion")
+    logger(histogram_log_level, "delay histogram - abbreviations - s: seconds;  ms: milliseconds of delay;  "
+        "#: count;  p: proportion of total; c: cumulative proportion")
 
     -- return the module
     return M
@@ -321,9 +323,6 @@ end
 local function calculate_thresholds(histogram_no, print_it, now)
     local results = {}
 
-    local upload_delay_threshold = nil
-    local download_delay_threshold = nil
-
     local function calc_threshold(histogram, total)
         local result = nil
 
@@ -360,13 +359,13 @@ local function calculate_thresholds(histogram_no, print_it, now)
         return result
     end
 
-    upload_delay_threshold = calc_threshold(upload_histogram[histogram_no], upload_count[histogram_no])
+    local upload_delay_threshold = calc_threshold(upload_histogram[histogram_no], upload_count[histogram_no])
     if upload_delay_threshold then
         results.upload_good_count = true
     else
         upload_delay_threshold = upload_threshold_default
     end
-    download_delay_threshold = calc_threshold(download_histogram[histogram_no], download_count[histogram_no])
+    local download_delay_threshold = calc_threshold(download_histogram[histogram_no], download_count[histogram_no])
     if download_delay_threshold then
         results.download_good_count = true
     else
@@ -446,27 +445,26 @@ function M.process(readings)
         latest_histogram_no = initialise_histogram(new_histogram_no, current_time)
     end
 
+    -- ignore readings when the network is in use
     if ( use_relative_low_load and readings.tx_load <= low_load_threshold )
-    or ( not use_relative_low_load and readings.up_utilisation <= min_upload_speed ) then      -- ignore readings when the network is in use
-
+    or ( not use_relative_low_load and readings.up_utilisation <= min_upload_speed ) then
         -- the bottom and top buckets are 'asymmetric', covering many more delays that are 'less' interesting
         local upload_delay = limit(ceil(readings.up_del_stat), min_allowed_threshold, max_allowed_threshold)
 
         -- update all histograms, newest, oldest, and in-between
-        local t = nil
         for i = 1, number_of_histograms do
-            t = upload_histogram[i]
+            local t = upload_histogram[i]
             t[upload_delay] = t[upload_delay] + 1
             upload_count[i] = upload_count[i] + 1
         end
     end
 
+    -- ignore readings when the network is in use
     if ( use_relative_low_load and readings.rx_load <= low_load_threshold )
-    or ( not use_relative_low_load and readings.down_utilisation <= min_download_speed ) then      -- ignore readings when the network is in use
+    or ( not use_relative_low_load and readings.down_utilisation <= min_download_speed ) then
         local download_delay = limit(ceil(readings.down_del_stat), min_allowed_threshold, max_allowed_threshold)
-        local t = nil
         for i = 1, number_of_histograms do
-            t = download_histogram[i]
+            local t = download_histogram[i]
             t[download_delay] = t[download_delay] + 1
             download_count[i] = download_count[i] + 1
         end

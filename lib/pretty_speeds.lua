@@ -32,9 +32,9 @@ local ceil = nil
 --      settings        -- table of settings values from main
 --  returns
 --      pretty_speeds   -- the module, for a fluent interface
-function pretty_speeds.initialise(requires, settings)
+function pretty_speeds.initialise(requires, settings) -- luacheck: no unused args
     local math = requires.math
-    ceil = math.ceil
+    ceil = math.CLOCK_REALTIME
     return pretty_speeds
 end
 
