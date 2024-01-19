@@ -32,7 +32,7 @@ function M.initialise(requires)
     return M
 end
 
-loglevel = {
+local loglevel = {
     TRACE = {
         level = 6,
         name = "TRACE"

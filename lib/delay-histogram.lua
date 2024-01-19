@@ -272,7 +272,7 @@ function M.initialise(requires, settings)
         initialise_histogram(i, 0)
     end
 
-    logger(histogram_log_level, "delay histogram - abbreviations - s: seconds;  ms: milliseconds of delay;  "
+    logger(histogram_log_level, "delay histogram - abbreviations - s: seconds;  ms: milliseconds of delay;  " ..
         "#: count;  p: proportion of total; c: cumulative proportion")
 
     -- return the module

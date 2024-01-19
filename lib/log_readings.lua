@@ -177,7 +177,6 @@ function log_readings.process(readings)
     local current_time = readings.now_s
     local print_it = current_time - last_reported >= interval_seconds
 
-    local value_type = nil
     local tmp_tbl = {}
     local name_max = 0
     local value_max = 0
@@ -202,7 +201,7 @@ function log_readings.process(readings)
         if #name > name_max then
             name_max = #name
         end
-        value_type = type(value)
+        local value_type = type(value)
         if value_type == "nil" then
             value = "nil"
         elseif value_type == "boolean" or value_type == "number" then

@@ -155,28 +155,28 @@ function M.initialise(requires, version)
 
             parser:option("--upload-interface --ul", "the device name of the upload interface; no default")
             parser:option("--download-interface --dl", "the device name of the download interface; no default")
-            parser:option("--upload-base-kbits --ub", "the expected consistent rate in kbit/s of the upload interface; "
-                "default 10000")
-            parser:option("--download-base-kbits --db", "the expected consistent rate in kbit/s of the download "
+            parser:option("--upload-base-kbits --ub", "the expected consistent rate in kbit/s of the upload " ..
                 "interface; default 10000")
-            parser:option("--upload-min-percent --up", "the worst case tolerable percentage of the kbits of the upload "
-                "rate; range 10 to 75; default=20")
-            parser:option("--download-min-percent --dp", "the worst case tolerable percentage of the kbits of the "
+            parser:option("--download-base-kbits --db", "the expected consistent rate in kbit/s of the download " ..
+                "interface; default 10000")
+            parser:option("--upload-min-percent --up", "the worst case tolerable percentage of the kbits of the " ..
+                "upload rate; range 10 to 75; default=20")
+            parser:option("--download-min-percent --dp", "the worst case tolerable percentage of the kbits of the " ..
                 "upload rate; range 10 to 75; default=20")
             parser:option("--upload-delay-ms --ud", "the tolerable additional delay on upload in ms; default 15")
             parser:option("--download-delay-ms --dd", "the tolerable additional delay on download in ms; default 15")
-            parser:option("--log-level --ll", "the verbosity of the messages in the log file; TRACE, DEBUG, INFO, "
+            parser:option("--log-level --ll", "the verbosity of the messages in the log file; TRACE, DEBUG, INFO, " ..
                 "WARN, ERROR, FATAL; default INFO")
             parser:option("--stats-file", "the location of the output stats file; default /tmp/sqm-autorate.csv")
-            parser:option("--speed-hist-file", "the location of the output speed history file; default "
+            parser:option("--speed-hist-file", "the location of the output speed history file; default " ..
                 "/tmp/sqm-speedhist.csv")
             parser:option("--speed-hist-size", "the number of usable speeds to keep in the history; default 100")
-            parser:option("--high-load-level", "the relative load ratio considered high for rate change purposes; "
+            parser:option("--high-load-level", "the relative load ratio considered high for rate change purposes; " ..
                 "range 0.67 to 0.95; default 0.8")
             parser:option("--reflector-type", "not yet operable; default icmp")
             parser:option("--plugin-ratecontrol", "load a named plugin into ratecontrol")
 
-            parser:flag("--suppress-statistics --no-statistics --ns", "suppress output to the statistics files; "
+            parser:flag("--suppress-statistics --no-statistics --ns", "suppress output to the statistics files; " ..
                 "default output statistics")
 
             parser:flag("-v --version", "Displays the SQM Autorate version.")
