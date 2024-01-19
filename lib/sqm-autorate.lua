@@ -406,8 +406,10 @@ local function send_icmp_pkt(reflector, pkt_id)
     socket.setsockopt(sock, socket.SOL_SOCKET, socket.SO_BINDTODEVICE, ul_if)
 
     -- Create a raw ICMP timestamp request message
+    local time_after_midnight_ms = get_time_after_midnight_ms()
+    local ts_req = vstruct.write("> 2*u1 3*u2 3*u4", {13, 0, 0, pkt_id, 0, time_after_midnight_ms, 0, 0})
     local ts_req = vstruct.write("> 2*u1 3*u2 3*u4",
-        {13, 0, calculate_checksum(ts_req), pkt_id, 0, get_time_after_midnight_ms(), 0, 0})
+        {13, 0, calculate_checksum(ts_req), pkt_id, 0, time_after_midnight_ms, 0, 0})
 
     -- Send ICMP TS request
     local ok = socket.sendto(sock, ts_req, {
@@ -442,6 +444,7 @@ local function send_udp_pkt(reflector, pkt_id)
 
     -- Create a raw ICMP timestamp request message
     local time_s, time_ns = get_current_time()
+    local ts_req = vstruct.write("> 2*u1 3*u2 6*u4", {13, 0, 0, pkt_id, 0, time_s, time_ns, 0, 0, 0, 0})
     local ts_req = vstruct.write("> 2*u1 3*u2 6*u4",
         {13, 0, calculate_checksum(ts_req), pkt_id, 0, time_s, time_ns, 0, 0, 0, 0})
 
@@ -857,7 +860,8 @@ local function baseline_calculator()
 
             owd_baseline[time_data.reflector].last_receive_time_s = time_data.last_receive_time_s
             owd_recent[time_data.reflector].last_receive_time_s = time_data.last_receive_time_s
-            -- if this reflection is more than 5 seconds higher than baseline... mark it no good and trigger a reselection
+            -- if this reflection is more than 5 seconds higher than
+            -- baseline... mark it no good and trigger a reselection
             if time_data.uplink_time > owd_baseline[time_data.reflector].up_ewma + 5000 or time_data.downlink_time >
                 owd_baseline[time_data.reflector].down_ewma + 5000 then
                 -- 5000 ms is a weird amount of time for a ping. let's mark this old and no good
@@ -943,7 +947,7 @@ local function reflector_peer_selector()
             peerhash[v] = 1
         end
 
-        for i = 1, 20, 1 do -- add 20 at random, but
+        for _ = 1, 20, 1 do -- add 20 at random, but
             local nextcandidate = reflector_pool[random(#reflector_pool)]
             peerhash[nextcandidate] = 1
         end
