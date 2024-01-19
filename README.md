@@ -1,3 +1,5 @@
+[![Lua Check](https://github.com/sqm-autorate/sqm-autorate/actions/workflows/lua-analysis.yml/badge.svg)](https://github.com/sqm-autorate/sqm-autorate/actions/workflows/lua-analysis.yml)
+
 # CAKE with Adaptive Bandwidth - "sqm-autorate"
 
 ## About _sqm-autorate_
