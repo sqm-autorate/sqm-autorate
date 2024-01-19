@@ -74,10 +74,12 @@ local log_level = 'INFO'          -- the log level to report the readings
 local loglevel = nil
 local logger = nil
 
--- a table indexed by (reading) value name. Each entry is a table of anonymous functions to check for reading value conditions
+-- a table indexed by (reading) value name. Each entry is a table of
+-- anonymous functions to check for reading value conditions
 local checks = {}
 
--- creates anonymous functions to check whether the value meets the criteria specified at function creation time
+-- creates anonymous functions to check whether the value meets the
+-- criteria specified at function creation time
 local function curry(check, level)
     if check == "_ge" then
         return function (value)
@@ -185,7 +187,7 @@ function log_readings.process(readings)
 
         -- find out if this value has a condition. If yes, check should we print
         if checks[name] ~= nil then
-            for _i, check in ipairs(checks[name]) do
+            for _, check in ipairs(checks[name]) do
                 if check(value) then
                     print_it = true
                     break
@@ -227,8 +229,9 @@ function log_readings.process(readings)
             end
             return str .. string.rep(char, len - #str)
         end
-        for _i, data in ipairs(tmp_tbl) do
-            string_table[#string_table+1] = pad(data.name, name_max) .. ": " .. pad(data.value, value_max) .. " (" .. data.value_type .. ")"
+        for _, data in ipairs(tmp_tbl) do
+            string_table[#string_table+1] = pad(data.name, name_max) .. ": " ..
+                pad(data.value, value_max) .. " (" .. data.value_type .. ")"
         end
         if #string_table > 1 then
             logger(loglevel.INFO, table.concat(string_table, "\n        "))
