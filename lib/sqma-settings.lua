@@ -23,7 +23,6 @@ local M = {}
 
 -- print all of the module exported values, ignoring functions
 local function print_all()
-    local type_name = nil
     local tmp_tbl = {}
     local name_max = 0
     local value_max = 0
@@ -31,7 +30,7 @@ local function print_all()
         if type(name) == "boolean" or type(name) == "number" then
             name = tostring(name)
         end
-        type_name = type(value)
+        local type_name = type(value)
         if name == "use_loglevel" then
             value = value.name
             type_name = "extracted from table"
@@ -66,7 +65,8 @@ local function print_all()
     local string_tbl = {}
     string_tbl[1] ="internal settings"
     for i = 1, #tmp_tbl do
-        string_tbl[#string_tbl+1] = string.format("%s: %s (%s)", pad(tmp_tbl[i].name, name_max), pad(tmp_tbl[i].value, value_max), tmp_tbl[i].type)
+        string_tbl[#string_tbl+1] = string.format("%s: %s (%s)", pad(tmp_tbl[i].name, name_max),
+            pad(tmp_tbl[i].value, value_max), tmp_tbl[i].type)
     end
     string_tbl[#string_tbl+1] = "--"
     print(table.concat(string_tbl, "\n        "))
@@ -155,21 +155,29 @@ function M.initialise(requires, version)
 
             parser:option("--upload-interface --ul", "the device name of the upload interface; no default")
             parser:option("--download-interface --dl", "the device name of the download interface; no default")
-            parser:option("--upload-base-kbits --ub", "the expected consistent rate in kbit/s of the upload interface; default 10000")
-            parser:option("--download-base-kbits --db", "the expected consistent rate in kbit/s of the download interface; default 10000")
-            parser:option("--upload-min-percent --up", "the worst case tolerable percentage of the kbits of the upload rate; range 10 to 75; default=20")
-            parser:option("--download-min-percent --dp", "the worst case tolerable percentage of the kbits of the upload rate; range 10 to 75; default=20")
+            parser:option("--upload-base-kbits --ub", "the expected consistent rate in kbit/s of the upload interface; "
+                "default 10000")
+            parser:option("--download-base-kbits --db", "the expected consistent rate in kbit/s of the download "
+                "interface; default 10000")
+            parser:option("--upload-min-percent --up", "the worst case tolerable percentage of the kbits of the upload "
+                "rate; range 10 to 75; default=20")
+            parser:option("--download-min-percent --dp", "the worst case tolerable percentage of the kbits of the "
+                "upload rate; range 10 to 75; default=20")
             parser:option("--upload-delay-ms --ud", "the tolerable additional delay on upload in ms; default 15")
             parser:option("--download-delay-ms --dd", "the tolerable additional delay on download in ms; default 15")
-            parser:option("--log-level --ll", "the verbosity of the messages in the log file; TRACE, DEBUG, INFO, WARN, ERROR, FATAL; default INFO")
+            parser:option("--log-level --ll", "the verbosity of the messages in the log file; TRACE, DEBUG, INFO, "
+                "WARN, ERROR, FATAL; default INFO")
             parser:option("--stats-file", "the location of the output stats file; default /tmp/sqm-autorate.csv")
-            parser:option("--speed-hist-file", "the location of the output speed history file; default /tmp/sqm-speedhist.csv")
+            parser:option("--speed-hist-file", "the location of the output speed history file; default "
+                "/tmp/sqm-speedhist.csv")
             parser:option("--speed-hist-size", "the number of usable speeds to keep in the history; default 100")
-            parser:option("--high-load-level", "the relative load ratio considered high for rate change purposes; range 0.67 to 0.95; default 0.8")
+            parser:option("--high-load-level", "the relative load ratio considered high for rate change purposes; "
+                "range 0.67 to 0.95; default 0.8")
             parser:option("--reflector-type", "not yet operable; default icmp")
             parser:option("--plugin-ratecontrol", "load a named plugin into ratecontrol")
 
-            parser:flag("--suppress-statistics --no-statistics --ns", "suppress output to the statistics files; default output statistics")
+            parser:flag("--suppress-statistics --no-statistics --ns", "suppress output to the statistics files; "
+                "default output statistics")
 
             parser:flag("-v --version", "Displays the SQM Autorate version.")
             parser:flag("-s --show-settings", "shows all of the settings values after initialisation")
@@ -179,14 +187,14 @@ function M.initialise(requires, version)
     end
 
     do
-        local upload_interface = nil
-        upload_interface = uci_settings and uci_settings:get("sqm-autorate", "@network[0]", "upload_interface")
+        local upload_interface = uci_settings and uci_settings:get("sqm-autorate", "@network[0]",
+            "upload_interface")
         upload_interface = upload_interface or ( args and args.upload_interface )
         upload_interface = upload_interface or ( os.getenv("SQMA_UPLOAD_INTERFACE") )
         M.ul_if = upload_interface
 
-        local download_interface = nil
-        download_interface = uci_settings and uci_settings:get("sqm-autorate", "@network[0]", "download_interface") -- download interface
+        local download_interface = uci_settings and uci_settings:get("sqm-autorate", "@network[0]",
+            "download_interface")
         download_interface = download_interface or ( args and args.download_interface )
         download_interface = download_interface or ( os.getenv("SQMA_DOWNLOAD_INTERFACE") )
         M.dl_if = download_interface
@@ -199,24 +207,24 @@ function M.initialise(requires, version)
     end
 
     do
-        local upload_base_kbits = nil
-        upload_base_kbits = uci_settings and uci_settings:get("sqm-autorate", "@network[0]", "upload_base_kbits")
+        local upload_base_kbits = uci_settings and uci_settings:get("sqm-autorate", "@network[0]",
+            "upload_base_kbits")
         upload_base_kbits = upload_base_kbits or ( args and args.upload_base_kbits )
         upload_base_kbits = upload_base_kbits or os.getenv("SQMA_UPLOAD_BASE_KBITS")
         M.base_ul_rate = floor(tonumber(upload_base_kbits, 10) or 10000)
     end
 
     do
-        local download_base_kbits = nil
-        download_base_kbits = uci_settings and uci_settings:get("sqm-autorate", "@network[0]", "download_base_kbits")
+        local download_base_kbits = uci_settings and uci_settings:get("sqm-autorate", "@network[0]",
+            "download_base_kbits")
         download_base_kbits = download_base_kbits or ( args and args.download_base_kbits )
         download_base_kbits = download_base_kbits or ( os.getenv("SQMA_DOWNLOAD_BASE_KBITS") )
         M.base_dl_rate = floor(tonumber(download_base_kbits, 10) or 10000)
     end
 
     do
-        local upload_min_percent = nil
-        upload_min_percent = uci_settings and uci_settings:get("sqm-autorate", "@network[0]", "upload_min_percent")
+        local upload_min_percent = uci_settings and uci_settings:get("sqm-autorate", "@network[0]",
+            "upload_min_percent")
         upload_min_percent = upload_min_percent or ( args and args.upload_min_percent )
         upload_min_percent = upload_min_percent or ( os.getenv("SQMA_UPLOAD_MIN_PERCENT") )
         if upload_min_percent == nil then
@@ -228,8 +236,8 @@ function M.initialise(requires, version)
     end
 
     do
-        local download_min_percent = nil
-        download_min_percent = uci_settings and uci_settings:get("sqm-autorate", "@network[0]", "download_min_percent")
+        local download_min_percent = uci_settings and uci_settings:get("sqm-autorate", "@network[0]",
+            "download_min_percent")
         download_min_percent = download_min_percent or ( args and args.download_min_percent )
         download_min_percent = download_min_percent or ( os.getenv("SQMA_DOWNLOAD_MIN_PERCENT") )
         if download_min_percent == nil then
@@ -241,8 +249,7 @@ function M.initialise(requires, version)
     end
 
     do
-        local stats_file = nil
-        stats_file = uci_settings and uci_settings:get("sqm-autorate", "@output[0]", "stats_file")
+        local stats_file = uci_settings and uci_settings:get("sqm-autorate", "@output[0]", "stats_file")
         stats_file = stats_file or ( args and args.stats_file )
         stats_file = stats_file or ( os.getenv("SQMA_STATS_FILE") )
         if stats_file == nil then
@@ -252,8 +259,7 @@ function M.initialise(requires, version)
     end
 
     do
-        local speed_hist_file = nil
-        speed_hist_file = uci_settings and uci_settings:get("sqm-autorate", "@output[0]", "speed_hist_file")
+        local speed_hist_file = uci_settings and uci_settings:get("sqm-autorate", "@output[0]", "speed_hist_file")
         speed_hist_file = speed_hist_file or ( args and args.speed_hist_file )
         speed_hist_file = speed_hist_file or ( os.getenv("SQMA_SPEED_HIST_FILE") )
         if speed_hist_file == nil then
@@ -263,8 +269,7 @@ function M.initialise(requires, version)
     end
 
     do
-        local log_level = nil
-        log_level = uci_settings and uci_settings:get("sqm-autorate", "@output[0]", "log_level")
+        local log_level = uci_settings and uci_settings:get("sqm-autorate", "@output[0]", "log_level")
         log_level = log_level or ( args and args.log_level )
         log_level = log_level or ( os.getenv("SQMA_LOG_LEVEL") )
         if log_level == nil then
@@ -276,8 +281,8 @@ function M.initialise(requires, version)
     end
 
     do
-        local speed_hist_size = nil
-        speed_hist_size = uci_settings and uci_settings:get("sqm-autorate", "@advanced_settings[0]", "speed_hist_size")
+        local speed_hist_size = uci_settings and uci_settings:get("sqm-autorate", "@advanced_settings[0]",
+            "speed_hist_size")
         speed_hist_size = speed_hist_size or ( args and args.speed_hist_size )
         speed_hist_size = speed_hist_size or ( os.getenv("SQMA_SPEED_HIST_SIZE") )
         if speed_hist_size == nil then
@@ -287,8 +292,8 @@ function M.initialise(requires, version)
     end
 
     do
-        local upload_delay_ms = nil
-        upload_delay_ms = uci_settings and uci_settings:get("sqm-autorate", "@advanced_settings[0]", "upload_delay_ms")
+        local upload_delay_ms = uci_settings and uci_settings:get("sqm-autorate", "@advanced_settings[0]",
+            "upload_delay_ms")
         upload_delay_ms = upload_delay_ms or ( args and args.upload_delay_ms )
         upload_delay_ms = upload_delay_ms or ( os.getenv("SQMA_UPLOAD_DELAY_MS") )
         if upload_delay_ms == nil then
@@ -298,8 +303,8 @@ function M.initialise(requires, version)
     end
 
     do
-        local download_delay_ms = nil
-        download_delay_ms = uci_settings and uci_settings:get("sqm-autorate", "@advanced_settings[0]", "download_delay_ms")
+        local download_delay_ms = uci_settings and uci_settings:get("sqm-autorate", "@advanced_settings[0]",
+            "download_delay_ms")
         download_delay_ms = download_delay_ms or ( args and args.download_delay_ms )
         download_delay_ms = download_delay_ms or ( os.getenv("SQMA_DOWNLOAD_DELAY_MS") )
         if download_delay_ms == nil then
@@ -309,8 +314,8 @@ function M.initialise(requires, version)
     end
 
     do
-        local high_load_level = nil
-        high_load_level = uci_settings and uci_settings:get("sqm-autorate", "@advanced_settings[0]", "high_load_level")
+        local high_load_level = uci_settings and uci_settings:get("sqm-autorate", "@advanced_settings[0]",
+            "high_load_level")
         high_load_level = high_load_level or ( args and args.high_load_level )
         high_load_level = high_load_level or ( os.getenv("SQMA_HIGH_LEVEL_LOAD") )
         if high_load_level == nil then
@@ -320,14 +325,14 @@ function M.initialise(requires, version)
     end
 
     do
-        local reflector_type = nil
-        reflector_type = uci_settings and uci_settings:get("sqm-autorate", "@advanced_settings[0]", "reflector_type")
+        local reflector_type = uci_settings and uci_settings:get("sqm-autorate", "@advanced_settings[0]",
+            "reflector_type")
         reflector_type = reflector_type or ( args and args.reflector_type )
         reflector_type = reflector_type or ( os.getenv("SQMA_REFLECTOR_TYPE") )
         -- not supported yet, so always override
---        if reflector_type == nil then
-            reflector_type = "icmp"
---        end
+        -- if reflector_type == nil then
+        reflector_type = "icmp"
+        -- end
         M.reflector_type = reflector_type
     end
 
@@ -354,8 +359,7 @@ function M.initialise(requires, version)
     end
 
     do
-        local plugin_ratecontrol = nil
-        plugin_ratecontrol = uci_settings and uci_settings:get("sqm-autorate", "@plugins[0]", "ratecontrol")
+        local plugin_ratecontrol = uci_settings and uci_settings:get("sqm-autorate", "@plugins[0]", "ratecontrol")
         plugin_ratecontrol = plugin_ratecontrol or ( args and args.plugin_ratecontrol )
         plugin_ratecontrol = plugin_ratecontrol or ( os.getenv("SQMA_PLUGIN_RATECONTROL") )
         M.plugin_ratecontrol = plugin_ratecontrol
