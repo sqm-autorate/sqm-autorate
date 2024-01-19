@@ -26,8 +26,22 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v2
-      
-    - name: Do Lua Check
-      run: sudo apt install luarocks
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Install Build Tools
+      run: |
+        sudo apt-get install build-essential
+    
+    - name: Install Luarocks
+      run: |
+        sudo apt install luarocks
+
+    - name: Install Luacheck
+      run: |
+        luarocks install luacheck
+        luacheck -v
+        luarocks install luafilesystem      
+
+    - name: Run LuaCheck
+      run: |
+        luacheck lib
+        
