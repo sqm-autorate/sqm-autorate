@@ -325,13 +325,14 @@ function M.initialise(requires, version)
     end
 
     do
-        local reflector_type = uci_settings and uci_settings:get("sqm-autorate", "@advanced_settings[0]",
-            "reflector_type")
-        reflector_type = reflector_type or ( args and args.reflector_type )
-        reflector_type = reflector_type or ( os.getenv("SQMA_REFLECTOR_TYPE") )
-        -- not supported yet, so always override
+        -- !! not supported yet, so always override !!
+        -- local reflector_type = uci_settings and uci_settings:get("sqm-autorate", "@advanced_settings[0]",
+        --    "reflector_type")
+        -- reflector_type = reflector_type or ( args and args.reflector_type )
+        -- reflector_type = reflector_type or ( os.getenv("SQMA_REFLECTOR_TYPE") )
+
         -- if reflector_type == nil then
-        reflector_type = "icmp"
+        local reflector_type = "icmp"
         -- end
         M.reflector_type = reflector_type
     end

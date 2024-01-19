@@ -32,6 +32,7 @@ function M.initialise(requires)
     return M
 end
 
+-- luacheck: ignore loglevel
 local loglevel = {
     TRACE = {
         level = 6,
