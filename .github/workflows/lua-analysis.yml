@@ -37,9 +37,9 @@ jobs:
 
     - name: Install Luacheck
       run: |
-        luarocks install luacheck
+        sudo luarocks install luacheck
         luacheck -v
-        luarocks install luafilesystem      
+        sudo luarocks install luafilesystem      
 
     - name: Run LuaCheck
       run: |
