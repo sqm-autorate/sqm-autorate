@@ -114,26 +114,26 @@ utilities.is_module_available = is_module_available
 
 local settings = lanes.require("sqma-settings").initialise(requires, _VERSION)
 
-local ul_if = settings.ul_if                        -- upload interface
-local dl_if = settings.dl_if                        -- download interface
-local base_ul_rate = settings.base_ul_rate          -- expected stable upload speed
 local base_dl_rate = settings.base_dl_rate          -- expected stable download speed
-local min_ul_rate = settings.min_ul_rate            -- minimum acceptable upload speed
-local min_dl_rate = settings.min_dl_rate            -- minimum acceptable download speed
-local stats_file = settings.stats_file              -- file location of the output statisics
-local speedhist_file = settings.speedhist_file      -- location of the output speed history
-local enable_verbose_baseline_output =              -- additional verbosity     - retire or merge into TRACE?
-        settings.enable_verbose_baseline_output
-local tick_duration = settings.tick_duration             -- interval between 'pings'
+local base_ul_rate = settings.base_ul_rate          -- expected stable upload speed
+local dl_if = settings.dl_if                        -- download interface
+local dl_max_delta_owd = settings.dl_max_delta_owd  -- delay threshold to trigger a download speed change
+local enable_verbose_baseline_output =
+        settings.enable_verbose_baseline_output     -- additional verbosity     - retire or merge into TRACE?
+local high_load_level = settings.high_load_level    -- relative load ratio (to current speed) that is considered 'high'
+local histsize = settings.histsize                  -- number of good speed settings to remember
 local min_change_interval = settings.min_change_interval -- minimum interval between speed changes
+local min_dl_rate = settings.min_dl_rate            -- minimum acceptable download speed
+local min_ul_rate = settings.min_ul_rate            -- minimum acceptable upload speed
+local output_statistics = settings.output_statistics -- controls output to the statistics file
 local reflector_list_icmp = settings.reflector_list_icmp -- location of the input icmp reflector list
 local reflector_list_udp = settings.reflector_list_udp   -- location of the input udp reflector list
-local histsize = settings.histsize                  -- number of good speed settings to remember
-local ul_max_delta_owd = settings.ul_max_delta_owd  -- upload delay threshold to trigger an upload speed change
-local dl_max_delta_owd = settings.dl_max_delta_owd  -- delay threshold to trigger a download speed change
-local high_load_level = settings.high_load_level    -- relative load ratio (to current speed) that is considered 'high'
 local reflector_type = settings.reflector_type      -- reflector type icmp or udp (udp is not well supported)
-local output_statistics = settings.output_statistics -- controls output to the statistics file
+local speedhist_file = settings.speedhist_file      -- location of the output speed history
+local stats_file = settings.stats_file              -- file location of the output statisics
+local tick_duration = settings.tick_duration        -- interval between 'pings'
+local ul_if = settings.ul_if                        -- upload interface
+local ul_max_delta_owd = settings.ul_max_delta_owd  -- upload delay threshold to trigger an upload speed change
 
 print("Starting sqm-autorate.lua v" .. _VERSION)
 
