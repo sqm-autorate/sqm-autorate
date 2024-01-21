@@ -1,8 +1,9 @@
 #!/bin/sh
 #   configure.sh: configures /etc/config/sqm-autorate
 #
-#   Copyright (C) 2022
+#   Copyright (C) 2022-2024
 #       Charles Corrigan mailto:chas-iot@runegate.org (github @chas-iot)
+#       Mark Baker mailto:mark@vpost.net (github @Fail-Safe)
 #
 #   This Source Code Form is subject to the terms of the Mozilla Public
 #   License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -473,7 +474,10 @@ Enabling 'sqm-autorate' service"
         if [ "${START_NOW}" == "Yes" ]; then
             echo "
 Starting 'sqm-autorate' service"
-            /etc/init.d/sqm-autorate stop
+            if /etc/init.d/sqm-autorate running; then
+                /etc/init.d/sqm-autorate stop
+                sleep 3 # Allow a few moments for things to stop and settle down
+            fi
             /etc/init.d/sqm-autorate start
         fi
     fi
