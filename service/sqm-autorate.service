@@ -6,16 +6,27 @@ STOP=4
 PID_FILE=/tmp/run/sqm-autorate.pid
 SERVICE_NAME="sqm-autorate"
 
+vstruct_installed() {
+    if ! luarocks show vstruct >/dev/null 2>&1; then
+        logger -t sqm-autorate "Installing vstruct for lua"
+        luarocks install vstruct
+    fi
+}
+
 service_triggers() {
     procd_add_reload_trigger $SERVICE_NAME
 }
 
 start_service() {
+    # shellcheck disable=SC3043
     local syslog_out output_cfg_id
+
+    # Ensure vstruct is installed
+    vstruct_installed
 
     # Temporary until section naming can be implemented
     output_cfg_id=$(uci show ${SERVICE_NAME}.@output[0] | head -n1 | sed -e 's/sqm-autorate.//' -e 's/=output//')
-    syslog_out=$(uci -q get ${SERVICE_NAME}.${output_cfg_id}.use_syslog)
+    syslog_out=$(uci -q get "${SERVICE_NAME}.${output_cfg_id}.use_syslog")
     if [ $? -eq 1 ]; then syslog_out=0; fi
 
     procd_open_instance
@@ -26,7 +37,7 @@ start_service() {
     procd_set_param respawn
     procd_set_param pidfile $PID_FILE
     procd_set_param file /etc/config/sqm-autorate
-    procd_set_param stdout $syslog_out
-    procd_set_param stderr $syslog_out
+    procd_set_param stdout "$syslog_out"
+    procd_set_param stderr "$syslog_out"
     procd_close_instance
 }
