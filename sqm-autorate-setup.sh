@@ -42,17 +42,18 @@ fi
 
 name="sqm-autorate"
 
-owrt_release_file="/etc/os-release"
+autorate_lib_path="/usr/lib/sqm-autorate"
 config_file="sqm-autorate.config"
-service_file="sqm-autorate.service"
-lua_file="sqm-autorate.lua"
+configure_file="configure.sh"
+delay_histogram_plugin="delay-histogram.lua"
 get_stats="getstats.sh"
+lua_file="sqm-autorate.lua"
+owrt_release_file="/etc/os-release"
 refl_icmp_file="reflectors-icmp.csv"
 refl_udp_file="reflectors-udp.csv"
-autorate_lib_path="/usr/lib/sqm-autorate"
+service_file="sqm-autorate.service"
 settings_file="sqma-settings.lua"
 utilities_file="sqma-utilities.lua"
-configure_file="configure.sh"
 
 # start of pre-installation checks
 cake=$(tc qdisc | grep -i cake)
@@ -151,6 +152,7 @@ if [ "$is_git_proj" = false ]; then
         $transfer "$refl_icmp_file" "$repo_root/lib/$refl_icmp_file"
         $transfer "$refl_udp_file" "$repo_root/lib/$refl_udp_file"
         $transfer "$configure_file" "$repo_root/lib/$configure_file"
+        $transfer "$delay_histogram_plugin" "$repo_root/lib/$delay_histogram_plugin"
     )
 fi
 
@@ -163,6 +165,7 @@ if [ "$is_git_proj" = true ]; then
     cp "./lib/$refl_icmp_file" "$autorate_lib_path/$refl_icmp_file"
     cp "./lib/$refl_udp_file" "$autorate_lib_path/$refl_udp_file"
     cp "./lib/$configure_file" "$autorate_lib_path/$configure_file"
+    cp "./lib/$delay_histogram_plugin" "$autorate_lib_path/$delay_histogram_plugin"
 fi
 
 echo ">>> Making $lua_file, $get_stats, and $configure_file executable..."
