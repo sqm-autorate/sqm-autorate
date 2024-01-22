@@ -38,4 +38,3 @@ jobs:
     - name: Run ShellCheck
       run: |
         shellcheck **/*.sh
-        

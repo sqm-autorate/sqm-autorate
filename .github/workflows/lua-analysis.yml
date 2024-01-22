@@ -44,4 +44,3 @@ jobs:
     - name: Run LuaCheck
       run: |
         luacheck lib
-        
