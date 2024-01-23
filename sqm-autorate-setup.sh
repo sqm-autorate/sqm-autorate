@@ -27,16 +27,16 @@
 TS=$(date -u -Iminutes) # to avoid identifying location by timezone
 
 if [ -z "$1" ]; then # no parameters, use default repo and branch
-    repo_root="https://raw.githubusercontent.com/sqm-autorate/sqm-autorate/main"
+    repo_tar="https://api.github.com/repos/sqm-autorate/sqm-autorate/tarball/main"
     INSTALLATION="  [release]"
 
 elif [ -z "$2" ]; then # one parameter, use specified branch in default repo
-    repo_root="https://raw.githubusercontent.com/sqm-autorate/sqm-autorate/${1}"
+    repo_tar="https://api.github.com/repos/sqm-autorate/sqm-autorate/tarball/${1}"
     INSTALLATION="\\\\n        branch ${1}\\\\n        ${TS}"
 
 else # two parameters, use specified repo and specified branch
-    repo_root="https://raw.githubusercontent.com/${1}/sqm-autorate/${2}"
-    INSTALLATION="\\\\n        ${repo_root}\\\\n        ${TS}"
+    repo_tar="https://api.github.com/repos/${1}/sqm-autorate/tarball/${2}"
+    INSTALLATION="\\\\n        ${repo_tar}\\\\n        ${TS}"
 
 fi
 
@@ -45,15 +45,9 @@ name="sqm-autorate"
 autorate_lib_path="/usr/lib/sqm-autorate"
 config_file="sqm-autorate.config"
 configure_file="configure.sh"
-delay_histogram_plugin="delay-histogram.lua"
-get_stats="getstats.sh"
 lua_file="sqm-autorate.lua"
 owrt_release_file="/etc/os-release"
-refl_icmp_file="reflectors-icmp.csv"
-refl_udp_file="reflectors-udp.csv"
 service_file="sqm-autorate.service"
-settings_file="sqma-settings.lua"
-utilities_file="sqma-utilities.lua"
 
 # start of pre-installation checks
 cake=$(tc qdisc | grep -i cake)
@@ -136,40 +130,27 @@ echo ">>> Creating ${autorate_lib_path}"
 mkdir -p "${autorate_lib_path}"
 
 if [ "$is_git_proj" = false ]; then
-    # Need to wget some stuff down...
+    # Need to transfer some stuff down...
     echo ">>> Downloading sqm-autorate files..."
     (
         cd "${autorate_lib_path}" || {
             echo "ERROR: could not find ${autorate_lib_path}"
-            exit
+            exit 1
         }
-        $transfer "$config_file" "$repo_root/config/$config_file"
-        $transfer "$service_file" "$repo_root/service/$service_file"
-        $transfer "$lua_file" "$repo_root/lib/$lua_file"
-        $transfer "$settings_file" "$repo_root/lib/$settings_file"
-        $transfer "$utilities_file" "$repo_root/lib/$utilities_file"
-        $transfer "$get_stats" "$repo_root/lib/$get_stats"
-        $transfer "$refl_icmp_file" "$repo_root/lib/$refl_icmp_file"
-        $transfer "$refl_udp_file" "$repo_root/lib/$refl_udp_file"
-        $transfer "$configure_file" "$repo_root/lib/$configure_file"
-        $transfer "$delay_histogram_plugin" "$repo_root/lib/$delay_histogram_plugin"
+        $transfer "$repo_tar" "/tmp/sqm-autorate-install.tar.gz"
+        tar -xzf "/tmp/sqm-autorate-install.tar.gz" -C /tmp
     )
 fi
 
+echo ">>> Putting lib files into place..."
 if [ "$is_git_proj" = true ]; then
-    echo ">>> Copying sqm-autorate lib files into place..."
-    cp "./lib/$lua_file" "$autorate_lib_path/$lua_file"
-    cp "./lib/$settings_file" "$autorate_lib_path/$settings_file"
-    cp "./lib/$utilities_file" "$autorate_lib_path/$utilities_file"
-    cp "./lib/$get_stats" "$autorate_lib_path/$get_stats"
-    cp "./lib/$refl_icmp_file" "$autorate_lib_path/$refl_icmp_file"
-    cp "./lib/$refl_udp_file" "$autorate_lib_path/$refl_udp_file"
-    cp "./lib/$configure_file" "$autorate_lib_path/$configure_file"
-    cp "./lib/$delay_histogram_plugin" "$autorate_lib_path/$delay_histogram_plugin"
+    cp -r ./lib/. "${autorate_lib_path}"
+else
+    cp -r /tmp/sqm-autorate-sqm-autorate-*/lib/. "${autorate_lib_path}"
 fi
 
-echo ">>> Making $lua_file, $get_stats, and $configure_file executable..."
-chmod +x "$autorate_lib_path/$lua_file" "$autorate_lib_path/$get_stats" "$autorate_lib_path/$configure_file"
+echo ">>> Making lua and shell files executable..."
+find "${autorate_lib_path}" -type f -regex ".*\.\(lua\|sh\)" | xargs chmod +x
 
 echo ">>> Putting config file into place..."
 if [ -f "/etc/config/sqm-autorate" ]; then
@@ -177,13 +158,13 @@ if [ -f "/etc/config/sqm-autorate" ]; then
     if [ "$is_git_proj" = true ]; then
         cp "./config/$config_file" "/etc/config/$name-NEW"
     else
-        mv "${autorate_lib_path}/$config_file" "/etc/config/$name-NEW"
+        cp "/tmp/sqm-autorate-sqm-autorate-*/config/$config_file" "/etc/config/$name-NEW"
     fi
 else
     if [ "$is_git_proj" = true ]; then
         cp "./config/$config_file" "/etc/config/$name"
     else
-        mv "${autorate_lib_path}/$config_file" "/etc/config/$name"
+        cp "/tmp/sqm-autorate-sqm-autorate-*/config/$config_file" "/etc/config/$name"
     fi
 fi
 
@@ -191,7 +172,7 @@ echo ">>> Putting service file into place..."
 if [ "$is_git_proj" = true ]; then
     cp "./service/$service_file" "/etc/init.d/$name"
 else
-    mv "${autorate_lib_path}/$service_file" "/etc/init.d/$name"
+    cp "/tmp/sqm-autorate-sqm-autorate-*/service/$service_file" "/etc/init.d/$name"
 fi
 chmod a+x "/etc/init.d/$name"
 
@@ -255,8 +236,13 @@ fi
 echo ">>> Updating VERSION string to include: ${INSTALLATION}"
 sed -i-orig "/n    /! s;^\([[:blank:]]*local[[:blank:]]*_VERSION[[:blank:]]*=[[:blank:]]*\".*\)\"[[:blank:]]*$;\1${INSTALLATION}\";" "${autorate_lib_path}/${lua_file}"
 
-echo "
->>> Installation complete, about to start configuration."
+# Clean up temporary files
+if [ "$is_git_proj" = false ]; then
+    echo ">>> Cleaning up temporary files..."
+    rm -r /tmp/sqm-autorate-install.tar.gz /tmp/sqm-autorate-sqm-autorate-*
+fi
+
+echo ">>> Installation complete, about to start configuration."
 
 if [ ! -x $autorate_lib_path/$configure_file ]; then
     echo "${autorate_lib_path}/${configure_file} is not found or not executable"

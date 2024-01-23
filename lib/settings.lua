@@ -1,7 +1,7 @@
 #!/usr/bin/env lua
 
 --[[
-    sqma-settings.lua: settings for sqm-autorate.lua
+    settings.lua: settings for sqm-autorate.lua
 
     Copyright (C) 2022
         Nils Andreas Svee mailto:contact@lochnair.net (github @Lochnair)
@@ -12,14 +12,16 @@
     This Source Code Form is subject to the terms of the Mozilla Public
     License, v. 2.0. If a copy of the MPL was not distributed with this
     file, You can obtain one at https://mozilla.org/MPL/2.0/.
-
-]] --
+]]
+--
 -- gets the external settings for sqm-autorate.lua
 -- OpenWRT uci settings take priority, then command line arguments, finally environment variables
 
 -- the module to be exported
 local M = {}
 
+local os = require "os"
+local util = require 'utility'
 
 -- print all of the module exported values, ignoring functions
 local function print_all()
@@ -53,7 +55,7 @@ local function print_all()
         end
     end
     table.sort(tmp_tbl,
-        function (a, b)
+        function(a, b)
             return a.name < b.name
         end)
     local function pad(s, l, c)
@@ -63,15 +65,41 @@ local function print_all()
         return s .. string.rep(c, l - #s)
     end
     local string_tbl = {}
-    string_tbl[1] ="internal settings"
+    string_tbl[1] = "internal settings"
     for i = 1, #tmp_tbl do
-        string_tbl[#string_tbl+1] = string.format("%s: %s (%s)", pad(tmp_tbl[i].name, name_max),
+        string_tbl[#string_tbl + 1] = string.format("%s: %s (%s)", pad(tmp_tbl[i].name, name_max),
             pad(tmp_tbl[i].value, value_max), tmp_tbl[i].type)
     end
-    string_tbl[#string_tbl+1] = "--"
+    string_tbl[#string_tbl + 1] = "--"
     print(table.concat(string_tbl, "\n        "))
 end
 
+local function load_reflector_list(file_path, ip_version, util)
+    ip_version = ip_version or "4"
+
+    local reflector_file = io.open(file_path)
+    if not reflector_file then
+        util.logger(util.loglevel.FATAL, "Could not open reflector file: '" .. file_path)
+        os.exit(1, true)
+    end
+
+    local reflectors = {}
+    local lines = reflector_file:lines()
+    for line in lines do
+        local tokens = {}
+        for token in string.gmatch(line, "([^,]+)") do -- Split the line on commas
+            tokens[#tokens + 1] = token
+        end
+        local ip = tokens[1]
+        local vers = tokens[2]
+        if ip_version == "46" or ip_version == "both" or ip_version == "all" then
+            reflectors[#reflectors + 1] = ip
+        elseif vers == ip_version then
+            reflectors[#reflectors + 1] = ip
+        end
+    end
+    return reflectors
+end
 
 -- a stub for plugins to retrieve their UCI settings
 --  parameters
@@ -83,7 +111,6 @@ function M.plugin(_plugin)
     return {}
 end
 
-
 -- initialises the settings
 --  parameters
 --      requires    - a table of modules already setup. This module depends on lanes, math, and the utilities
@@ -91,22 +118,17 @@ end
 --  returns
 --      M           - the module itself
 --
-function M.initialise(requires, version)
+function M.initialise(requires, version, _reflector_data)
     if version == nil then
         version = "version is not set, likely a programming error"
     end
 
-    local utilities = requires.utilities
-    local loglevel = utilities.loglevel
-    local logger = utilities.logger
-    local set_loglevel = utilities.set_loglevel
-    local get_loglevel = utilities.get_loglevel
-    local is_module_available = utilities.is_module_available
+    local reflector_data = assert(_reflector_data, 'linda for reflector data required')
 
     local lanes = requires.lanes
     if lanes == nil then
-        if logger then
-            logger(loglevel.FATAL, "programming error. Please inform developers that 'lanes' is missing")
+        if util.logger then
+            util.logger(util.loglevel.FATAL, "programming error. Please inform developers that 'lanes' is missing")
         else
             print "FATAL programming error. Please inform programmers that 'logger' and 'lanes' are missing"
         end
@@ -118,20 +140,21 @@ function M.initialise(requires, version)
     local max = math.max
     local floor = math.floor
     local function limit(value, lowest, highest)
-        return min( max( value, lowest), highest )
+        return min(max(value, lowest), highest)
     end
 
     -- Figure out if we are running on OpenWrt here and load luci.model.uci if available...
-    local uci_settings = nil
-    if is_module_available("luci.model.uci") then
-        local uci_lib = lanes.require("luci.model.uci")
+    local uci_lib
+    local uci_settings
+    if util.is_module_available("luci.model.uci") then
+        uci_lib = require("luci.model.uci")
         uci_settings = uci_lib.cursor()
 
         M.plugin = function(plugin_name)
             return uci_settings:get_all("sqm-autorate", "@" .. plugin_name .. "[0]")
         end
     else
-        logger(loglevel.WARN, "did not find uci library")
+        util.logger(util.loglevel.WARN, "did not find uci library")
     end
 
     -- If we have sqm installed, but it is disabled, this whole thing is moot. Let's bail early in that case.
@@ -139,7 +162,7 @@ function M.initialise(requires, version)
     if uci_settings then
         local sqm_enabled = tonumber(uci_settings:get("sqm", "@queue[0]", "enabled"), 10)
         if sqm_enabled == 0 then
-            logger(loglevel.FATAL,
+            util.logger(util.loglevel.FATAL,
                 "SQM is not enabled on this OpenWrt system. Please enable it before starting sqm-autorate.")
             os.exit(1, true)
         end
@@ -147,7 +170,7 @@ function M.initialise(requires, version)
 
     -- Try to load argparse if it's installed
     local args = nil
-    if is_module_available("argparse") then
+    if util.is_module_available("argparse") then
         local argparse = require "argparse"
         if argparse then
             local parser = argparse("sqm-autorate.lua", "CAKE with Adaptive Bandwidth - 'autorate'",
@@ -189,18 +212,18 @@ function M.initialise(requires, version)
     do
         local upload_interface = uci_settings and uci_settings:get("sqm-autorate", "@network[0]",
             "upload_interface")
-        upload_interface = upload_interface or ( args and args.upload_interface )
-        upload_interface = upload_interface or ( os.getenv("SQMA_UPLOAD_INTERFACE") )
+        upload_interface = upload_interface or (args and args.upload_interface)
+        upload_interface = upload_interface or (os.getenv("SQMA_UPLOAD_INTERFACE"))
         M.ul_if = upload_interface
 
         local download_interface = uci_settings and uci_settings:get("sqm-autorate", "@network[0]",
             "download_interface")
-        download_interface = download_interface or ( args and args.download_interface )
-        download_interface = download_interface or ( os.getenv("SQMA_DOWNLOAD_INTERFACE") )
+        download_interface = download_interface or (args and args.download_interface)
+        download_interface = download_interface or (os.getenv("SQMA_DOWNLOAD_INTERFACE"))
         M.dl_if = download_interface
 
         if upload_interface == nil or download_interface == nil then
-            logger(loglevel.FATAL,
+            util.logger(util.loglevel.FATAL,
                 "No interfaces found, please check the settings for 'upload_interface' and 'download_interface'")
             os.exit(1, true)
         end
@@ -209,7 +232,7 @@ function M.initialise(requires, version)
     do
         local upload_base_kbits = uci_settings and uci_settings:get("sqm-autorate", "@network[0]",
             "upload_base_kbits")
-        upload_base_kbits = upload_base_kbits or ( args and args.upload_base_kbits )
+        upload_base_kbits = upload_base_kbits or (args and args.upload_base_kbits)
         upload_base_kbits = upload_base_kbits or os.getenv("SQMA_UPLOAD_BASE_KBITS")
         M.base_ul_rate = floor(tonumber(upload_base_kbits, 10) or 10000)
     end
@@ -217,18 +240,18 @@ function M.initialise(requires, version)
     do
         local download_base_kbits = uci_settings and uci_settings:get("sqm-autorate", "@network[0]",
             "download_base_kbits")
-        download_base_kbits = download_base_kbits or ( args and args.download_base_kbits )
-        download_base_kbits = download_base_kbits or ( os.getenv("SQMA_DOWNLOAD_BASE_KBITS") )
+        download_base_kbits = download_base_kbits or (args and args.download_base_kbits)
+        download_base_kbits = download_base_kbits or (os.getenv("SQMA_DOWNLOAD_BASE_KBITS"))
         M.base_dl_rate = floor(tonumber(download_base_kbits, 10) or 10000)
     end
 
     do
         local upload_min_percent = uci_settings and uci_settings:get("sqm-autorate", "@network[0]",
             "upload_min_percent")
-        upload_min_percent = upload_min_percent or ( args and args.upload_min_percent )
-        upload_min_percent = upload_min_percent or ( os.getenv("SQMA_UPLOAD_MIN_PERCENT") )
+        upload_min_percent = upload_min_percent or (args and args.upload_min_percent)
+        upload_min_percent = upload_min_percent or (os.getenv("SQMA_UPLOAD_MIN_PERCENT"))
         if upload_min_percent == nil then
-            M.min_ul_rate = floor(M.base_ul_rate / 5)   -- 20%
+            M.min_ul_rate = floor(M.base_ul_rate / 5) -- 20%
         else
             upload_min_percent = limit(tonumber(upload_min_percent), 10, 75)
             M.min_ul_rate = floor(M.base_ul_rate * upload_min_percent / 100)
@@ -238,10 +261,10 @@ function M.initialise(requires, version)
     do
         local download_min_percent = uci_settings and uci_settings:get("sqm-autorate", "@network[0]",
             "download_min_percent")
-        download_min_percent = download_min_percent or ( args and args.download_min_percent )
-        download_min_percent = download_min_percent or ( os.getenv("SQMA_DOWNLOAD_MIN_PERCENT") )
+        download_min_percent = download_min_percent or (args and args.download_min_percent)
+        download_min_percent = download_min_percent or (os.getenv("SQMA_DOWNLOAD_MIN_PERCENT"))
         if download_min_percent == nil then
-            M.min_dl_rate = floor(M.base_dl_rate / 5)   -- 20%
+            M.min_dl_rate = floor(M.base_dl_rate / 5) -- 20%
         else
             download_min_percent = limit(tonumber(download_min_percent), 10, 75)
             M.min_dl_rate = floor(M.base_dl_rate * download_min_percent / 100)
@@ -250,8 +273,8 @@ function M.initialise(requires, version)
 
     do
         local stats_file = uci_settings and uci_settings:get("sqm-autorate", "@output[0]", "stats_file")
-        stats_file = stats_file or ( args and args.stats_file )
-        stats_file = stats_file or ( os.getenv("SQMA_STATS_FILE") )
+        stats_file = stats_file or (args and args.stats_file)
+        stats_file = stats_file or (os.getenv("SQMA_STATS_FILE"))
         if stats_file == nil then
             stats_file = "/tmp/sqm-autorate.csv"
         end
@@ -260,8 +283,8 @@ function M.initialise(requires, version)
 
     do
         local speed_hist_file = uci_settings and uci_settings:get("sqm-autorate", "@output[0]", "speed_hist_file")
-        speed_hist_file = speed_hist_file or ( args and args.speed_hist_file )
-        speed_hist_file = speed_hist_file or ( os.getenv("SQMA_SPEED_HIST_FILE") )
+        speed_hist_file = speed_hist_file or (args and args.speed_hist_file)
+        speed_hist_file = speed_hist_file or (os.getenv("SQMA_SPEED_HIST_FILE"))
         if speed_hist_file == nil then
             speed_hist_file = "/tmp/sqm-speedhist.csv"
         end
@@ -270,21 +293,21 @@ function M.initialise(requires, version)
 
     do
         local log_level = uci_settings and uci_settings:get("sqm-autorate", "@output[0]", "log_level")
-        log_level = log_level or ( args and args.log_level )
-        log_level = log_level or ( os.getenv("SQMA_LOG_LEVEL") )
+        log_level = log_level or (args and args.log_level)
+        log_level = log_level or (os.getenv("SQMA_LOG_LEVEL"))
         if log_level == nil then
             log_level = "INFO"
         end
         log_level = string.upper(log_level)
-        set_loglevel(log_level)
-        M.log_level = get_loglevel()
+        util.set_loglevel(log_level)
+        M.log_level = util.get_loglevel()
     end
 
     do
         local speed_hist_size = uci_settings and uci_settings:get("sqm-autorate", "@advanced_settings[0]",
             "speed_hist_size")
-        speed_hist_size = speed_hist_size or ( args and args.speed_hist_size )
-        speed_hist_size = speed_hist_size or ( os.getenv("SQMA_SPEED_HIST_SIZE") )
+        speed_hist_size = speed_hist_size or (args and args.speed_hist_size)
+        speed_hist_size = speed_hist_size or (os.getenv("SQMA_SPEED_HIST_SIZE"))
         if speed_hist_size == nil then
             speed_hist_size = "100"
         end
@@ -294,8 +317,8 @@ function M.initialise(requires, version)
     do
         local upload_delay_ms = uci_settings and uci_settings:get("sqm-autorate", "@advanced_settings[0]",
             "upload_delay_ms")
-        upload_delay_ms = upload_delay_ms or ( args and args.upload_delay_ms )
-        upload_delay_ms = upload_delay_ms or ( os.getenv("SQMA_UPLOAD_DELAY_MS") )
+        upload_delay_ms = upload_delay_ms or (args and args.upload_delay_ms)
+        upload_delay_ms = upload_delay_ms or (os.getenv("SQMA_UPLOAD_DELAY_MS"))
         if upload_delay_ms == nil then
             upload_delay_ms = "15"
         end
@@ -305,8 +328,8 @@ function M.initialise(requires, version)
     do
         local download_delay_ms = uci_settings and uci_settings:get("sqm-autorate", "@advanced_settings[0]",
             "download_delay_ms")
-        download_delay_ms = download_delay_ms or ( args and args.download_delay_ms )
-        download_delay_ms = download_delay_ms or ( os.getenv("SQMA_DOWNLOAD_DELAY_MS") )
+        download_delay_ms = download_delay_ms or (args and args.download_delay_ms)
+        download_delay_ms = download_delay_ms or (os.getenv("SQMA_DOWNLOAD_DELAY_MS"))
         if download_delay_ms == nil then
             download_delay_ms = "15"
         end
@@ -316,8 +339,8 @@ function M.initialise(requires, version)
     do
         local high_load_level = uci_settings and uci_settings:get("sqm-autorate", "@advanced_settings[0]",
             "high_load_level")
-        high_load_level = high_load_level or ( args and args.high_load_level )
-        high_load_level = high_load_level or ( os.getenv("SQMA_HIGH_LEVEL_LOAD") )
+        high_load_level = high_load_level or (args and args.high_load_level)
+        high_load_level = high_load_level or (os.getenv("SQMA_HIGH_LEVEL_LOAD"))
         if high_load_level == nil then
             high_load_level = "0.8"
         end
@@ -348,7 +371,7 @@ function M.initialise(requires, version)
                     string.lower(suppress_statistics) == "y"
             end
         end
-        suppress_statistics = suppress_statistics or ( args and args.suppress_statistics )
+        suppress_statistics = suppress_statistics or (args and args.suppress_statistics)
         if not suppress_statistics then
             suppress_statistics = tostring(os.getenv("SQMA_SUPPRESS_STATISTICS"))
             suppress_statistics = suppress_statistics == "1" or
@@ -359,24 +382,61 @@ function M.initialise(requires, version)
         M.output_statistics = not suppress_statistics
     end
 
-    do
-        local plugin_ratecontrol = uci_settings and uci_settings:get("sqm-autorate", "@plugins[0]", "ratecontrol")
-        plugin_ratecontrol = plugin_ratecontrol or ( args and args.plugin_ratecontrol )
-        plugin_ratecontrol = plugin_ratecontrol or ( os.getenv("SQMA_PLUGIN_RATECONTROL") )
-        M.plugin_ratecontrol = plugin_ratecontrol
-    end
-
     M.enable_verbose_baseline_output =
-        get_loglevel() == "TRACE" or
-        get_loglevel() == "DEBUG"
+        util.get_loglevel() == "TRACE" or
+        util.get_loglevel() == "DEBUG"
 
-    M.tick_duration = 0.5 -- Frequency in seconds
+    M.tick_duration = 0.5       -- Frequency in seconds
     M.min_change_interval = 0.5 -- don't change speeds unless this many seconds has passed since last change
+    M.ratecontroller = 'ewma'
 
     M.reflector_list_icmp = "/usr/lib/sqm-autorate/reflectors-icmp.csv"
     M.reflector_list_udp = "/usr/lib/sqm-autorate/reflectors-udp.csv"
 
-    if args and ( args.version or args.show_settings) then
+    -- Load up the reflectors temp table
+    local tmp_reflectors = {}
+    if M.reflector_type == "icmp" then
+        tmp_reflectors = load_reflector_list(M.reflector_list_icmp, "4", util)
+    elseif M.reflector_type == "udp" then
+        tmp_reflectors = load_reflector_list(M.reflector_list_udp, "4", util)
+    else
+        util.logger(util.loglevel.FATAL, "Unknown reflector type specified: " .. M.reflector_type)
+        os.exit(1, true)
+    end
+
+    util.logger(util.loglevel.INFO, "Reflector Pool Size: " .. #tmp_reflectors)
+
+    -- Load up the reflectors shared tables
+    reflector_data:set("reflector_tables", {
+        peers = tmp_reflectors,
+        pool = tmp_reflectors
+    })
+
+    -- Number of reflector peers to use from the pool
+    M.num_reflectors = 5
+
+    -- Time (in minutes) before re-selection of peers from the pool
+    M.peer_reselection_time = 15
+
+    -- Only perform plugin initialization after all core settings have established values in this module
+    do
+        local plugin_ratecontrol = uci_settings and uci_settings:get("sqm-autorate", "@plugins[0]", "ratecontrol")
+        plugin_ratecontrol = plugin_ratecontrol or (args and args.plugin_ratecontrol)
+        plugin_ratecontrol = plugin_ratecontrol or (os.getenv("SQMA_PLUGIN_RATECONTROL"))
+
+        if plugin_ratecontrol then
+            if util.is_module_available(plugin_ratecontrol) then
+                util.logger(util.loglevel.WARN, "Loading plugin: " .. plugin_ratecontrol)
+                plugin_ratecontrol = require(plugin_ratecontrol).initialise(requires, M)
+                requires.plugin_ratecontrol = plugin_ratecontrol
+                M.plugin_ratecontrol = plugin_ratecontrol
+            else
+                util.logger(util.loglevel.ERROR, "Could not find configured plugin: " .. plugin_ratecontrol)
+            end
+        end
+    end
+
+    if args and (args.version or args.show_settings) then
         print(version)
 
         if args.show_settings then

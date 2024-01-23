@@ -1,0 +1,5 @@
+{
+    "Lua.diagnostics.globals": [
+        "set_debug_threadname"
+    ]
+}
