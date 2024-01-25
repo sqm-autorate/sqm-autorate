@@ -28,6 +28,7 @@ local function print_all()
     local tmp_tbl = {}
     local name_max = 0
     local value_max = 0
+    local type_max = 0
     for name, value in pairs(M) do
         if type(name) == "boolean" or type(name) == "number" then
             name = tostring(name)
@@ -57,6 +58,9 @@ local function print_all()
 
         if type_name ~= "function" then
             tmp_tbl[#tmp_tbl + 1] = { name = name, value = value, type = type_name }
+            if #type_name > type_max then
+                type_max = #type_name
+            end
         end
     end
 
@@ -70,7 +74,8 @@ local function print_all()
     end
 
     local string_tbl = {}
-    string_tbl[1] = "internal settings"
+    string_tbl[1] = "> Internal Settings <"
+    string_tbl[2] = pad("", name_max, "-") .. pad("", value_max, "-") .. pad("", type_max, "-")
     for i = 1, #tmp_tbl do
         string_tbl[#string_tbl + 1] = string.format("%s: %s (%s)", pad(tmp_tbl[i].name, name_max),
             pad(tmp_tbl[i].value, value_max), tmp_tbl[i].type)
@@ -306,7 +311,7 @@ function M.initialise(requires, version, _reflector_data)
         end
         log_level = string.upper(log_level)
         util.set_loglevel(log_level)
-        M.log_level = log_level
+        M.log_level = util.get_loglevel()
     end
 
     do
