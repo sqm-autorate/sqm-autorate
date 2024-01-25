@@ -23,6 +23,8 @@ local M = {}
 local os = require 'os'
 local util = require 'utility'
 
+local app_version
+
 -- print all of the module exported values, ignoring functions
 local function print_all()
     local tmp_tbl = {}
@@ -78,7 +80,7 @@ local function print_all()
     end
 
     local string_tbl = {}
-    string_tbl[1] = "\n> Internal Settings <"
+    string_tbl[1] = "\n> Internal Settings - Version " .. app_version .. " <"
     string_tbl[2] = pad("", name_max + 2, "-") .. pad("", value_max + 2, "-") .. pad("", type_max, "-")
     for i = 1, #tmp_tbl do
         string_tbl[#string_tbl + 1] = string.format("%s: %s (%s)", pad(tmp_tbl[i].name, name_max),
@@ -135,7 +137,9 @@ end
 --
 function M.initialise(requires, version, _reflector_data)
     if version == nil then
-        version = "version is not set, likely a programming error"
+        app_version = "version is not set, likely a programming error"
+    else
+        app_version = version
     end
 
     local reflector_data = assert(_reflector_data, 'linda for reflector data required')
@@ -451,7 +455,7 @@ function M.initialise(requires, version, _reflector_data)
     end
 
     if args then
-        if args.version then print("Version " .. version) end
+        if args.version then print("Version " .. app_version) end
         if args.show_settings then print_all() end
         os.exit(0, true)
     end
