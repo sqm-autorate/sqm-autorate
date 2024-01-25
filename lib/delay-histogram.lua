@@ -173,6 +173,7 @@ local latest_histogram_no = 0     -- deliberately invalid for first pass - lua a
 
 local last_recalculated_time = 90 -- start the first recalculation 90s later, to allow for initialisation
 
+local first_run = false
 
 local function initialise_histogram(new_histogram, now)
     -- initialise the new slot
@@ -190,6 +191,12 @@ local function initialise_histogram(new_histogram, now)
     t = download_histogram[new_histogram]
     for i = min_allowed_threshold, max_allowed_threshold do
         t[i] = 0
+    end
+
+    if first_run == false and logger then
+        logger(histogram_log_level, "delay histogram - abbreviations - s: seconds;  ms: milliseconds of delay;  " ..
+            "#: count;  p: proportion of total; c: cumulative proportion")
+        first_run = true
     end
 
     return new_histogram
@@ -274,9 +281,6 @@ function M.initialise(requires, settings)
     for i = 1, number_of_histograms do
         initialise_histogram(i, 0)
     end
-
-    logger(histogram_log_level, "delay histogram - abbreviations - s: seconds;  ms: milliseconds of delay;  " ..
-        "#: count;  p: proportion of total; c: cumulative proportion")
 
     -- return the module
     return M
