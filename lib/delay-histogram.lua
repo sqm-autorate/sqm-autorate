@@ -173,7 +173,7 @@ local latest_histogram_no = 0     -- deliberately invalid for first pass - lua a
 
 local last_recalculated_time = 90 -- start the first recalculation 90s later, to allow for initialisation
 
-local first_run = false
+local first_run = true
 
 local function initialise_histogram(new_histogram, now)
     -- initialise the new slot
@@ -193,10 +193,10 @@ local function initialise_histogram(new_histogram, now)
         t[i] = 0
     end
 
-    if first_run == false and logger then
+    if first_run and logger then
         logger(histogram_log_level, "delay histogram - abbreviations - s: seconds;  ms: milliseconds of delay;  " ..
             "#: count;  p: proportion of total; c: cumulative proportion")
-        first_run = true
+        first_run = false
     end
 
     return new_histogram
