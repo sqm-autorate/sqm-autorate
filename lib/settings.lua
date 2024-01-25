@@ -38,11 +38,6 @@ local function print_all()
         end
 
         local type_name = type(value)
-        if name == "use_loglevel" then
-            value = value.name
-            type_name = "extracted from table"
-        end
-
         if type_name == "nil" then
             value = "nil"
         elseif type_name == "boolean" or type_name == "number" then
@@ -127,7 +122,7 @@ end
 --  returns
 --      uci         - a table of UCI option values
 --
-function M.plugin(_plugin)
+function M.plugin(_)
     return {}
 end
 
@@ -383,7 +378,7 @@ function M.initialise(requires, version, _reflector_data)
     end
 
     do
-        local suppress_statistics = false
+        local suppress_statistics
         if uci_settings then
             suppress_statistics = tostring(uci_settings:get("sqm-autorate", "@output[0]", "suppress_statistics"))
             if suppress_statistics then

@@ -20,19 +20,19 @@ local M = {}
 local math = require "math"
 local util = require 'utility'
 
-local settings, owd_data, stats_queue, reselector_channel, signal_to_ratecontrol
+local settings, owd_data, stats_queue, reselector_channel --, signal_to_ratecontrol
 
 -- calculate an ewma factor so that at tick it takes dur to get frac change during step response
 local function ewma_factor(tick, dur)
     return math.exp(math.log(0.5) / (dur / tick))
 end
 
-function M.configure(_settings, _owd_data, _stats_queue, _reselector_channel, _signal_to_ratecontrol)
+function M.configure(_settings, _owd_data, _stats_queue, _reselector_channel, _)
     settings = assert(_settings, "settings cannot be nil")
     owd_data = assert(_owd_data, "an owd_data linda is required")
     stats_queue = assert(_stats_queue, "a stats queue linda is required")
     reselector_channel = assert(_reselector_channel, 'need the reselector channel linda')
-    signal_to_ratecontrol = assert(_signal_to_ratecontrol, "a linda to signal the ratecontroller is required")
+    -- signal_to_ratecontrol = assert(_signal_to_ratecontrol, "a linda to signal the ratecontroller is required")
 
     return M
 end
