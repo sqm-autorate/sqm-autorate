@@ -24,7 +24,7 @@ local os = require 'os'
 local string = require 'string'
 local util = require 'utility'
 
-local settings, owd_data, reflector_data, reselector_channel, signal_to_ratecontrol
+local settings, owd_data, reflector_data, reselector_channel --, signal_to_ratecontrol
 
 local function read_stats_file(file)
     file:seek("set", 0)
@@ -34,20 +34,21 @@ end
 
 local function update_cake_bandwidth(iface, rate_in_kbit)
     local is_changed = false
-    if (iface == settings.dl_if and rate_in_kbit >= settings.min_dl_rate) or (iface == settings.ul_if and rate_in_kbit >= settings.min_ul_rate) then
+    if (iface == settings.dl_if and rate_in_kbit >= settings.min_dl_rate) or
+        (iface == settings.ul_if and rate_in_kbit >= settings.min_ul_rate) then
         os.execute(string.format("tc qdisc change root dev %s cake bandwidth %sKbit", iface, rate_in_kbit))
         is_changed = true
     end
     return is_changed
 end
 
-function M.configure(_settings, _owd_data, _reflector_data, _reselector_channel, _signal_to_ratecontrol)
+function M.configure(_settings, _owd_data, _reflector_data, _reselector_channel, _)
     base.configure(_settings)
     settings = assert(_settings, "settings cannot be nil")
     owd_data = assert(_owd_data, "an owd_data linda is required")
     reflector_data = assert(_reflector_data, "a linda to get reflector data is required")
     reselector_channel = assert(_reselector_channel, 'need the reselector channel linda')
-    signal_to_ratecontrol = assert(_signal_to_ratecontrol, "a linda to signal the ratecontroller is required")
+    -- signal_to_ratecontrol = assert(_signal_to_ratecontrol, "a linda to signal the ratecontroller is required")
 
     -- Set initial TC values
     update_cake_bandwidth(settings.dl_if, settings.base_dl_rate)
@@ -217,7 +218,8 @@ function M.ratecontrol()
                         next_dl_rate = cur_dl_rate
                         util.logger(util.loglevel.DEBUG,
                             "up_del_stat " .. up_del_stat .. " down_del_stat " .. down_del_stat)
-                        if up_del_stat and up_del_stat < settings.ul_max_delta_owd and tx_load > settings.high_load_level then
+                        if up_del_stat and up_del_stat < settings.ul_max_delta_owd
+                            and tx_load > settings.high_load_level then
                             safe_ul_rates[nrate_up] = floor(cur_ul_rate * tx_load)
                             local max_ul = util.maximum(safe_ul_rates)
                             next_ul_rate = cur_ul_rate * (1 + .1 * max(0, (1 - cur_ul_rate / max_ul))) +
@@ -225,7 +227,8 @@ function M.ratecontrol()
                             nrate_up = nrate_up + 1
                             nrate_up = nrate_up % settings.histsize
                         end
-                        if down_del_stat and down_del_stat < settings.dl_max_delta_owd and rx_load > settings.high_load_level then
+                        if down_del_stat and down_del_stat < settings.dl_max_delta_owd
+                            and rx_load > settings.high_load_level then
                             safe_dl_rates[nrate_down] = floor(cur_dl_rate * rx_load)
                             local max_dl = util.maximum(safe_dl_rates)
                             next_dl_rate = cur_dl_rate * (1 + .1 * max(0, (1 - cur_dl_rate / max_dl))) +
