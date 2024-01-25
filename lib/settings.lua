@@ -23,8 +23,8 @@ local M = {}
 local os = require 'os'
 local util = require 'utility'
 
-local app_version
-local plugin_ratecontrol_name
+local app_version = ""
+local plugin_ratecontrol_name = ""
 
 -- print all of the module exported values, ignoring functions
 local function print_all()
