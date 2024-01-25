@@ -74,8 +74,8 @@ local function print_all()
     end
 
     local string_tbl = {}
-    string_tbl[1] = "> Internal Settings <"
-    string_tbl[2] = pad("", name_max, "-") .. pad("", value_max, "-") .. pad("", type_max, "-")
+    string_tbl[1] = "\n> Internal Settings <"
+    string_tbl[2] = pad("", name_max + 2, "-") .. pad("", value_max + 2, "-") .. pad("", type_max, "-")
     for i = 1, #tmp_tbl do
         string_tbl[#string_tbl + 1] = string.format("%s: %s (%s)", pad(tmp_tbl[i].name, name_max),
             pad(tmp_tbl[i].value, value_max), tmp_tbl[i].type)
