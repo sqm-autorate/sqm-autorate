@@ -173,7 +173,7 @@ local latest_histogram_no = 0     -- deliberately invalid for first pass - lua a
 
 local last_recalculated_time = 90 -- start the first recalculation 90s later, to allow for initialisation
 
-local first_run = true
+local first_run = false
 
 local function initialise_histogram(new_histogram, now)
     -- initialise the new slot
@@ -281,6 +281,8 @@ function M.initialise(requires, settings)
     for i = 1, number_of_histograms do
         initialise_histogram(i, 0)
     end
+
+    first_run = true
 
     -- return the module
     return M
