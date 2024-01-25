@@ -245,7 +245,7 @@ function M.initialise(requires, version, _reflector_data)
             "upload_base_kbits")
         upload_base_kbits = upload_base_kbits or (args and args.upload_base_kbits)
         upload_base_kbits = upload_base_kbits or os.getenv("SQMA_UPLOAD_BASE_KBITS")
-        M.base_ul_rate = floor(tonumber(upload_base_kbits, 10) or 10000)
+        M.base_ul_rate = floor(tonumber(string(upload_base_kbits), 10) or 10000)
     end
 
     do
@@ -253,7 +253,7 @@ function M.initialise(requires, version, _reflector_data)
             "download_base_kbits")
         download_base_kbits = download_base_kbits or (args and args.download_base_kbits)
         download_base_kbits = download_base_kbits or (os.getenv("SQMA_DOWNLOAD_BASE_KBITS"))
-        M.base_dl_rate = floor(tonumber(download_base_kbits, 10) or 10000)
+        M.base_dl_rate = floor(tonumber(string(download_base_kbits), 10) or 10000)
     end
 
     do
@@ -394,8 +394,8 @@ function M.initialise(requires, version, _reflector_data)
     end
 
     M.enable_verbose_baseline_output =
-        util.get_loglevel() == "TRACE" or
-        util.get_loglevel() == "DEBUG"
+        util.get_loglevel_name() == "TRACE" or
+        util.get_loglevel_name() == "DEBUG"
 
     M.tick_duration = 0.5       -- Frequency in seconds
     M.min_change_interval = 0.5 -- don't change speeds unless this many seconds has passed since last change
@@ -407,20 +407,18 @@ function M.initialise(requires, version, _reflector_data)
     -- Load up the reflectors temp table
     local tmp_reflectors = {}
     if M.reflector_type == "icmp" then
-        tmp_reflectors = load_reflector_list(M.reflector_list_icmp, "4", util)
+        tmp_reflectors = load_reflector_list(M.reflector_list_icmp, "4")
     elseif M.reflector_type == "udp" then
-        tmp_reflectors = load_reflector_list(M.reflector_list_udp, "4", util)
+        tmp_reflectors = load_reflector_list(M.reflector_list_udp, "4")
     else
         util.logger(util.loglevel.FATAL, "Unknown reflector type specified: " .. M.reflector_type)
         os.exit(1, true)
     end
 
-    util.logger(util.loglevel.INFO, "Reflector Pool Size: " .. #tmp_reflectors)
-
     -- Load up the reflectors shared tables
     -- seed the peers with a set of "good candidates", we will adjust using the peer selector through time
     reflector_data:set("reflector_tables", {
-        peers = {"9.9.9.9", "8.238.120.14", "74.82.42.42", "194.242.2.2", "208.67.222.222", "94.140.14.14"},
+        peers = { "9.9.9.9", "8.238.120.14", "74.82.42.42", "194.242.2.2", "208.67.222.222", "94.140.14.14" },
         pool = tmp_reflectors
     })
 
@@ -431,6 +429,7 @@ function M.initialise(requires, version, _reflector_data)
     M.peer_reselection_time = 15
 
     -- Only perform plugin initialization after all core settings have established values in this module
+    M.plugin_ratecontrol = nil
     do
         local plugin_ratecontrol = uci_settings and uci_settings:get("sqm-autorate", "@plugins[0]", "ratecontrol")
         plugin_ratecontrol = plugin_ratecontrol or (args and args.plugin_ratecontrol)
@@ -438,7 +437,6 @@ function M.initialise(requires, version, _reflector_data)
 
         if plugin_ratecontrol then
             if util.is_module_available(plugin_ratecontrol) then
-                util.logger(util.loglevel.WARN, "Loading plugin: " .. plugin_ratecontrol)
                 plugin_ratecontrol = require(plugin_ratecontrol).initialise(requires, M)
                 requires.plugin_ratecontrol = plugin_ratecontrol
                 M.plugin_ratecontrol = plugin_ratecontrol

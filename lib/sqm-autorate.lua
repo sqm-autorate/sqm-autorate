@@ -35,6 +35,10 @@ local _VERSION = "0.5.3"
 
 local requires = {}
 
+-- Something about luci / uci modules seems to introduce non thread-safe full userdata.
+-- As our only interaction with luci/uci is to lookup settings from the sqm-autorate
+-- config, this is not a breaking issue. We must disable (read: demote) full userdata
+-- to acknowledge and move past this issue, else lanes will not work.
 local lanes = require "lanes".configure({ demote_full_userdata = true })
 requires.lanes = lanes
 
@@ -93,6 +97,14 @@ local function conductor()
         util.logger(util.loglevel.FATAL,
             "SQM is not enabled on this OpenWrt system. Please enable it before starting sqm-autorate.")
         os.exit(1, true)
+    end
+
+    local reflector_tables = reflector_data:get("reflector_tables")
+    local reflector_pool = reflector_tables["pool"]
+    util.logger(util.loglevel.INFO, "Reflector Pool Size: " .. #reflector_pool)
+
+    if settings.plugin_ratecontrol then
+        util.logger(util.loglevel.WARN, "Loaded ratecontrol plugin: " .. settings.plugin_ratecontrol)
     end
 
     -- Random seed
