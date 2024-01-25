@@ -106,7 +106,7 @@ local function curry(check, level)
             return value ~= level
         end
     else
-        return function(_value)
+        return function(_)
             return false
         end
     end
@@ -135,7 +135,7 @@ function log_readings.initialise(requires, settings)
         if plugin_settings and plugin_settings ~= {} then
             for option_name, option_value in pairs(plugin_settings) do
                 if option_name == "interval_seconds" then
-                    interval_seconds = tonumber(option_value)
+                    interval_seconds = tonumber(option_value, 10)
                     string_table[#string_table + 1] = "interval_seconds=" .. tostring(interval_seconds)
                 elseif option_name == "log_level" then
                     log_level = option_value
@@ -229,7 +229,7 @@ function log_readings.process(readings)
             string_table[#string_table + 1] = pad(data.name, name_max) .. ": " ..
                 pad(data.value, value_max) .. " (" .. data.value_type .. ")"
         end
-        if #string_table > 1 then
+        if #string_table > 1 and logger and loglevel then
             logger(loglevel.INFO, table.concat(string_table, "\n        "))
         end
     end
