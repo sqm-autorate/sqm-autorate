@@ -45,7 +45,11 @@ local function print_all()
         elseif type_name == "boolean" or type_name == "number" then
             value = tostring(value)
         elseif type_name == "table" or type_name == "function" then
-            value = ""
+            if name == "log_level" then
+                value = util.get_loglevel_name()
+            else
+                value = ""
+            end
         end
 
         if #name > name_max then
