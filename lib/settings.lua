@@ -20,7 +20,7 @@
 -- the module to be exported
 local M = {}
 
-local os = require "os"
+local os = require 'os'
 local util = require 'utility'
 
 -- print all of the module exported values, ignoring functions
@@ -32,11 +32,13 @@ local function print_all()
         if type(name) == "boolean" or type(name) == "number" then
             name = tostring(name)
         end
+
         local type_name = type(value)
         if name == "use_loglevel" then
             value = value.name
             type_name = "extracted from table"
         end
+
         if type_name == "nil" then
             value = "nil"
         elseif type_name == "boolean" or type_name == "number" then
@@ -44,37 +46,41 @@ local function print_all()
         elseif type_name == "table" or type_name == "function" then
             value = ""
         end
+
         if #name > name_max then
             name_max = #name
         end
+
         if #value > value_max then
             value_max = #value
         end
+
         if type_name ~= "function" then
             tmp_tbl[#tmp_tbl + 1] = { name = name, value = value, type = type_name }
         end
     end
-    table.sort(tmp_tbl,
-        function(a, b)
-            return a.name < b.name
-        end)
+
+    table.sort(tmp_tbl, function(a, b) return a.name < b.name end)
+
     local function pad(s, l, c)
         if c == nil then
             c = " "
         end
         return s .. string.rep(c, l - #s)
     end
+
     local string_tbl = {}
     string_tbl[1] = "internal settings"
     for i = 1, #tmp_tbl do
         string_tbl[#string_tbl + 1] = string.format("%s: %s (%s)", pad(tmp_tbl[i].name, name_max),
             pad(tmp_tbl[i].value, value_max), tmp_tbl[i].type)
     end
+
     string_tbl[#string_tbl + 1] = "--"
     print(table.concat(string_tbl, "\n        "))
 end
 
-local function load_reflector_list(file_path, ip_version, util)
+local function load_reflector_list(file_path, ip_version)
     ip_version = ip_version or "4"
 
     local reflector_file = io.open(file_path)
@@ -300,7 +306,7 @@ function M.initialise(requires, version, _reflector_data)
         end
         log_level = string.upper(log_level)
         util.set_loglevel(log_level)
-        M.log_level = util.get_loglevel()
+        M.log_level = log_level
     end
 
     do
@@ -407,8 +413,9 @@ function M.initialise(requires, version, _reflector_data)
     util.logger(util.loglevel.INFO, "Reflector Pool Size: " .. #tmp_reflectors)
 
     -- Load up the reflectors shared tables
+    -- seed the peers with a set of "good candidates", we will adjust using the peer selector through time
     reflector_data:set("reflector_tables", {
-        peers = tmp_reflectors,
+        peers = {"9.9.9.9", "8.238.120.14", "74.82.42.42", "194.242.2.2", "208.67.222.222", "94.140.14.14"},
         pool = tmp_reflectors
     })
 

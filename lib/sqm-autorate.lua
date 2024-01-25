@@ -42,9 +42,8 @@ local util = lanes.require "utility"
 requires.util = util
 
 -- Try to load argparse if it's installed
-local argparse = nil
 if util.is_module_available("argparse") then
-    argparse = lanes.require "argparse"
+    local argparse = lanes.require "argparse"
     requires.argparse = argparse
 end
 
@@ -103,10 +102,7 @@ local function conductor()
     util.logger(util.loglevel.DEBUG, "Upload iface: " .. settings.ul_if .. " | Download iface: " .. settings.dl_if)
 
     -- load external modules so lanes can find them
-    if not lanes.require "_bit" then
-        util.logger(util.loglevel.FATAL, "No bitwise module found")
-        os.exit(1, true)
-    end
+    lanes.require "_bit"
     lanes.require "posix"
     lanes.require "posix.sys.socket"
     lanes.require "posix.time"
@@ -132,9 +128,6 @@ local function conductor()
         baseliner = lanes.gen("*", {
             required = { "posix", "posix.time", "luci.jsonc", "lucihttp", "ubus" }
         }, baseliner_mod.baseline_calculator)(),
-        regulator = lanes.gen("*", {
-            required = { "posix", "posix.time", "luci.jsonc", "lucihttp", "ubus" }
-        }, ratecontroller_mod.ratecontrol)(),
         pinger = lanes.gen("*", {
             required = { "_bit", "posix.sys.socket", "posix.time", "vstruct", "luci.jsonc", "lucihttp", "ubus" }
         }, pinger_mod.sender)(),
@@ -142,9 +135,14 @@ local function conductor()
             required = { "posix", "posix.time", "luci.jsonc", "lucihttp", "ubus" }
         }, reflector_selector_mod.reflector_peer_selector)()
     }
-    local join_timeout = 0.5
+
+    util.nsleep(10, 0)
+    threads["regulator"] = lanes.gen("*", {
+        required = { "posix", "posix.time", "luci.jsonc", "lucihttp", "ubus" }
+    }, ratecontroller_mod.ratecontrol)()
 
     -- Start this whole thing in motion!
+    local join_timeout = 0.5
     while true do
         for name, thread in pairs(threads) do
             local _, err = thread:join(join_timeout)
@@ -159,18 +157,4 @@ local function conductor()
 end
 ---------------------------- End Conductor Loop ----------------------------
 
-if argparse then
-    local parser = argparse("sqm-autorate.lua", "CAKE with Adaptive Bandwidth - 'autorate'",
-        "For more info, please visit: https://github.com/Fail-Safe/sqm-autorate")
-
-    parser:flag("-v --version", "Displays the SQM Autorate version.")
-    local args = parser:parse()
-
-    -- Print the version and then exit
-    if args.version then
-        print(_VERSION)
-        os.exit(0, true)
-    end
-end
-
-conductor() -- go!
+conductor() -- Begin main loop. Go!
