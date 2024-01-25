@@ -103,14 +103,14 @@ function M.ratecontrol()
     local nrate_up = 0
     local nrate_down = 0
 
-    local csv_fd = nil
-    local speeddump_fd = nil
+    local csv_fd
+    local speeddump_fd
     if settings.output_statistics then
         csv_fd = io.open(settings.stats_file, "w")
         speeddump_fd = io.open(settings.speedhist_file, "w")
 
-        csv_fd:write("times,timens,rxload,txload,deltadelaydown,deltadelayup,dlrate,uprate\n")
-        speeddump_fd:write("time,counter,upspeed,downspeed\n")
+        if csv_fd then csv_fd:write("times,timens,rxload,txload,deltadelaydown,deltadelayup,dlrate,uprate\n") end
+        if speeddump_fd then speeddump_fd:write("time,counter,upspeed,downspeed\n") end
     end
 
     while true do
@@ -346,7 +346,7 @@ function M.ratecontrol()
                         string.format("%d,%d,%f,%f,%f,%f,%d,%d\n", lastchg_s, lastchg_ns, rx_load, tx_load,
                             down_del_stat, up_del_stat, cur_dl_rate, cur_ul_rate))
 
-                    if settings.output_statistics then
+                    if settings.output_statistics and csv_fd then
                         -- output to log file before doing delta on the time
                         csv_fd:write(string.format("%d,%d,%f,%f,%f,%f,%d,%d\n", lastchg_s, lastchg_ns, rx_load, tx_load,
                             down_del_stat, up_del_stat, cur_dl_rate, cur_ul_rate))
@@ -363,7 +363,7 @@ function M.ratecontrol()
             end
         end
 
-        if settings.output_statistics and now_t - lastdump_t > 300 then
+        if settings.output_statistics and speeddump_fd and now_t - lastdump_t > 300 then
             for i = 0, settings.histsize - 1 do
                 speeddump_fd:write(string.format("%f,%d,%f,%f\n", now_t, i, safe_ul_rates[i], safe_dl_rates[i]))
             end
