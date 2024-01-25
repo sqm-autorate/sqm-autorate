@@ -88,9 +88,9 @@ local reselector_channel = lanes.linda()
 
 ---------------------------- Begin Conductor ----------------------------
 local function conductor()
-    util.logger(util.loglevel.TRACE, "Entered conductor()")
-
     local settings = lanes.require("settings").initialise(requires, _VERSION, reflector_data)
+
+    util.logger(util.loglevel.TRACE, "Entered conductor()")
 
     print("Starting sqm-autorate.lua v" .. _VERSION)
 
