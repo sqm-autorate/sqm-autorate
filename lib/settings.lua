@@ -450,13 +450,9 @@ function M.initialise(requires, version, _reflector_data)
         end
     end
 
-    if args and (args.version or args.show_settings) then
-        print(version)
-
-        if args.show_settings then
-            print_all()
-        end
-
+    if args then
+        if args.version then print("Version %s", version) end
+        if args.show_settings then print_all() end
         os.exit(0, true)
     end
 
