@@ -24,6 +24,7 @@ local os = require 'os'
 local util = require 'utility'
 
 local app_version
+local plugin_ratecontrol_name
 
 -- print all of the module exported values, ignoring functions
 local function print_all()
@@ -49,6 +50,8 @@ local function print_all()
         elseif type_name == "table" or type_name == "function" then
             if name == "log_level" then
                 value = util.get_loglevel_name()
+            elseif name == "plugin_ratecontrol" then
+                value = plugin_ratecontrol_name
             else
                 value = ""
             end
@@ -445,6 +448,7 @@ function M.initialise(requires, version, _reflector_data)
 
         if plugin_ratecontrol then
             if util.is_module_available(plugin_ratecontrol) then
+                plugin_ratecontrol_name = plugin_ratecontrol
                 plugin_ratecontrol = require(plugin_ratecontrol).initialise(requires, M)
                 requires.plugin_ratecontrol = plugin_ratecontrol
                 M.plugin_ratecontrol = plugin_ratecontrol
