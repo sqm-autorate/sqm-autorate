@@ -245,7 +245,7 @@ function M.initialise(requires, version, _reflector_data)
             "upload_base_kbits")
         upload_base_kbits = upload_base_kbits or (args and args.upload_base_kbits)
         upload_base_kbits = upload_base_kbits or os.getenv("SQMA_UPLOAD_BASE_KBITS")
-        M.base_ul_rate = floor(tonumber(string(upload_base_kbits), 10) or 10000)
+        M.base_ul_rate = floor(tonumber(upload_base_kbits), 10) or 10000
     end
 
     do
@@ -253,7 +253,7 @@ function M.initialise(requires, version, _reflector_data)
             "download_base_kbits")
         download_base_kbits = download_base_kbits or (args and args.download_base_kbits)
         download_base_kbits = download_base_kbits or (os.getenv("SQMA_DOWNLOAD_BASE_KBITS"))
-        M.base_dl_rate = floor(tonumber(string(download_base_kbits), 10) or 10000)
+        M.base_dl_rate = floor(tonumber(download_base_kbits), 10) or 10000
     end
 
     do
