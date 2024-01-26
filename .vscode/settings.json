@@ -1,0 +1,6 @@
+{
+    "Lua.diagnostics.globals": [
+        "set_debug_threadname"
+    ],
+    "Lua.runtime.version": "Lua 5.1"
+}

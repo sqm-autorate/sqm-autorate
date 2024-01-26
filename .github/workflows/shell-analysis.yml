@@ -2,14 +2,7 @@ name: "Shell Check"
 
 on:
   push:
-    branches:
-      - main
-      - develop/main
   pull_request:
-    # The branches below must be a subset of the branches above
-    branches:
-      - main
-      - develop/main
   schedule:
     - cron: '36 3 * * 5'
 
@@ -30,10 +23,10 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v3
-    
+
     - name: Install ShellCheck
       run: |
-        sudo apt install shellcheck    
+        sudo apt install shellcheck
 
     - name: Run ShellCheck
       run: |

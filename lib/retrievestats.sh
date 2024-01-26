@@ -1,28 +1,28 @@
 #!/bin/sh
 
 # Copy interesting sqm-autorate files from OpenWrt to ~/Desktop
-# 
+#
 # Run the getstats.sh script to create /tmp/openwrtscripts.txt
 # Compress it and the three /tmp/sqm-* files then copy (over SSH)
 # to a result file with a timestamp in the name
-# 
+#
 # Usage:
 #    sh retrievestats.sh root@192.168.1.1 # login on OpenWrt
-# 
+#
 # or just copy/paste the lines below into the command line, substituting root@ip-address for "$1"
-#    
+#
 # Output is a file on ~/Desktop named
 #    openwrtstats-yyyy-mm-dd-hhmmss.gz
 
 ssh "$1" \
-"/usr/lib/sqm-autorate/getstats.sh > /dev/null; \
+	"/usr/lib/sqm-autorate/getstats.sh > /dev/null; \
 cd /tmp; \
 tar -cvzf - \
 	openwrtstats.txt \
 	sqm-autorate.csv \
 	sqm-autorate.log \
 	sqm-speedhist.csv" \
-> ~/Desktop/openwrtstats-$(date "+%F-%H%M%S").gz
+	>~/Desktop/openwrtstats-"$(date '+%F-%H%M%S').gz"
 
 # Notes:
 # - The script tar's and compresses on the fly so it doesn't

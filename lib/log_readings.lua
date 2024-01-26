@@ -9,7 +9,6 @@
     License, v. 2.0. If a copy of the MPL was not distributed with this
     file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-
     Covered Software is provided under this License on an "as is"
     basis, without warranty of any kind, either expressed, implied, or
     statutory, including, without limitation, warranties that the
@@ -21,8 +20,8 @@
     repair, or correction. This disclaimer of warranty constitutes an
     essential part of this License. No use of any Covered Software is
     authorized under this License except under this disclaimer.
-
-]] --
+]]
+--
 
 -- add a log_readings section and options similar to below into
 -- /etc/config/sqm-autorate
@@ -32,7 +31,8 @@
 config log_readings
         option tx_load_ge '0.75'
         option rx_load_ge '0.75'
-]] --
+]]
+--
 -- the option format is
 --      <reading-name>_<condition> '<value>'
 -- where
@@ -68,7 +68,7 @@ local log_readings = {}
 local interval_seconds = 1000000 * 1000000
 local last_reported = 0
 
-local log_level = 'INFO'          -- the log level to report the readings
+local log_level = 'INFO' -- the log level to report the readings
 
 -- values will be set in initialise
 local loglevel = nil
@@ -82,31 +82,31 @@ local checks = {}
 -- criteria specified at function creation time
 local function curry(check, level)
     if check == "_ge" then
-        return function (value)
+        return function(value)
             return value >= level
         end
     elseif check == "_gt" then
-        return function (value)
+        return function(value)
             return value > level
         end
     elseif check == "_le" then
-        return function (value)
+        return function(value)
             return value <= level
         end
     elseif check == "_lt" then
-        return function (value)
+        return function(value)
             return value < level
         end
     elseif check == "_eq" then
-        return function (value)
+        return function(value)
             return value == level
         end
     elseif check == "_ne" then
-        return function (value)
+        return function(value)
             return value ~= level
         end
     else
-        return function (_value)
+        return function(_)
             return false
         end
     end
@@ -120,10 +120,9 @@ end
 --  returns
 --      log_readings    -- the module, for a fluent interface
 function log_readings.initialise(requires, settings)
-    local utilities = requires.utilities
-    logger = utilities.logger
-    loglevel = utilities.loglevel
-    log_level = loglevel[log_level]     -- get the correct logging structure
+    logger = requires.util.logger
+    loglevel = requires.util.loglevel
+    log_level = loglevel[log_level] -- get the correct logging structure
 
     -- set to the largest possible number
     interval_seconds = requires.math.huge
@@ -136,11 +135,11 @@ function log_readings.initialise(requires, settings)
         if plugin_settings and plugin_settings ~= {} then
             for option_name, option_value in pairs(plugin_settings) do
                 if option_name == "interval_seconds" then
-                    interval_seconds = tonumber(option_value)
-                    string_table[#string_table+1] = "interval_seconds=" .. tostring(interval_seconds)
+                    interval_seconds = tonumber(option_value, 10)
+                    string_table[#string_table + 1] = "interval_seconds=" .. tostring(interval_seconds)
                 elseif option_name == "log_level" then
                     log_level = option_value
-                    string_table[#string_table+1] = "log_level=" .. log_level
+                    string_table[#string_table + 1] = "log_level=" .. log_level
                     log_level = loglevel[log_level]
                 elseif string.sub(option_name, 1, 1) ~= "." then
                     local op = string.lower(string.sub(option_name, -3, -1))
@@ -149,13 +148,13 @@ function log_readings.initialise(requires, settings)
                         checks[reading] = {}
                     end
                     local check = checks[reading]
-                    check[#check+1] = curry(op, tonumber(option_value))
-                    string_table[#string_table+1] = reading .. " " .. op .. " " .. tostring(option_value)
+                    check[#check + 1] = curry(op, tonumber(option_value))
+                    string_table[#string_table + 1] = reading .. " " .. op .. " " .. tostring(option_value)
                 end
             end
             if plugin_settings.log_level then
                 log_level = plugin_settings.log_level
-                string_table[#string_table+1] = "log_level=" .. log_level
+                string_table[#string_table + 1] = "log_level=" .. log_level
                 log_level = loglevel[log_level]
             end
         end
@@ -166,7 +165,6 @@ function log_readings.initialise(requires, settings)
 
     return log_readings
 end
-
 
 -- function process(readings)
 --  parameters
@@ -183,7 +181,6 @@ function log_readings.process(readings)
 
     -- gather all the values in case we need to print into a temporary table for sorting
     for name, value in pairs(readings) do
-
         -- find out if this value has a condition. If yes, check should we print
         if checks[name] ~= nil then
             for _, check in ipairs(checks[name]) do
@@ -217,7 +214,7 @@ function log_readings.process(readings)
         last_reported = current_time
 
         table.sort(tmp_tbl,
-            function (a, b)
+            function(a, b)
                 return a.name < b.name
             end)
         local string_table = {}
@@ -229,10 +226,10 @@ function log_readings.process(readings)
             return str .. string.rep(char, len - #str)
         end
         for _, data in ipairs(tmp_tbl) do
-            string_table[#string_table+1] = pad(data.name, name_max) .. ": " ..
+            string_table[#string_table + 1] = pad(data.name, name_max) .. ": " ..
                 pad(data.value, value_max) .. " (" .. data.value_type .. ")"
         end
-        if #string_table > 1 then
+        if #string_table > 1 and logger and loglevel then
             logger(loglevel.INFO, table.concat(string_table, "\n        "))
         end
     end

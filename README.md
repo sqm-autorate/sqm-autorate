@@ -1,11 +1,11 @@
 [![Lua Check](https://github.com/sqm-autorate/sqm-autorate/actions/workflows/lua-analysis.yml/badge.svg)](https://github.com/sqm-autorate/sqm-autorate/actions/workflows/lua-analysis.yml)
+[![Shell Check](https://github.com/sqm-autorate/sqm-autorate/actions/workflows/shell-analysis.yml/badge.svg)](https://github.com/sqm-autorate/sqm-autorate/actions/workflows/shell-analysis.yml)
 
 # CAKE with Adaptive Bandwidth - "sqm-autorate"
 
 ## About _sqm-autorate_
 _sqm-autorate_ is a program for [OpenWRT](https://openwrt.org/) that actively manages the
-[CAKE Smart Queue Management (SQM)](https://www.bufferbloat.net/projects/codel/wiki/Cake/) bandwidth settings through measurments of traffic load and latency. It is designed for variable bandwidth connections such as DOCIS/cable and LTE/wireless,
-and is not so useful for connections that have a stable, fixed bandwidth.
+[CAKE Smart Queue Management (SQM)](https://www.bufferbloat.net/projects/codel/wiki/Cake/) bandwidth settings through measurments of traffic load and latency. It is designed for variable bandwidth connections such as DOCIS/cable and LTE/wireless, and is not so useful for connections that have a stable, fixed bandwidth.
 
 The _sqm-autorate_ code is licensed under the [MPLv2](https://www.mozilla.org/en-US/MPL/2.0/)
 
@@ -753,8 +753,8 @@ The plugin interface consists of two functions.
 |---|---|
 | [readings](#readings-parameter) | a table containing the name/value pairs of the current readings in this loop of the _rate control_ thread. See below for the contents; this list will change over time, so check the source code. |
 | [results](#results-return) | a table containing name/value pairs to be fed back into the _rate control_ thread. See below for the list of supported values; this list will change over time, so check the source code. Any name/value pair may be put into the table, however it will be ignored unless the name is supported. |
-| [requires](lib/sqm-autorate.lua) | a table containing the modules already required by the main program. Currently, these are: _lanes_, _math_, _posix_, _socket_, _times_, _vstruct_, _bit_ and [utilities](#settings-module). This list may change over time and may not be up-to-date, so check the [source code](lib/sqm-autorate.lua). If further requires are needed, then use `lanes.require` rather than bare `require`. |
-| [settings](#settings-parameter) | a table containing the name/value pairs of the internal settings of the main program. See below for the contents; this list will change over time, so check the [source code](lib/sqma-settings.lua). Please treat this table and contents as read-only. Remember that these are not the external settings names or values, though there are many similarities and identities. |
+| [requires](lib/sqm-autorate.lua) | a table containing the modules already required by the main program. Currently, these are: _lanes_, _math_, _posix_, _socket_, _times_, _vstruct_, _bit_, _luci.jsonc_, _lucihttp_, _ubus_, and [utilities](#settings-module). This list may change over time and may not be up-to-date, so check the [source code](lib/sqm-autorate.lua). If further requires are needed, then use `lanes.require` rather than bare `require`. |
+| [settings](#settings-parameter) | a table containing the name/value pairs of the internal settings of the main program. See below for the contents; this list will change over time, so check the [source code](lib/settings.lua). Please treat this table and contents as read-only. Remember that these are not the external settings names or values, though there are many similarities and identities. |
 
 ### _readings_ parameter
 Contents of the _readings_ parameter to _plugin.process_
@@ -784,7 +784,7 @@ Supported name/value pairs used from **_results_** returned from _plugin.process
 | next_dl_rate | the download speed. kbits/second |
 
 ### _settings_ parameter
-Contents of [**settings**](lib/sqma-settings.lua]) parameter to _plugin.initialise_
+Contents of [**settings**](lib/settings.lua]) parameter to _plugin.initialise_
 
 | name | description |
 |---|---|
@@ -809,7 +809,7 @@ Contents of [**settings**](lib/sqma-settings.lua]) parameter to _plugin.initiali
 | output_statistics | controls output to the statistics file |
 
 ### _utilities_ module
-Contents of [**utilities**](lib/sqma-utilities.lua) module in _requires_ parameter to _plugin.initialise_
+Contents of [**utilities**](lib/utility.lua) module in _requires_ parameter to _plugin.initialise_
 
 | name | (t)able or (f)unction | Important to plugins | description |
 |---|---|---|---|
