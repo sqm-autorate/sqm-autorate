@@ -133,14 +133,14 @@ end
 --  returns
 --      M           - the module itself
 --
-function M.initialise(requires, version, _reflector_data)
+function M.initialise(requires, version, arg_reflector_data)
     if version == nil then
         app_version = "version is not set, likely a programming error"
     else
         app_version = version
     end
 
-    local reflector_data = assert(_reflector_data, 'linda for reflector data required')
+    local reflector_data = assert(arg_reflector_data, 'linda for reflector data required')
 
     local lanes = requires.lanes
     if lanes == nil then

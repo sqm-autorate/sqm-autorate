@@ -68,10 +68,10 @@ function M.get_loglevel_level()
 end
 
 -- Basic homegrown logger to keep us from having to import yet another module
-function M.logger(_loglevel, _message)
-    if (_loglevel.level <= use_loglevel.level) then
+function M.logger(arg_loglevel, arg_message)
+    if (arg_loglevel.level <= use_loglevel.level) then
         local cur_date = os.date("%Y%m%dT%H:%M:%S")
-        local out_str = string.format("[%s - %s]: %s", _loglevel.name, cur_date, _message)
+        local out_str = string.format("[%s - %s]: %s", arg_loglevel.name, cur_date, arg_message)
         print(out_str)
     end
 end
@@ -190,8 +190,8 @@ function M.to_num(value)
     return nil
 end
 
-function M.to_integer(_number)
-    return math.floor(tonumber(_number) or error("Could not cast '" .. tostring(_number) .. "' to number.'"))
+function M.to_integer(value)
+    return math.floor(tonumber(value) or error("Could not cast '" .. tostring(value) .. "' to number.'"))
 end
 
 return M

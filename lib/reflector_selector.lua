@@ -22,11 +22,11 @@ local util = require 'utility'
 
 local settings, owd_data, reflector_data, reselector_channel
 
-function M.configure(_settings, _owd_data, _reflector_data, _reselector_channel)
-    settings = assert(_settings, 'need the settings')
-    owd_data = assert(_owd_data, 'need the owd linda')
-    reflector_data = assert(_reflector_data, 'need the reflector data linda')
-    reselector_channel = assert(_reselector_channel, 'need the reselector channel linda')
+function M.configure(arg_settings, arg_owd_data, arg_reflector_data, arg_reselector_channel)
+    settings = assert(arg_settings, 'need the settings')
+    owd_data = assert(arg_owd_data, 'need the owd linda')
+    reflector_data = assert(arg_reflector_data, 'need the reflector data linda')
+    reselector_channel = assert(arg_reselector_channel, 'need the reselector channel linda')
 
     return M
 end

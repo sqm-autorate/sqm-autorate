@@ -42,13 +42,13 @@ local function calculate_checksum(data)
     return bit.bnot(checksum)
 end
 
-function M.configure(_reflector_data)
+function M.configure(arg_reflector_data)
     util.logger(util.loglevel.FATAL,
         "UDP support is not available at this time. Please set your 'reflector_type' setting to 'icmp'.")
     os.exit(1, true)
 
     -- Hold for later use
-    reflector_data = assert(_reflector_data, 'need reflector data linda')
+    reflector_data = assert(arg_reflector_data, 'need reflector data linda')
     sock = assert(socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP), "Failed to create socket")
     socket.setsockopt(sock, socket.SOL_SOCKET, socket.SO_SNDTIMEO, 0, 500)
 

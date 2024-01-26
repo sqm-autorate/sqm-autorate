@@ -42,12 +42,12 @@ local function update_cake_bandwidth(iface, rate_in_kbit)
     return is_changed
 end
 
-function M.configure(_settings, _owd_data, _reflector_data, _reselector_channel, _)
-    base.configure(_settings)
-    settings = assert(_settings, "settings cannot be nil")
-    owd_data = assert(_owd_data, "an owd_data linda is required")
-    reflector_data = assert(_reflector_data, "a linda to get reflector data is required")
-    reselector_channel = assert(_reselector_channel, 'need the reselector channel linda')
+function M.configure(arg_settings, arg_owd_data, arg_reflector_data, arg_reselector_channel, _)
+    base.configure(arg_settings)
+    settings = assert(arg_settings, "settings cannot be nil")
+    owd_data = assert(arg_owd_data, "an owd_data linda is required")
+    reflector_data = assert(arg_reflector_data, "a linda to get reflector data is required")
+    reselector_channel = assert(arg_reselector_channel, 'need the reselector channel linda')
     -- signal_to_ratecontrol = assert(_signal_to_ratecontrol, "a linda to signal the ratecontroller is required")
 
     -- Set initial TC values

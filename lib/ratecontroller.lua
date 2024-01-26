@@ -21,8 +21,8 @@ local util = require 'utility'
 
 local settings
 
-function M.configure(_settings)
-    settings = _settings
+function M.configure(arg_settings)
+    settings = arg_settings
 
     util.logger(util.loglevel.DEBUG, "Upload iface: " ..
         settings.ul_if .. " | Download iface: " .. settings.dl_if)

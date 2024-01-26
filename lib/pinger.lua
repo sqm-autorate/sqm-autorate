@@ -36,10 +36,10 @@ local function get_pid()
     return cur_process_id
 end
 
-function M.configure(_settings, _reflector_data, _stats_queue)
-    settings = assert(_settings, 'settings are required')
-    reflector_data = assert(_reflector_data, 'linda for reflector data required')
-    stats_queue = assert(_stats_queue, 'linda for stats queue linda FIFO')
+function M.configure(arg_settings, arg_reflector_data, arg_stats_queue)
+    settings = assert(arg_settings, 'settings are required')
+    reflector_data = assert(arg_reflector_data, 'linda for reflector data required')
+    stats_queue = assert(arg_stats_queue, 'linda for stats queue linda FIFO')
 
     if settings.reflector_type then
         local module = 'pinger_' .. settings.reflector_type
@@ -60,7 +60,7 @@ function M.configure(_settings, _reflector_data, _stats_queue)
             os.exit(1)
         end
 
-        pinger_module.configure(_reflector_data)
+        pinger_module.configure(reflector_data)
 
         ---@diagnostic disable-next-line: need-check-nil, undefined-field
         identifier = bit.band(get_pid(), 0xFFFF)
