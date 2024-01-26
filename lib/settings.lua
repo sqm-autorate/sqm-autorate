@@ -24,7 +24,7 @@ local os = require 'os'
 local util = require 'utility'
 
 local app_version = ""
-local plugin_ratecontrol_name = ""
+local plugin_ratecontrol = nil
 
 -- print all of the module exported values, ignoring functions
 local function print_all()
@@ -45,8 +45,8 @@ local function print_all()
         elseif type_name == "table" or type_name == "function" then
             if name == "log_level" then
                 value = util.get_loglevel_name()
-            elseif name == "plugin_ratecontrol" then
-                value = plugin_ratecontrol_name
+            elseif name == "plugin_ratecontrol" and plugin_ratecontrol then
+                value = plugin_ratecontrol.name
             else
                 value = ""
             end
@@ -177,7 +177,7 @@ function M.initialise(requires, version, _reflector_data)
     -- If we have sqm installed, but it is disabled, this whole thing is moot. Let's bail early in that case.
     -- TODO is this the correct check? 'tc qdisc | grep -i cake' may be better
     if uci_settings then
-        local sqm_enabled = tonumber(uci_settings:get("sqm", "@queue[0]", "enabled"), 10)
+        local sqm_enabled = tonumber(uci_settings:get("sqm", "@queue[0]", "enabled"))
         if sqm_enabled == 0 then
             util.logger(util.loglevel.FATAL,
                 "SQM is not enabled on this OpenWrt system. Please enable it before starting sqm-autorate.")
@@ -251,7 +251,7 @@ function M.initialise(requires, version, _reflector_data)
             "upload_base_kbits")
         upload_base_kbits = upload_base_kbits or (args and args.upload_base_kbits)
         upload_base_kbits = upload_base_kbits or os.getenv("SQMA_UPLOAD_BASE_KBITS")
-        M.base_ul_rate = floor(tonumber(upload_base_kbits), 10) or 10000
+        M.base_ul_rate = floor(tonumber(upload_base_kbits)) or 10000
     end
 
     do
@@ -259,7 +259,7 @@ function M.initialise(requires, version, _reflector_data)
             "download_base_kbits")
         download_base_kbits = download_base_kbits or (args and args.download_base_kbits)
         download_base_kbits = download_base_kbits or (os.getenv("SQMA_DOWNLOAD_BASE_KBITS"))
-        M.base_dl_rate = floor(tonumber(download_base_kbits), 10) or 10000
+        M.base_dl_rate = floor(tonumber(download_base_kbits)) or 10000
     end
 
     do
@@ -328,7 +328,7 @@ function M.initialise(requires, version, _reflector_data)
         if speed_hist_size == nil then
             speed_hist_size = "100"
         end
-        M.histsize = floor(tonumber(speed_hist_size, 10))
+        M.histsize = floor(tonumber(speed_hist_size))
     end
 
     do
@@ -339,7 +339,7 @@ function M.initialise(requires, version, _reflector_data)
         if upload_delay_ms == nil then
             upload_delay_ms = "15"
         end
-        M.ul_max_delta_owd = tonumber(upload_delay_ms, 10)
+        M.ul_max_delta_owd = tonumber(upload_delay_ms)
     end
 
     do
@@ -350,7 +350,7 @@ function M.initialise(requires, version, _reflector_data)
         if download_delay_ms == nil then
             download_delay_ms = "15"
         end
-        M.dl_max_delta_owd = tonumber(download_delay_ms, 10)
+        M.dl_max_delta_owd = tonumber(download_delay_ms)
     end
 
     do
@@ -361,7 +361,7 @@ function M.initialise(requires, version, _reflector_data)
         if high_load_level == nil then
             high_load_level = "0.8"
         end
-        M.high_load_level = limit(tonumber(high_load_level, 10), 0.67, 0.95)
+        M.high_load_level = limit(tonumber(high_load_level), 0.67, 0.95)
     end
 
     do
@@ -435,15 +435,13 @@ function M.initialise(requires, version, _reflector_data)
     M.peer_reselection_time = 15
 
     -- Only perform plugin initialization after all core settings have established values in this module
-    M.plugin_ratecontrol = nil
     do
-        local plugin_ratecontrol = uci_settings and uci_settings:get("sqm-autorate", "@plugins[0]", "ratecontrol")
+        plugin_ratecontrol = uci_settings and uci_settings:get("sqm-autorate", "@plugins[0]", "ratecontrol")
         plugin_ratecontrol = plugin_ratecontrol or (args and args.plugin_ratecontrol)
         plugin_ratecontrol = plugin_ratecontrol or (os.getenv("SQMA_PLUGIN_RATECONTROL"))
 
         if plugin_ratecontrol then
             if util.is_module_available(plugin_ratecontrol) then
-                plugin_ratecontrol_name = plugin_ratecontrol
                 plugin_ratecontrol = require(plugin_ratecontrol).initialise(requires, M)
                 requires.plugin_ratecontrol = plugin_ratecontrol
                 M.plugin_ratecontrol = plugin_ratecontrol
@@ -452,8 +450,9 @@ function M.initialise(requires, version, _reflector_data)
             end
         end
     end
+    M.plugin_ratecontrol = plugin_ratecontrol
 
-    if args then
+    if args and (args.version or args.show_settings) then
         if args.version then print("Version " .. app_version) end
         if args.show_settings then print_all() end
         os.exit(0, true)

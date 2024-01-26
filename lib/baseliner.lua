@@ -106,6 +106,8 @@ function M.baseline_calculator()
                 owd_recent[time_data.reflector].last_receive_time_s = time_data.last_receive_time_s - 60
                 -- trigger a reselection of reflectors here
                 reselector_channel:send("reselect", 1)
+                util.logger(util.loglevel.INFO, "Reselect signaled: uplink_time = " .. time_data.uplink_time ..
+                    " | downlink_time = " .. time_data.downlink_time)
             else
                 owd_baseline[time_data.reflector].up_ewma = owd_baseline[time_data.reflector].up_ewma * slow_factor +
                     (1 - slow_factor) * time_data.uplink_time

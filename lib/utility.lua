@@ -82,8 +82,7 @@ function M.is_module_available(name)
     if package.loaded[name] then
         return true
     else
-        ---@diagnostic disable-next-line: deprecated
-        for _, searcher in ipairs(package.searchers or package.loaders) do
+        for _, searcher in ipairs(package.loaders) do
             local loader = searcher(name)
             if type(loader) == 'function' then
                 package.preload[name] = loader
@@ -189,6 +188,10 @@ function M.to_num(value)
         return tonumber(value, 10)
     end
     return nil
+end
+
+function M.to_integer(_number)
+    return math.floor(tonumber(_number) or error("Could not cast '" .. tostring(_number) .. "' to number.'"))
 end
 
 return M

@@ -155,6 +155,8 @@ function M.ratecontrol()
                 if #up_del < 5 or #down_del < 5 then
                     -- trigger reselection here through the Linda channel
                     reselector_channel:send("reselect", 1)
+                    util.logger(util.loglevel.INFO, "Reselect signaled: #up_del = " .. #up_del ..
+                        " | #down_del = " .. #down_del)
                 end
 
                 local cur_rx_bytes = read_stats_file(rx_bytes_file)

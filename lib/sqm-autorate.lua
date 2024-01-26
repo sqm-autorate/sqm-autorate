@@ -79,20 +79,22 @@ reflector_data:set("reflector_tables", {
     pool = {}
 })
 
+-- The reselector_channel is intended to be used as a signal to force reselction of peers
+-- when there is anomalous behavior with current (in-use) reflectors. This may be due to
+-- a reflector going unresponsive, for example.
+local reselector_channel = lanes.linda()
+
 -- The signal_to_ratecontrol is intended to be used by the ratecontroller thread
 -- to wait on a signal from the baseliner thread that new data is available as they come in,
 -- for ratecontrol algorithms that really getting the data as soon as it's ready
 local signal_to_ratecontrol = lanes.linda()
 
-local reselector_channel = lanes.linda()
-
 ---------------------------- Begin Conductor ----------------------------
 local function conductor()
-    local settings = lanes.require("settings").initialise(requires, _VERSION, reflector_data)
-
     util.logger(util.loglevel.TRACE, "Entered conductor()")
+    util.logger(util.loglevel.INFO, "Starting sqm-autorate.lua v" .. _VERSION)
 
-    print("Starting sqm-autorate.lua v" .. _VERSION)
+    local settings = lanes.require("settings").initialise(requires, _VERSION, reflector_data)
 
     if settings.sqm_enabled == 0 then
         util.logger(util.loglevel.FATAL,
@@ -105,14 +107,12 @@ local function conductor()
     util.logger(util.loglevel.INFO, "Reflector Pool Size: " .. #reflector_pool)
 
     if settings.plugin_ratecontrol then
-        util.logger(util.loglevel.WARN, "Loaded ratecontrol plugin: " .. settings.plugin_ratecontrol)
+        util.logger(util.loglevel.INFO, "Loaded ratecontrol plugin: " .. settings.plugin_ratecontrol.name)
     end
 
     -- Random seed
     local _, now_ns = util.get_current_time()
     math.randomseed(now_ns)
-
-    util.logger(util.loglevel.DEBUG, "Upload iface: " .. settings.ul_if .. " | Download iface: " .. settings.dl_if)
 
     -- load external modules so lanes can find them
     lanes.require "_bit"
@@ -134,22 +134,22 @@ local function conductor()
     local reflector_selector_mod = lanes.require 'reflector_selector'
         .configure(settings, owd_data, reflector_data, reselector_channel)
 
-    local threads = {
-        receiver = lanes.gen("*", {
-            required = { "_bit", "posix.sys.socket", "posix.time", "vstruct", "luci.jsonc", "lucihttp", "ubus" }
-        }, pinger_mod.receiver)(),
-        baseliner = lanes.gen("*", {
-            required = { "posix", "posix.time", "luci.jsonc", "lucihttp", "ubus" }
-        }, baseliner_mod.baseline_calculator)(),
-        pinger = lanes.gen("*", {
-            required = { "_bit", "posix.sys.socket", "posix.time", "vstruct", "luci.jsonc", "lucihttp", "ubus" }
-        }, pinger_mod.sender)(),
-        selector = lanes.gen("*", {
-            required = { "posix", "posix.time", "luci.jsonc", "lucihttp", "ubus" }
-        }, reflector_selector_mod.reflector_peer_selector)()
-    }
+    local threads = {}
+    threads["receiver"] = lanes.gen("*", {
+        required = { "_bit", "posix.sys.socket", "posix.time", "vstruct", "luci.jsonc", "lucihttp", "ubus" }
+    }, pinger_mod.receiver)()
+    threads["baseliner"] = lanes.gen("*", {
+        required = { "posix", "posix.time", "luci.jsonc", "lucihttp", "ubus" }
+    }, baseliner_mod.baseline_calculator)()
+    threads["pinger"] = lanes.gen("*", {
+        required = { "_bit", "posix.sys.socket", "posix.time", "vstruct", "luci.jsonc", "lucihttp", "ubus" }
+    }, pinger_mod.sender)()
+    threads["selector"] = lanes.gen("*", {
+        required = { "posix", "posix.time", "luci.jsonc", "lucihttp", "ubus" }
+    }, reflector_selector_mod.reflector_peer_selector)()
 
-    util.nsleep(10, 0)
+    -- -- Wait 10 secs to allow the other threads to stabilize before starting the regulator
+    -- util.nsleep(10, 0)
     threads["regulator"] = lanes.gen("*", {
         required = { "posix", "posix.time", "luci.jsonc", "lucihttp", "ubus" }
     }, ratecontroller_mod.ratecontrol)()
@@ -161,8 +161,8 @@ local function conductor()
             local _, err = thread:join(join_timeout)
 
             if err and err ~= "timeout" then
-                print('Something went wrong in the ' .. name .. ' thread')
-                print(err)
+                util.logger(util.loglevel.FATAL, 'Something went wrong in the ' .. name .. ' thread')
+                util.logger(util.loglevel.FATAL, err)
                 os.exit(1, true)
             end
         end

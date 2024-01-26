@@ -27,6 +27,9 @@ function M.configure(_settings)
     util.logger(util.loglevel.DEBUG, "Upload iface: " ..
         settings.ul_if .. " | Download iface: " .. settings.dl_if)
 
+    util.logger(util.loglevel.DEBUG, "ul_max_delta_owd: " ..
+        settings.ul_max_delta_owd .. " | dl_max_delta_owd: " .. settings.dl_max_delta_owd)
+
     -- Verify these are correct using "cat /sys/class/..."
     if settings.dl_if:find("^ifb.+") or settings.dl_if:find("^veth.+") then
         M.rx_bytes_path = "/sys/class/net/" .. settings.dl_if .. "/statistics/tx_bytes"
