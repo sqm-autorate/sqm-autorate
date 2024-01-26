@@ -22,6 +22,8 @@
 #   authorized under this License except under this disclaimer.
 #
 
+# shellcheck disable=SC3045
+
 print_rerun() {
     echo "
 
@@ -45,6 +47,7 @@ SIGINT..."
     trap "-" 2
 
     # exit program without quiting a remote ssh session - abuse of api :D
+    # shellcheck disable=SC2242
     exit -1 2>/dev/null
 }
 trap "handle_ctlc" 2
@@ -58,6 +61,7 @@ if [ ! -w /etc/config/sqm-autorate ]; then
     echo "/etc/config/sqm-autorate not found or not writable - exiting with no change
 "
     # exit program without quiting a remote ssh session - abuse of api :D
+    # shellcheck disable=SC2242
     exit -1 2>/dev/null
 fi
 
@@ -68,6 +72,7 @@ Press return, or type y or yes if you want guided assistance to set up a ready
    to run configuration file for 'sqm-autorate' [Y/n]: " do_config
 do_config=$(echo "${do_config}" | awk '{ print tolower($0) }')
 if [ -z "${do_config}" ] || [ "${do_config}" = "y" ] || [ "${do_config}" = "yes" ]; then
+    # shellcheck disable=SC1091
     . /lib/functions/network.sh
     network_flush_cache
     network_find_wan WAN_IF
@@ -105,7 +110,7 @@ press return to accept detected network upload device [${UPLOAD_DEVICE}]: " ACCE
             echo "unable to automatically detect the network upload device"
             GOOD=N
         fi
-        while [ $GOOD = "N" ]; do
+        while [ "$GOOD" = "N" ]; do
             read -r -p "
 These are the network devices known to CAKE
 $(tc qdisc | grep -i cake | grep -o ' dev [[:alnum:]]* ' | cut -d ' ' -f 3)
@@ -138,7 +143,7 @@ press return to accept detected network download device [${DOWNLOAD_DEVICE}]: " 
             echo "unable to automatically detect the network download device"
             GOOD=N
         fi
-        while [ $GOOD = "N" ]; do
+        while [ "$GOOD" = "N" ]; do
             read -r -p "
 These are the network devices known to CAKE
 $(tc qdisc | grep -i cake | grep -o ' dev [[:alnum:]]* ' | cut -d ' ' -f 3)
@@ -158,7 +163,7 @@ kbits per second, where 1 mbit = 1000 kbits, and 1 gbit = 1000000 kbits.
 The speed should be input with just digits and no punctuation
 "
         BAD=Y
-        if [ -n "${SETTINGS_UPLOAD_SPEED}" ] && [[ $SETTINGS_UPLOAD_SPEED =~ ^[0-9]+$ ]]; then
+        if [ -n "${SETTINGS_UPLOAD_SPEED}" ] && expr "$SETTINGS_UPLOAD_SPEED" : "^[0-9]+$" >/dev/null; then
             DEFAULT=" [${SETTINGS_UPLOAD_SPEED}]"
         else
             DEFAULT=""
@@ -168,7 +173,7 @@ The speed should be input with just digits and no punctuation
             if [ -n "${SETTINGS_UPLOAD_SPEED}" ] && [ -z "${UPLOAD_SPEED}" ]; then
                 UPLOAD_SPEED=$SETTINGS_UPLOAD_SPEED
                 BAD=N
-            elif [[ $UPLOAD_SPEED =~ ^[0-9]+$ ]]; then
+            elif expr "$UPLOAD_SPEED" : "^[0-9]+$" >/dev/null; then
                 BAD=N
             else
                 echo "
@@ -178,7 +183,7 @@ please input digits only"
 
         BAD=Y
         while [ $BAD = "Y" ]; do
-            if [ -n "${SETTINGS_DOWNLOAD_SPEED}" ] && [[ $SETTINGS_DOWNLOAD_SPEED =~ ^[0-9]+$ ]]; then
+            if [ -n "${SETTINGS_DOWNLOAD_SPEED}" ] && expr "$SETTINGS_DOWNLOAD_SPEED" : "^[0-9]+$" >/dev/null; then
                 DEFAULT=" [${SETTINGS_DOWNLOAD_SPEED}]"
             else
                 DEFAULT=""
@@ -187,7 +192,7 @@ please input digits only"
             if [ -n "${SETTINGS_DOWNLOAD_SPEED}" ] && [ -z "${DOWNLOAD_SPEED}" ]; then
                 DOWNLOAD_SPEED=$SETTINGS_DOWNLOAD_SPEED
                 BAD=N
-            elif [[ $DOWNLOAD_SPEED =~ ^[0-9]+$ ]]; then
+            elif expr "$DOWNLOAD_SPEED" : "^[0-9]+$" >/dev/null; then
                 BAD=N
             else
                 echo "
@@ -227,7 +232,7 @@ will be re-displayed for confirmation
             read -r -p "upload minimum speed [${UPLOAD_MINIMUM}]: " OVERRIDE_UPLOAD
             if [ -z "${OVERRIDE_UPLOAD}" ]; then
                 BAD=N
-            elif [[ $OVERRIDE_UPLOAD =~ ^[0-9]+$ ]]; then
+            elif expr "$OVERRIDE_UPLOAD" : "^[0-9]+$" >/dev/null; then
                 if [ "$OVERRIDE_UPLOAD" -lt "$UPLOAD_SPEED" ]; then
                     if [ "$OVERRIDE_UPLOAD" -ne $UPLOAD_MINIMUM ]; then
                         UPLOAD_PERCENT=$((OVERRIDE_UPLOAD * 100 / UPLOAD_SPEED))
@@ -286,7 +291,7 @@ please input digits only and ensure that the minimum is less than the original"
             read -r -p "download minimum speed [${DOWNLOAD_MINIMUM}]: " OVERRIDE_DOWNLOAD
             if [ -z "${OVERRIDE_DOWNLOAD}" ]; then
                 BAD=N
-            elif [[ $OVERRIDE_DOWNLOAD =~ ^[0-9]+$ ]]; then
+            elif expr "$OVERRIDE_DOWNLOAD" : "^[0-9]+$" >/dev/null; then
                 if [ "$OVERRIDE_DOWNLOAD" -lt "$DOWNLOAD_SPEED" ]; then
                     if [ "$OVERRIDE_DOWNLOAD" -ne $DOWNLOAD_MINIMUM ]; then
                         DOWNLOAD_PERCENT=$((OVERRIDE_DOWNLOAD * 100 / DOWNLOAD_SPEED))

@@ -28,21 +28,25 @@ local sock
 local function calculate_checksum(data)
     local checksum = 0
     for i = 1, #data - 1, 2 do
+        ---@diagnostic disable-next-line: need-check-nil, undefined-field
         checksum = checksum + (bit.lshift(string.byte(data, i), 8)) + string.byte(data, i + 1)
     end
+    ---@diagnostic disable-next-line: need-check-nil, undefined-field
     if bit.rshift(checksum, 16) then
+        ---@diagnostic disable-next-line: need-check-nil, undefined-field
         checksum = bit.band(checksum, 0xffff) + bit.rshift(checksum, 16)
     end
+    ---@diagnostic disable-next-line: need-check-nil, undefined-field
     return bit.bnot(checksum)
 end
 
-function M.configure(_reflector_data)
+function M.configure(arg_reflector_data)
     -- Create a socket
     sock = assert(socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP), "Failed to create socket")
 
     socket.setsockopt(sock, socket.SOL_SOCKET, socket.SO_SNDTIMEO, 0, 500)
 
-    reflector_data = _reflector_data
+    reflector_data = arg_reflector_data
 
     return M
 end
@@ -55,6 +59,7 @@ function M.receive(pkt_id)
 
     if data then
         local ip_start = string.byte(data, 1)
+        ---@diagnostic disable-next-line: need-check-nil, undefined-field
         local ip_ver = bit.rshift(ip_start, 4)
         local hdr_len = (ip_start - ip_ver * 16) * 4
 

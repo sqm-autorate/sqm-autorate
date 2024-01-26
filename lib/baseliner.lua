@@ -27,11 +27,11 @@ local function ewma_factor(tick, dur)
     return math.exp(math.log(0.5) / (dur / tick))
 end
 
-function M.configure(_settings, _owd_data, _stats_queue, _reselector_channel, _)
-    settings = assert(_settings, "settings cannot be nil")
-    owd_data = assert(_owd_data, "an owd_data linda is required")
-    stats_queue = assert(_stats_queue, "a stats queue linda is required")
-    reselector_channel = assert(_reselector_channel, 'need the reselector channel linda')
+function M.configure(arg_settings, arg_owd_data, arg_stats_queue, arg_resel_ector_channel, _)
+    settings = assert(arg_settings, "settings cannot be nil")
+    owd_data = assert(arg_owd_data, "an owd_data linda is required")
+    stats_queue = assert(arg_stats_queue, "a stats queue linda is required")
+    reselector_channel = assert(arg_resel_ector_channel, 'need the reselector channel linda')
     -- signal_to_ratecontrol = assert(_signal_to_ratecontrol, "a linda to signal the ratecontroller is required")
 
     return M

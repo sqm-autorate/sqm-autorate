@@ -27,6 +27,8 @@
 # Based on alexmow's script to list user-installed packages
 # https://forum.openwrt.org/t/script-to-list-installed-packages-for-simplifying-sysupgrade/7188/16
 
+# shellcheck disable=all
+
 # File that will receive command results
 out_fqn=/tmp/openwrtstats.txt
 
@@ -95,7 +97,7 @@ head -n 10 /tmp/sqm-autorate.log
 tail -n 20 /tmp/sqm-autorate.csv ; tail -n 20 /tmp/sqm-speedhist.csv ; tail -n 20 /tmp/sqm-autorate.log
 top -b | head -n 20
 df -h
-du -sh / 
+du -sh /
 du -sh /*
 EOF
 

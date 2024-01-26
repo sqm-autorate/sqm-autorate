@@ -25,7 +25,7 @@ local bit = require '_bit'
 local reflector_data, stats_queue, settings, identifier
 
 -- this is set to the right pinger module based on settings (e.g. if reflector_type == 'icmp' require pinger_icmp)
-local pinger_module = nil
+local pinger_module
 
 local function get_pid()
     local cur_process_id = posix.getpid()
@@ -62,6 +62,7 @@ function M.configure(_settings, _reflector_data, _stats_queue)
 
         pinger_module.configure(_reflector_data)
 
+        ---@diagnostic disable-next-line: need-check-nil, undefined-field
         identifier = bit.band(get_pid(), 0xFFFF)
     end
 

@@ -30,11 +30,15 @@ local sock
 local function calculate_checksum(data)
     local checksum = 0
     for i = 1, #data - 1, 2 do
+        ---@diagnostic disable-next-line: need-check-nil, undefined-field
         checksum = checksum + (bit.lshift(string.byte(data, i), 8)) + string.byte(data, i + 1)
     end
+    ---@diagnostic disable-next-line: need-check-nil, undefined-field
     if bit.rshift(checksum, 16) then
+        ---@diagnostic disable-next-line: need-check-nil, undefined-field
         checksum = bit.band(checksum, 0xffff) + bit.rshift(checksum, 16)
     end
+    ---@diagnostic disable-next-line: need-check-nil, undefined-field
     return bit.bnot(checksum)
 end
 
