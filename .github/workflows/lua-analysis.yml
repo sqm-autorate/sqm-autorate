@@ -2,14 +2,7 @@ name: "Lua Check"
 
 on:
   push:
-    branches:
-      - main
-      - develop/main
   pull_request:
-    # The branches below must be a subset of the branches above
-    branches:
-      - main
-      - develop/main
   schedule:
     - cron: '36 3 * * 5'
 
@@ -30,7 +23,7 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v3
-    
+
     - name: Install Luarocks
       run: |
         sudo apt install luarocks
@@ -39,7 +32,7 @@ jobs:
       run: |
         sudo luarocks install luacheck
         luacheck -v
-        sudo luarocks install luafilesystem      
+        sudo luarocks install luafilesystem
 
     - name: Run LuaCheck
       run: |
