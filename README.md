@@ -1,6 +1,3 @@
-[![Lua Check](https://github.com/sqm-autorate/sqm-autorate/actions/workflows/lua-analysis.yml/badge.svg)](https://github.com/sqm-autorate/sqm-autorate/actions/workflows/lua-analysis.yml)
-[![Shell Check](https://github.com/sqm-autorate/sqm-autorate/actions/workflows/shell-analysis.yml/badge.svg)](https://github.com/sqm-autorate/sqm-autorate/actions/workflows/shell-analysis.yml)
-
 # CAKE with Adaptive Bandwidth - "sqm-autorate"
 
 ## About _sqm-autorate_
@@ -11,6 +8,14 @@ The _sqm-autorate_ code is licensed under the [MPLv2](https://www.mozilla.org/en
 
 _sqm-autorate_ is undergoing rapid development, so sometimes the documentation lags behind the latest and greatest.
 We do try to keep up and occasionally succeed!
+
+## Build Status - Main Branch
+[![Lua Check](https://github.com/sqm-autorate/sqm-autorate/actions/workflows/lua-analysis.yml/badge.svg?branch=main)](https://github.com/sqm-autorate/sqm-autorate/actions/workflows/lua-analysis.yml)
+[![Shell Check](https://github.com/sqm-autorate/sqm-autorate/actions/workflows/shell-analysis.yml/badge.svg?branch=main)](https://github.com/sqm-autorate/sqm-autorate/actions/workflows/shell-analysis.yml)
+
+## Build Status - Develop/Main Branch
+[![Lua Check](https://github.com/sqm-autorate/sqm-autorate/actions/workflows/lua-analysis.yml/badge.svg?branch=develop%2Fmain)](https://github.com/sqm-autorate/sqm-autorate/actions/workflows/lua-analysis.yml)
+[![Shell Check](https://github.com/sqm-autorate/sqm-autorate/actions/workflows/shell-analysis.yml/badge.svg?branch=develop%2Fmain)](https://github.com/sqm-autorate/sqm-autorate/actions/workflows/shell-analysis.yml)
 
 ## Table of Contents
 * [About _sqm-autorate_](#about-sqm-autorate)
