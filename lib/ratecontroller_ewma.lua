@@ -176,14 +176,6 @@ function M.ratecontrol()
 
                 for _, reflector_ip in ipairs(reflector_list) do
                     -- only consider this data if it's less than 2 * tick_duration seconds old
-                    -- util.logger(util.loglevel.INFO, now_abstime)
-                    -- util.logger(util.loglevel.INFO, string(tonumber(now_abstime - 2 * tick_duration)))
-                    -- util.logger(util.loglevel.INFO,
-                    --     "owd_recent[reflector_ip].last_receive_time_s) " ..
-                    --     (owd_recent[reflector_ip].last_receive_time_s or string(owd_recent[reflector_ip].last_receive_time_s)))
-                    -- util.logger(util.loglevel.INFO,
-                    --     "now_abstime - 2 * tick_duration " ..
-                    --     string(tonumber(now_abstime - 2 * tick_duration)))
                     if owd_recent[reflector_ip] ~= nil and owd_baseline[reflector_ip] ~= nil and
                         owd_recent[reflector_ip].last_receive_time_s ~= nil and
                         owd_recent[reflector_ip].last_receive_time_s > now_abstime - 2 * tick_duration
