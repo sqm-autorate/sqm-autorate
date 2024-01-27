@@ -26,6 +26,24 @@ local util = require 'utility'
 
 local settings, owd_data, reflector_data, reselector_channel --, signal_to_ratecontrol
 
+local dl_if
+local ul_if
+local base_dl_rate
+local base_ul_rate
+local min_dl_rate
+local min_ul_rate
+local ul_max_delta_owd
+local dl_max_delta_owd
+local histsize
+local output_statistics
+local min_change_interval
+local tick_duration
+local high_load_level
+local stats_file
+local speedhist_file
+
+local plugin_ratecontrol
+
 local function read_stats_file(file)
     file:seek("set", 0)
     local bytes = file:read()
@@ -34,8 +52,8 @@ end
 
 local function update_cake_bandwidth(iface, rate_in_kbit)
     local is_changed = false
-    if (iface == settings.dl_if and rate_in_kbit >= settings.min_dl_rate) or
-        (iface == settings.ul_if and rate_in_kbit >= settings.min_ul_rate) then
+    if (iface == dl_if and rate_in_kbit >= min_dl_rate) or
+        (iface == ul_if and rate_in_kbit >= min_ul_rate) then
         os.execute(string.format("tc qdisc change root dev %s cake bandwidth %sKbit", iface, rate_in_kbit))
         is_changed = true
     end
@@ -50,9 +68,27 @@ function M.configure(arg_settings, arg_owd_data, arg_reflector_data, arg_reselec
     reselector_channel = assert(arg_reselector_channel, 'need the reselector channel linda')
     -- signal_to_ratecontrol = assert(_signal_to_ratecontrol, "a linda to signal the ratecontroller is required")
 
+    dl_if = settings.dl_if
+    ul_if = settings.ul_if
+    base_dl_rate = settings.base_dl_rate
+    base_ul_rate = settings.base_ul_rate
+    min_dl_rate = settings.min_dl_rate
+    min_ul_rate = settings.min_ul_rate
+    ul_max_delta_owd = settings.ul_max_delta_owd
+    dl_max_delta_owd = settings.dl_max_delta_owd
+    histsize = settings.histsize
+    output_statistics = settings.output_statistics
+    min_change_interval = settings.min_change_interval
+    tick_duration = settings.tick_duration
+    high_load_level = settings.high_load_level
+    stats_file = settings.stats_file
+    speedhist_file = settings.speedhist_file
+
+    plugin_ratecontrol = settings.plugin_ratecontrol
+
     -- Set initial TC values
-    update_cake_bandwidth(settings.dl_if, settings.base_dl_rate)
-    update_cake_bandwidth(settings.ul_if, settings.base_ul_rate)
+    update_cake_bandwidth(dl_if, base_dl_rate)
+    update_cake_bandwidth(ul_if, base_ul_rate)
 
     return M
 end
@@ -66,8 +102,8 @@ function M.ratecontrol()
     local min = math.min
     local random = math.random
 
-    local sleep_time_ns = floor((settings.min_change_interval % 1) * 1e9)
-    local sleep_time_s = floor(settings.min_change_interval)
+    local sleep_time_ns = floor((min_change_interval % 1) * 1e9)
+    local sleep_time_s = floor(min_change_interval)
 
     -- first time we entered this loop, times will be relative to this seconds value to preserve precision
     local start_s, _ = util.get_current_time()
@@ -75,10 +111,10 @@ function M.ratecontrol()
     local lastchg_t = lastchg_s - start_s + lastchg_ns / 1e9
     local lastdump_t = lastchg_t - 310
 
-    local cur_dl_rate = settings.base_dl_rate * 0.6
-    local cur_ul_rate = settings.base_ul_rate * 0.6
-    update_cake_bandwidth(settings.dl_if, cur_dl_rate)
-    update_cake_bandwidth(settings.ul_if, cur_ul_rate)
+    local cur_dl_rate = base_dl_rate * 0.6
+    local cur_ul_rate = base_ul_rate * 0.6
+    update_cake_bandwidth(dl_if, cur_dl_rate)
+    update_cake_bandwidth(ul_if, cur_ul_rate)
 
     local rx_bytes_file = io.open(base.rx_bytes_path)
     local tx_bytes_file = io.open(base.tx_bytes_path)
@@ -96,9 +132,9 @@ function M.ratecontrol()
 
     local safe_dl_rates = {}
     local safe_ul_rates = {}
-    for i = 0, settings.histsize - 1, 1 do
-        safe_dl_rates[i] = (random() * 0.2 + 0.75) * (settings.base_dl_rate)
-        safe_ul_rates[i] = (random() * 0.2 + 0.75) * (settings.base_ul_rate)
+    for i = 0, histsize - 1, 1 do
+        safe_dl_rates[i] = (random() * 0.2 + 0.75) * (base_dl_rate)
+        safe_ul_rates[i] = (random() * 0.2 + 0.75) * (base_ul_rate)
     end
 
     local nrate_up = 0
@@ -106,9 +142,9 @@ function M.ratecontrol()
 
     local csv_fd
     local speeddump_fd
-    if settings.output_statistics then
-        csv_fd = io.open(settings.stats_file, "w")
-        speeddump_fd = io.open(settings.speedhist_file, "w")
+    if output_statistics then
+        csv_fd = io.open(stats_file, "w")
+        speeddump_fd = io.open(speedhist_file, "w")
 
         if csv_fd then csv_fd:write("times,timens,rxload,txload,deltadelaydown,deltadelayup,dlrate,uprate\n") end
         if speeddump_fd then speeddump_fd:write("time,counter,upspeed,downspeed\n") end
@@ -119,7 +155,7 @@ function M.ratecontrol()
         local now_abstime = now_s + now_ns / 1e9
         now_s = now_s - start_s
         local now_t = now_s + now_ns / 1e9
-        if now_t - lastchg_t > settings.min_change_interval then
+        if now_t - lastchg_t > min_change_interval then
             -- if it's been long enough, and the stats indicate needing to change speeds
             local owd_tables = owd_data:get("owd_tables")
             local owd_baseline = owd_tables["baseline"]
@@ -140,9 +176,18 @@ function M.ratecontrol()
 
                 for _, reflector_ip in ipairs(reflector_list) do
                     -- only consider this data if it's less than 2 * tick_duration seconds old
+                    -- util.logger(util.loglevel.INFO, now_abstime)
+                    -- util.logger(util.loglevel.INFO, string(tonumber(now_abstime - 2 * tick_duration)))
+                    -- util.logger(util.loglevel.INFO,
+                    --     "owd_recent[reflector_ip].last_receive_time_s) " ..
+                    --     (owd_recent[reflector_ip].last_receive_time_s or string(owd_recent[reflector_ip].last_receive_time_s)))
+                    -- util.logger(util.loglevel.INFO,
+                    --     "now_abstime - 2 * tick_duration " ..
+                    --     string(tonumber(now_abstime - 2 * tick_duration)))
                     if owd_recent[reflector_ip] ~= nil and owd_baseline[reflector_ip] ~= nil and
                         owd_recent[reflector_ip].last_receive_time_s ~= nil and
-                        owd_recent[reflector_ip].last_receive_time_s > now_abstime - 2 * settings.tick_duration then
+                        owd_recent[reflector_ip].last_receive_time_s > now_abstime - 2 * tick_duration
+                    then
                         up_del[#up_del + 1] = owd_recent[reflector_ip].up_ewma - owd_baseline[reflector_ip].up_ewma
                         down_del[#down_del + 1] = owd_recent[reflector_ip].down_ewma -
                             owd_baseline[reflector_ip].down_ewma
@@ -198,8 +243,8 @@ function M.ratecontrol()
                     next_ul_rate = cur_ul_rate
                     next_dl_rate = cur_dl_rate
                 elseif #up_del == 0 or #down_del == 0 then
-                    next_dl_rate = settings.min_dl_rate
-                    next_ul_rate = settings.min_ul_rate
+                    next_dl_rate = min_dl_rate
+                    next_ul_rate = min_ul_rate
                 else
                     table.sort(up_del)
                     table.sort(down_del)
@@ -218,28 +263,30 @@ function M.ratecontrol()
                         tx_load = up_utilisation / cur_ul_rate
                         next_ul_rate = cur_ul_rate
                         next_dl_rate = cur_dl_rate
+
                         util.logger(util.loglevel.DEBUG,
                             "up_del_stat " .. up_del_stat .. " down_del_stat " .. down_del_stat)
-                        if up_del_stat and up_del_stat < settings.ul_max_delta_owd
-                            and tx_load > settings.high_load_level then
+
+                        if up_del_stat and up_del_stat < ul_max_delta_owd
+                            and tx_load > high_load_level then
                             safe_ul_rates[nrate_up] = floor(cur_ul_rate * tx_load)
                             local max_ul = util.maximum(safe_ul_rates)
                             next_ul_rate = cur_ul_rate * (1 + .1 * max(0, (1 - cur_ul_rate / max_ul))) +
-                                (settings.base_ul_rate * 0.03)
+                                (base_ul_rate * 0.03)
                             nrate_up = nrate_up + 1
-                            nrate_up = nrate_up % settings.histsize
+                            nrate_up = nrate_up % histsize
                         end
-                        if down_del_stat and down_del_stat < settings.dl_max_delta_owd
-                            and rx_load > settings.high_load_level then
+                        if down_del_stat and down_del_stat < dl_max_delta_owd
+                            and rx_load > high_load_level then
                             safe_dl_rates[nrate_down] = floor(cur_dl_rate * rx_load)
                             local max_dl = util.maximum(safe_dl_rates)
                             next_dl_rate = cur_dl_rate * (1 + .1 * max(0, (1 - cur_dl_rate / max_dl))) +
-                                (settings.base_dl_rate * 0.03)
+                                (base_dl_rate * 0.03)
                             nrate_down = nrate_down + 1
-                            nrate_down = nrate_down % settings.histsize
+                            nrate_down = nrate_down % histsize
                         end
 
-                        if up_del_stat > settings.ul_max_delta_owd then
+                        if up_del_stat > ul_max_delta_owd then
                             if #safe_ul_rates > 0 then
                                 next_ul_rate = min(0.9 * cur_ul_rate * tx_load,
                                     safe_ul_rates[random(#safe_ul_rates) - 1])
@@ -247,7 +294,7 @@ function M.ratecontrol()
                                 next_ul_rate = 0.9 * cur_ul_rate * tx_load
                             end
                         end
-                        if down_del_stat > settings.dl_max_delta_owd then
+                        if down_del_stat > dl_max_delta_owd then
                             if #safe_dl_rates > 0 then
                                 next_dl_rate = min(0.9 * cur_dl_rate * rx_load,
                                     safe_dl_rates[random(#safe_dl_rates) - 1])
@@ -256,9 +303,7 @@ function M.ratecontrol()
                             end
                         end
 
-                        if settings.plugin_ratecontrol then
-                            local plugin_ratecontrol = settings.plugin_ratecontrol
-
+                        if plugin_ratecontrol then
                             local results = plugin_ratecontrol.process({
                                 now_s = now_s,
                                 tx_load = tx_load,
@@ -279,19 +324,19 @@ function M.ratecontrol()
                                 string_tbl[1] = "settings changed by plugin:"
 
                                 local tmp = results.ul_max_delta_owd
-                                if tmp and tmp ~= settings.ul_max_delta_owd then
+                                if tmp and tmp ~= ul_max_delta_owd then
                                     string_tbl[#string_tbl + 1] = string.format(
                                         "ul_max_delta_owd: %.1f -> %.1f",
-                                        settings.ul_max_delta_owd, tmp)
-                                    settings.ul_max_delta_owd = tmp
+                                        ul_max_delta_owd, tmp)
+                                    ul_max_delta_owd = tmp
                                 end
 
                                 tmp = results.dl_max_delta_owd
-                                if tmp and tmp ~= settings.dl_max_delta_owd then
+                                if tmp and tmp ~= dl_max_delta_owd then
                                     string_tbl[#string_tbl + 1] = string.format(
                                         "dl_max_delta_owd: %.1f -> %.1f",
-                                        settings.dl_max_delta_owd, tmp)
-                                    settings.dl_max_delta_owd = tmp
+                                        dl_max_delta_owd, tmp)
+                                    dl_max_delta_owd = tmp
                                 end
 
                                 tmp = results.next_ul_rate
@@ -327,8 +372,8 @@ function M.ratecontrol()
                 prev_rx_bytes = cur_rx_bytes
                 prev_tx_bytes = cur_tx_bytes
 
-                next_ul_rate = floor(max(settings.min_ul_rate, next_ul_rate))
-                next_dl_rate = floor(max(settings.min_dl_rate, next_dl_rate))
+                next_ul_rate = floor(max(min_ul_rate, next_ul_rate))
+                next_dl_rate = floor(max(min_dl_rate, next_dl_rate))
 
                 if next_ul_rate ~= cur_ul_rate or next_dl_rate ~= cur_dl_rate then
                     util.logger(util.loglevel.INFO, "next_ul_rate " .. next_ul_rate .. " next_dl_rate " .. next_dl_rate)
@@ -336,10 +381,10 @@ function M.ratecontrol()
 
                 -- TC modification
                 if next_dl_rate ~= cur_dl_rate then
-                    update_cake_bandwidth(settings.dl_if, next_dl_rate)
+                    update_cake_bandwidth(dl_if, next_dl_rate)
                 end
                 if next_ul_rate ~= cur_ul_rate then
-                    update_cake_bandwidth(settings.ul_if, next_ul_rate)
+                    update_cake_bandwidth(ul_if, next_ul_rate)
                 end
                 cur_dl_rate = next_dl_rate
                 cur_ul_rate = next_ul_rate
@@ -351,7 +396,7 @@ function M.ratecontrol()
                         string.format("%d,%d,%f,%f,%f,%f,%d,%d\n", lastchg_s, lastchg_ns, rx_load, tx_load,
                             down_del_stat, up_del_stat, cur_dl_rate, cur_ul_rate))
 
-                    if settings.output_statistics and csv_fd then
+                    if output_statistics and csv_fd then
                         -- output to log file before doing delta on the time
                         csv_fd:write(string.format("%d,%d,%f,%f,%f,%f,%d,%d\n", lastchg_s, lastchg_ns, rx_load, tx_load,
                             down_del_stat, up_del_stat, cur_dl_rate, cur_ul_rate))
@@ -368,8 +413,8 @@ function M.ratecontrol()
             end
         end
 
-        if settings.output_statistics and speeddump_fd and now_t - lastdump_t > 300 then
-            for i = 0, settings.histsize - 1 do
+        if output_statistics and speeddump_fd and now_t - lastdump_t > 300 then
+            for i = 0, histsize - 1 do
                 speeddump_fd:write(string.format("%f,%d,%f,%f\n", now_t, i, safe_ul_rates[i], safe_dl_rates[i]))
             end
             lastdump_t = now_t
