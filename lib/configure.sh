@@ -163,17 +163,19 @@ kbits per second, where 1 mbit = 1000 kbits, and 1 gbit = 1000000 kbits.
 The speed should be input with just digits and no punctuation
 "
         BAD=Y
-        if [ -n "${SETTINGS_UPLOAD_SPEED}" ] && expr "$SETTINGS_UPLOAD_SPEED" : "^[0-9]+$" >/dev/null; then
+        # shellcheck disable=SC3010
+        if [ -n "${SETTINGS_UPLOAD_SPEED}" ] && [[ $SETTINGS_UPLOAD_SPEED =~ ^[0-9]+$ ]]; then
             DEFAULT=" [${SETTINGS_UPLOAD_SPEED}]"
         else
             DEFAULT=""
         fi
         while [ $BAD = "Y" ]; do
             read -r -p "upload speed${DEFAULT}: " UPLOAD_SPEED
+            # shellcheck disable=SC3010
             if [ -n "${SETTINGS_UPLOAD_SPEED}" ] && [ -z "${UPLOAD_SPEED}" ]; then
                 UPLOAD_SPEED=$SETTINGS_UPLOAD_SPEED
                 BAD=N
-            elif expr "$UPLOAD_SPEED" : "^[0-9]+$" >/dev/null; then
+            elif [[ $UPLOAD_SPEED =~ ^[0-9]+$ ]]; then
                 BAD=N
             else
                 echo "
@@ -183,16 +185,18 @@ please input digits only"
 
         BAD=Y
         while [ $BAD = "Y" ]; do
-            if [ -n "${SETTINGS_DOWNLOAD_SPEED}" ] && expr "$SETTINGS_DOWNLOAD_SPEED" : "^[0-9]+$" >/dev/null; then
+            # shellcheck disable=SC3010
+            if [ -n "${SETTINGS_DOWNLOAD_SPEED}" ] && [[ $SETTINGS_DOWNLOAD_SPEED =~ ^[0-9]+$ ]]; then
                 DEFAULT=" [${SETTINGS_DOWNLOAD_SPEED}]"
             else
                 DEFAULT=""
             fi
             read -r -p "download speed${DEFAULT}: " DOWNLOAD_SPEED
+            # shellcheck disable=SC3010
             if [ -n "${SETTINGS_DOWNLOAD_SPEED}" ] && [ -z "${DOWNLOAD_SPEED}" ]; then
                 DOWNLOAD_SPEED=$SETTINGS_DOWNLOAD_SPEED
                 BAD=N
-            elif expr "$DOWNLOAD_SPEED" : "^[0-9]+$" >/dev/null; then
+            elif [[ $DOWNLOAD_SPEED =~ ^[0-9]+$ ]]; then
                 BAD=N
             else
                 echo "
@@ -230,9 +234,10 @@ will be re-displayed for confirmation
         BAD=Y
         while [ $BAD = "Y" ]; do
             read -r -p "upload minimum speed [${UPLOAD_MINIMUM}]: " OVERRIDE_UPLOAD
+            # shellcheck disable=SC3010
             if [ -z "${OVERRIDE_UPLOAD}" ]; then
                 BAD=N
-            elif expr "$OVERRIDE_UPLOAD" : "^[0-9]+$" >/dev/null; then
+            elif [[ $OVERRIDE_UPLOAD =~ ^[0-9]+$ ]]; then
                 if [ "$OVERRIDE_UPLOAD" -lt "$UPLOAD_SPEED" ]; then
                     if [ "$OVERRIDE_UPLOAD" -ne $UPLOAD_MINIMUM ]; then
                         UPLOAD_PERCENT=$((OVERRIDE_UPLOAD * 100 / UPLOAD_SPEED))
@@ -289,9 +294,10 @@ please input digits only and ensure that the minimum is less than the original"
         BAD=Y
         while [ $BAD = "Y" ]; do
             read -r -p "download minimum speed [${DOWNLOAD_MINIMUM}]: " OVERRIDE_DOWNLOAD
+            # shellcheck disable=SC3010
             if [ -z "${OVERRIDE_DOWNLOAD}" ]; then
                 BAD=N
-            elif expr "$OVERRIDE_DOWNLOAD" : "^[0-9]+$" >/dev/null; then
+            elif [[ $OVERRIDE_DOWNLOAD =~ ^[0-9]+$ ]]; then
                 if [ "$OVERRIDE_DOWNLOAD" -lt "$DOWNLOAD_SPEED" ]; then
                     if [ "$OVERRIDE_DOWNLOAD" -ne $DOWNLOAD_MINIMUM ]; then
                         DOWNLOAD_PERCENT=$((OVERRIDE_DOWNLOAD * 100 / DOWNLOAD_SPEED))
