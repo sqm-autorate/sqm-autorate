@@ -257,6 +257,7 @@ Values loaded from this configuration file override values supplied via the comm
 | advanced_settings | upload_delay_ms | The amount of delay that indicates bufferbloat for uploads. For high speed and relatively stable fiber connections, this can be reduced as low as 2. For LTE and DOCIS/cable connections, the default should be a reasonable starting point and may be increased. | '15' |
 | advanced_settings | download_delay_ms | As upload_delay_trigger but for downloads. | '15' |
 | advanced_settings | high_load_level | The load factor used to signal high network load. Between 0.67 and 0.95. | '0.8' |
+| advanced_settings | rate_controller | The base rate controller used to act upon the chosen shaper. | 'ewma' |
 | advanced_settings | reflector_type | This is intended for future use and details are TBD. | 'icmp' |
 | plugins | ratecontrol | The full path to a [plugin](#plugins) `lua` file _OR_, if the plugin is in `/usr/lib/sqm-autorate`, the plugin file name less the `.lua` extension | no default |
 
@@ -280,6 +281,7 @@ Usage: sqm-autorate.lua [--upload-interface <upload_interface>]
        [--speed-hist-file <speed_hist_file>]
        [--speed-hist-size <speed_hist_size>]
        [--high-load-level <high_load_level>]
+       [--rate-controller <rate_controller>]
        [--reflector-type <reflector_type>]
        [--plugin-ratecontrol <plugin_ratecontrol>]
        [--suppress-statistics] [-v] [-s] [-h]
@@ -322,6 +324,8 @@ Options:
                          the number of usable speeds to keep in the history; default 100
    --high-load-level <high_load_level>
                          the relative load ratio considered high for rate change purposes; range 0.67 to 0.95; default 0.8
+   --rate-controller <rate_controller>
+                         the base rate controller used to act upon the chosen shaper; default ewma
    --reflector-type <reflector_type>
                          not yet operable; default icmp
    --plugin-ratecontrol <plugin_ratecontrol>
@@ -352,6 +356,7 @@ All environment variables for this script have a prefix of `SQMA_`.
 * SQMA_UPLOAD_DELAY_MS
 * SQMA_DOWNLOAD_DELAY_MS
 * SQMA_HIGH_LEVEL_LOAD
+* SQMA_RATE_CONTROLLER
 * SQMA_REFLECTOR_TYPE
 * SQMA_SUPPRESS_STATISTICS
 * SQMA_PLUGIN_RATECONTROL

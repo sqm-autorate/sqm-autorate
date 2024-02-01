@@ -365,6 +365,17 @@ function M.initialise(requires, version, arg_reflector_data)
     end
 
     do
+        local rate_controller = uci_settings and uci_settings:get("sqm-autorate", "@advanced_settings[0]",
+            "rate_controller")
+        rate_controller = rate_controller or (args and args.rate_controller)
+        rate_controller = rate_controller or (os.getenv("SQMA_RATE_CONTROLLER"))
+        if rate_controller == nil then
+            rate_controller = "ewma"
+        end
+        M.rate_controller = rate_controller
+    end
+
+    do
         -- !! not supported yet, so always override !!
         -- local reflector_type = uci_settings and uci_settings:get("sqm-autorate", "@advanced_settings[0]",
         --    "reflector_type")
@@ -405,7 +416,6 @@ function M.initialise(requires, version, arg_reflector_data)
 
     M.tick_duration = 0.5       -- Frequency in seconds
     M.min_change_interval = 0.5 -- don't change speeds unless this many seconds has passed since last change
-    M.ratecontroller = 'ewma'
 
     M.reflector_list_icmp = "/usr/lib/sqm-autorate/reflectors-icmp.csv"
     M.reflector_list_udp = "/usr/lib/sqm-autorate/reflectors-udp.csv"
