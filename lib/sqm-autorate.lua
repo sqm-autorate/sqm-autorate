@@ -30,7 +30,7 @@
 -- ** Recommended style guide: https://github.com/luarocks/lua-style-guide **
 --
 -- The versioning value for this script
-local _VERSION = "0.5.3"
+local _VERSION = "0.5.4"
 --
 
 local requires = {}
@@ -129,7 +129,7 @@ local function conductor()
         .configure(settings, owd_data, stats_queue, reselector_channel, signal_to_ratecontrol)
     local pinger_mod = lanes.require 'pinger'
         .configure(settings, reflector_data, stats_queue)
-    local ratecontroller_mod = lanes.require('ratecontroller_' .. settings.ratecontroller)
+    local ratecontroller_mod = lanes.require('ratecontroller_' .. settings.rate_controller)
         .configure(settings, owd_data, reflector_data, reselector_channel, signal_to_ratecontrol)
     local reflector_selector_mod = lanes.require 'reflector_selector'
         .configure(settings, owd_data, reflector_data, reselector_channel)
