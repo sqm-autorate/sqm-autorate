@@ -1,8 +1,9 @@
 #!/bin/sh
 #   configure.sh: configures /etc/config/sqm-autorate
 #
-#   Copyright (C) 2022
+#   Copyright (C) 2022-2024
 #       Charles Corrigan mailto:chas-iot@runegate.org (github @chas-iot)
+#       Mark Baker mailto:mark@vpost.net (github @Fail-Safe)
 #
 #   This Source Code Form is subject to the terms of the Mozilla Public
 #   License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -20,6 +21,8 @@
 #   essential part of this License. No use of any Covered Software is
 #   authorized under this License except under this disclaimer.
 #
+
+# shellcheck disable=SC3045
 
 print_rerun() {
     echo "
@@ -44,6 +47,7 @@ SIGINT..."
     trap "-" 2
 
     # exit program without quiting a remote ssh session - abuse of api :D
+    # shellcheck disable=SC2242
     exit -1 2>/dev/null
 }
 trap "handle_ctlc" 2
@@ -57,6 +61,7 @@ if [ ! -w /etc/config/sqm-autorate ]; then
     echo "/etc/config/sqm-autorate not found or not writable - exiting with no change
 "
     # exit program without quiting a remote ssh session - abuse of api :D
+    # shellcheck disable=SC2242
     exit -1 2>/dev/null
 fi
 
@@ -66,7 +71,8 @@ prompt, type '/usr/lib/sqm-autorate/configure.sh'
 Press return, or type y or yes if you want guided assistance to set up a ready
    to run configuration file for 'sqm-autorate' [Y/n]: " do_config
 do_config=$(echo "${do_config}" | awk '{ print tolower($0) }')
-if [ -z "${do_config}" ] || [ "${do_config}" == "y" ] || [ "${do_config}" == "yes" ]; then
+if [ -z "${do_config}" ] || [ "${do_config}" = "y" ] || [ "${do_config}" = "yes" ]; then
+    # shellcheck disable=SC1091
     . /lib/functions/network.sh
     network_flush_cache
     network_find_wan WAN_IF
@@ -78,7 +84,7 @@ if [ -z "${do_config}" ] || [ "${do_config}" == "y" ] || [ "${do_config}" == "ye
     SETTINGS_LOG_LEVEL=$(uci -q get sqm-autorate.@output[0].log_level)
 
     INPUT=Y
-    while [ $INPUT == "Y" ]; do
+    while [ $INPUT = "Y" ]; do
         echo "
 This script does not reliably handle advanced or complex configurations of CAKE
 You may be required to manually find and type the network device names
@@ -104,7 +110,7 @@ press return to accept detected network upload device [${UPLOAD_DEVICE}]: " ACCE
             echo "unable to automatically detect the network upload device"
             GOOD=N
         fi
-        while [ $GOOD == "N" ]; do
+        while [ "$GOOD" = "N" ]; do
             read -r -p "
 These are the network devices known to CAKE
 $(tc qdisc | grep -i cake | grep -o ' dev [[:alnum:]]* ' | cut -d ' ' -f 3)
@@ -137,7 +143,7 @@ press return to accept detected network download device [${DOWNLOAD_DEVICE}]: " 
             echo "unable to automatically detect the network download device"
             GOOD=N
         fi
-        while [ $GOOD == "N" ]; do
+        while [ "$GOOD" = "N" ]; do
             read -r -p "
 These are the network devices known to CAKE
 $(tc qdisc | grep -i cake | grep -o ' dev [[:alnum:]]* ' | cut -d ' ' -f 3)
@@ -157,13 +163,15 @@ kbits per second, where 1 mbit = 1000 kbits, and 1 gbit = 1000000 kbits.
 The speed should be input with just digits and no punctuation
 "
         BAD=Y
+        # shellcheck disable=SC3010
         if [ -n "${SETTINGS_UPLOAD_SPEED}" ] && [[ $SETTINGS_UPLOAD_SPEED =~ ^[0-9]+$ ]]; then
             DEFAULT=" [${SETTINGS_UPLOAD_SPEED}]"
         else
             DEFAULT=""
         fi
-        while [ $BAD == "Y" ]; do
+        while [ $BAD = "Y" ]; do
             read -r -p "upload speed${DEFAULT}: " UPLOAD_SPEED
+            # shellcheck disable=SC3010
             if [ -n "${SETTINGS_UPLOAD_SPEED}" ] && [ -z "${UPLOAD_SPEED}" ]; then
                 UPLOAD_SPEED=$SETTINGS_UPLOAD_SPEED
                 BAD=N
@@ -176,13 +184,15 @@ please input digits only"
         done
 
         BAD=Y
-        while [ $BAD == "Y" ]; do
+        while [ $BAD = "Y" ]; do
+            # shellcheck disable=SC3010
             if [ -n "${SETTINGS_DOWNLOAD_SPEED}" ] && [[ $SETTINGS_DOWNLOAD_SPEED =~ ^[0-9]+$ ]]; then
                 DEFAULT=" [${SETTINGS_DOWNLOAD_SPEED}]"
             else
                 DEFAULT=""
             fi
             read -r -p "download speed${DEFAULT}: " DOWNLOAD_SPEED
+            # shellcheck disable=SC3010
             if [ -n "${SETTINGS_DOWNLOAD_SPEED}" ] && [ -z "${DOWNLOAD_SPEED}" ]; then
                 DOWNLOAD_SPEED=$SETTINGS_DOWNLOAD_SPEED
                 BAD=N
@@ -222,8 +232,9 @@ will be re-displayed for confirmation
         fi
 
         BAD=Y
-        while [ $BAD == "Y" ]; do
+        while [ $BAD = "Y" ]; do
             read -r -p "upload minimum speed [${UPLOAD_MINIMUM}]: " OVERRIDE_UPLOAD
+            # shellcheck disable=SC3010
             if [ -z "${OVERRIDE_UPLOAD}" ]; then
                 BAD=N
             elif [[ $OVERRIDE_UPLOAD =~ ^[0-9]+$ ]]; then
@@ -281,8 +292,9 @@ please input digits only and ensure that the minimum is less than the original"
         fi
 
         BAD=Y
-        while [ $BAD == "Y" ]; do
+        while [ $BAD = "Y" ]; do
             read -r -p "download minimum speed [${DOWNLOAD_MINIMUM}]: " OVERRIDE_DOWNLOAD
+            # shellcheck disable=SC3010
             if [ -z "${OVERRIDE_DOWNLOAD}" ]; then
                 BAD=N
             elif [[ $OVERRIDE_DOWNLOAD =~ ^[0-9]+$ ]]; then
@@ -318,7 +330,7 @@ please input digits only and ensure that the minimum is less than the original"
         done
 
         GOOD=N
-        while [ $GOOD == "N" ]; do
+        while [ $GOOD = "N" ]; do
             read -r -p "
 sqm-autorate logging uses storage on the router
 Choose one of the following log levels
@@ -335,12 +347,12 @@ Type in one of the log levels, or press return to accept [${SETTINGS_LOG_LEVEL}]
             if [ -z "${LOG_LEVEL}" ]; then
                 LOG_LEVEL="${SETTINGS_LOG_LEVEL}"
                 GOOD=Y
-            elif [ "${LOG_LEVEL}" == "FATAL" ] ||
-                [ "${LOG_LEVEL}" == "ERROR" ] ||
-                [ "${LOG_LEVEL}" == "WARN" ] ||
-                [ "${LOG_LEVEL}" == "INFO" ] ||
-                [ "${LOG_LEVEL}" == "DEBUG" ] ||
-                [ "${LOG_LEVEL}" == "TRACE" ]; then
+            elif [ "${LOG_LEVEL}" = "FATAL" ] ||
+                [ "${LOG_LEVEL}" = "ERROR" ] ||
+                [ "${LOG_LEVEL}" = "WARN" ] ||
+                [ "${LOG_LEVEL}" = "INFO" ] ||
+                [ "${LOG_LEVEL}" = "DEBUG" ] ||
+                [ "${LOG_LEVEL}" = "TRACE" ]; then
                 GOOD=Y
             fi
         done
@@ -350,7 +362,7 @@ sqm-autorate can output log entries to your system log (syslog).
 
 Type y or yes to choose to output log entries to syslog [y/N]: " SYS_LOG
         STATS=$(echo "${SYS_LOG}" | awk '{ print tolower($0) }')
-        if [ "${SYS_LOG}" == "y" ] || [ "${SYS_LOG}" == "yes" ]; then
+        if [ "${SYS_LOG}" = "y" ] || [ "${SYS_LOG}" = "yes" ]; then
             USE_SYSLOG='1'
         else
             USE_SYSLOG='0'
@@ -364,7 +376,7 @@ The statistics use about 12 Mb of storage per day on the router
 
 Type y or yes to choose to output the statistics [y/N]: " STATS
         STATS=$(echo "${STATS}" | awk '{ print tolower($0) }')
-        if [ "${STATS}" == "y" ] || [ "${STATS}" == "yes" ]; then
+        if [ "${STATS}" = "y" ] || [ "${STATS}" = "yes" ]; then
             SUPPRESS_STATISTICS=No
         else
             SUPPRESS_STATISTICS=Yes
@@ -377,7 +389,7 @@ Type y or yes to choose to output the statistics [y/N]: " STATS
             read -r -p "
 Do you want to automatically start 'sqm-autorate' at reboot [Y/n]: " STARTAUTO
             STARTAUTO=$(echo "${STARTAUTO}" | awk '{ print tolower($0) }')
-            if [ -z "${STARTAUTO}" ] || [ "${STARTAUTO}" == "y" ] || [ "${STARTAUTO}" == "yes" ]; then
+            if [ -z "${STARTAUTO}" ] || [ "${STARTAUTO}" = "y" ] || [ "${STARTAUTO}" = "yes" ]; then
                 START_AUTO=Yes
             else
                 START_AUTO=No
@@ -386,7 +398,7 @@ Do you want to automatically start 'sqm-autorate' at reboot [Y/n]: " STARTAUTO
             read -r -p "
 Do you want to start 'sqm-autorate' now [Y/n]: " STARTNOW
             STARTNOW=$(echo "${STARTNOW}" | awk '{ print tolower($0) }')
-            if [ -z "${STARTNOW}" ] || [ "${STARTNOW}" == "y" ] || [ "${STARTNOW}" == "yes" ]; then
+            if [ -z "${STARTNOW}" ] || [ "${STARTNOW}" = "y" ] || [ "${STARTNOW}" = "yes" ]; then
                 START_NOW=Yes
             else
                 START_NOW=No
@@ -421,7 +433,7 @@ Type y or yes to confirm the above input and continue;
   <ctrl-c> to interrupt and exit;  or
   anything else to start over [y/N]: " RESPONSE
         RESPONSE=$(echo "${RESPONSE}" | awk '{ print tolower($0) }')
-        if [ "${RESPONSE}" == "y" ] || [ "${RESPONSE}" == "yes" ]; then
+        if [ "${RESPONSE}" = "y" ] || [ "${RESPONSE}" = "yes" ]; then
             INPUT=N
         else
             INPUT=Y
@@ -465,15 +477,18 @@ Note that the above forum requires registration before posting."
     uci commit
 
     if [ -x /etc/init.d/sqm-autorate ]; then
-        if [ "${START_AUTO}" == "Yes" ]; then
+        if [ "${START_AUTO}" = "Yes" ]; then
             echo "
 Enabling 'sqm-autorate' service"
             /etc/init.d/sqm-autorate enable
         fi
-        if [ "${START_NOW}" == "Yes" ]; then
+        if [ "${START_NOW}" = "Yes" ]; then
             echo "
 Starting 'sqm-autorate' service"
-            /etc/init.d/sqm-autorate stop
+            if /etc/init.d/sqm-autorate running; then
+                /etc/init.d/sqm-autorate stop
+                sleep 3 # Allow a few moments for things to stop and settle down
+            fi
             /etc/init.d/sqm-autorate start
         fi
     fi

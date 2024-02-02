@@ -18,13 +18,14 @@
     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
     IN THE SOFTWARE.
 
-]] --
+]]
+--
 
 -- The module table to export
 local pretty_speeds = {}
 
 -- utility function to import in pretty_speeds.initialise
-local ceil = nil
+local ceil
 
 -- function initialise(requires, settings)
 --  parameters

@@ -1,16 +1,21 @@
-[![Lua Check](https://github.com/sqm-autorate/sqm-autorate/actions/workflows/lua-analysis.yml/badge.svg)](https://github.com/sqm-autorate/sqm-autorate/actions/workflows/lua-analysis.yml)
-
 # CAKE with Adaptive Bandwidth - "sqm-autorate"
 
 ## About _sqm-autorate_
 _sqm-autorate_ is a program for [OpenWRT](https://openwrt.org/) that actively manages the
-[CAKE Smart Queue Management (SQM)](https://www.bufferbloat.net/projects/codel/wiki/Cake/) bandwidth settings through measurments of traffic load and latency. It is designed for variable bandwidth connections such as DOCIS/cable and LTE/wireless,
-and is not so useful for connections that have a stable, fixed bandwidth.
+[CAKE Smart Queue Management (SQM)](https://www.bufferbloat.net/projects/codel/wiki/Cake/) bandwidth settings through measurments of traffic load and latency. It is designed for variable bandwidth connections such as DOCIS/cable and LTE/wireless, and is not so useful for connections that have a stable, fixed bandwidth.
 
 The _sqm-autorate_ code is licensed under the [MPLv2](https://www.mozilla.org/en-US/MPL/2.0/)
 
 _sqm-autorate_ is undergoing rapid development, so sometimes the documentation lags behind the latest and greatest.
 We do try to keep up and occasionally succeed!
+
+## Build Status - Main Branch
+[![Lua Check](https://github.com/sqm-autorate/sqm-autorate/actions/workflows/lua-analysis.yml/badge.svg?branch=main)](https://github.com/sqm-autorate/sqm-autorate/actions/workflows/lua-analysis.yml)
+[![Shell Check](https://github.com/sqm-autorate/sqm-autorate/actions/workflows/shell-analysis.yml/badge.svg?branch=main)](https://github.com/sqm-autorate/sqm-autorate/actions/workflows/shell-analysis.yml)
+
+## Build Status - Develop/Main Branch
+[![Lua Check](https://github.com/sqm-autorate/sqm-autorate/actions/workflows/lua-analysis.yml/badge.svg?branch=develop%2Fmain)](https://github.com/sqm-autorate/sqm-autorate/actions/workflows/lua-analysis.yml)
+[![Shell Check](https://github.com/sqm-autorate/sqm-autorate/actions/workflows/shell-analysis.yml/badge.svg?branch=develop%2Fmain)](https://github.com/sqm-autorate/sqm-autorate/actions/workflows/shell-analysis.yml)
 
 ## Table of Contents
 * [About _sqm-autorate_](#about-sqm-autorate)
@@ -252,6 +257,7 @@ Values loaded from this configuration file override values supplied via the comm
 | advanced_settings | upload_delay_ms | The amount of delay that indicates bufferbloat for uploads. For high speed and relatively stable fiber connections, this can be reduced as low as 2. For LTE and DOCIS/cable connections, the default should be a reasonable starting point and may be increased. | '15' |
 | advanced_settings | download_delay_ms | As upload_delay_trigger but for downloads. | '15' |
 | advanced_settings | high_load_level | The load factor used to signal high network load. Between 0.67 and 0.95. | '0.8' |
+| advanced_settings | rate_controller | The base rate controller used to act upon the chosen shaper. | 'ewma' |
 | advanced_settings | reflector_type | This is intended for future use and details are TBD. | 'icmp' |
 | plugins | ratecontrol | The full path to a [plugin](#plugins) `lua` file _OR_, if the plugin is in `/usr/lib/sqm-autorate`, the plugin file name less the `.lua` extension | no default |
 
@@ -275,6 +281,7 @@ Usage: sqm-autorate.lua [--upload-interface <upload_interface>]
        [--speed-hist-file <speed_hist_file>]
        [--speed-hist-size <speed_hist_size>]
        [--high-load-level <high_load_level>]
+       [--rate-controller <rate_controller>]
        [--reflector-type <reflector_type>]
        [--plugin-ratecontrol <plugin_ratecontrol>]
        [--suppress-statistics] [-v] [-s] [-h]
@@ -317,6 +324,8 @@ Options:
                          the number of usable speeds to keep in the history; default 100
    --high-load-level <high_load_level>
                          the relative load ratio considered high for rate change purposes; range 0.67 to 0.95; default 0.8
+   --rate-controller <rate_controller>
+                         the base rate controller used to act upon the chosen shaper; default ewma
    --reflector-type <reflector_type>
                          not yet operable; default icmp
    --plugin-ratecontrol <plugin_ratecontrol>
@@ -347,6 +356,7 @@ All environment variables for this script have a prefix of `SQMA_`.
 * SQMA_UPLOAD_DELAY_MS
 * SQMA_DOWNLOAD_DELAY_MS
 * SQMA_HIGH_LEVEL_LOAD
+* SQMA_RATE_CONTROLLER
 * SQMA_REFLECTOR_TYPE
 * SQMA_SUPPRESS_STATISTICS
 * SQMA_PLUGIN_RATECONTROL
@@ -753,8 +763,8 @@ The plugin interface consists of two functions.
 |---|---|
 | [readings](#readings-parameter) | a table containing the name/value pairs of the current readings in this loop of the _rate control_ thread. See below for the contents; this list will change over time, so check the source code. |
 | [results](#results-return) | a table containing name/value pairs to be fed back into the _rate control_ thread. See below for the list of supported values; this list will change over time, so check the source code. Any name/value pair may be put into the table, however it will be ignored unless the name is supported. |
-| [requires](lib/sqm-autorate.lua) | a table containing the modules already required by the main program. Currently, these are: _lanes_, _math_, _posix_, _socket_, _times_, _vstruct_, _bit_ and [utilities](#settings-module). This list may change over time and may not be up-to-date, so check the [source code](lib/sqm-autorate.lua). If further requires are needed, then use `lanes.require` rather than bare `require`. |
-| [settings](#settings-parameter) | a table containing the name/value pairs of the internal settings of the main program. See below for the contents; this list will change over time, so check the [source code](lib/sqma-settings.lua). Please treat this table and contents as read-only. Remember that these are not the external settings names or values, though there are many similarities and identities. |
+| [requires](lib/sqm-autorate.lua) | a table containing the modules already required by the main program. Currently, these are: _lanes_, _math_, _posix_, _socket_, _times_, _vstruct_, _bit_, _luci.jsonc_, _lucihttp_, _ubus_, and [utilities](#settings-module). This list may change over time and may not be up-to-date, so check the [source code](lib/sqm-autorate.lua). If further requires are needed, then use `lanes.require` rather than bare `require`. |
+| [settings](#settings-parameter) | a table containing the name/value pairs of the internal settings of the main program. See below for the contents; this list will change over time, so check the [source code](lib/settings.lua). Please treat this table and contents as read-only. Remember that these are not the external settings names or values, though there are many similarities and identities. |
 
 ### _readings_ parameter
 Contents of the _readings_ parameter to _plugin.process_
@@ -784,7 +794,7 @@ Supported name/value pairs used from **_results_** returned from _plugin.process
 | next_dl_rate | the download speed. kbits/second |
 
 ### _settings_ parameter
-Contents of [**settings**](lib/sqma-settings.lua]) parameter to _plugin.initialise_
+Contents of [**settings**](lib/settings.lua]) parameter to _plugin.initialise_
 
 | name | description |
 |---|---|
@@ -809,7 +819,7 @@ Contents of [**settings**](lib/sqma-settings.lua]) parameter to _plugin.initiali
 | output_statistics | controls output to the statistics file |
 
 ### _utilities_ module
-Contents of [**utilities**](lib/sqma-utilities.lua) module in _requires_ parameter to _plugin.initialise_
+Contents of [**utilities**](lib/utility.lua) module in _requires_ parameter to _plugin.initialise_
 
 | name | (t)able or (f)unction | Important to plugins | description |
 |---|---|---|---|

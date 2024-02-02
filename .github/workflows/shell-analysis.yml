@@ -1,4 +1,4 @@
-name: "Lua Check"
+name: "Shell Check"
 
 on:
   push:
@@ -24,16 +24,10 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v3
 
-    - name: Install Luarocks
+    - name: Install ShellCheck
       run: |
-        sudo apt install luarocks
+        sudo apt install shellcheck
 
-    - name: Install Luacheck
+    - name: Run ShellCheck
       run: |
-        sudo luarocks install luacheck
-        luacheck -v
-        sudo luarocks install luafilesystem
-
-    - name: Run LuaCheck
-      run: |
-        luacheck lib
+        shellcheck **/*.sh

@@ -9,4 +9,3 @@ Project.toml
 julia/*.png
 julia/*.gif
 julia/*.csv
-.vscode
