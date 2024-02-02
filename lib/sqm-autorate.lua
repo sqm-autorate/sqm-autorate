@@ -64,12 +64,8 @@ local stats_queue = lanes.linda()
 -- Calls against this construct will be get()/set() to reinforce the intent that this
 -- is not a queue. This holds two separate tables which are baseline and recent.
 local owd_data = lanes.linda()
-owd_data:set("owd_tables", {
-    baseline = {},
-    recent = {}
-})
 
--- The relfector_data construct is not intended to be used as a queue.
+-- The reflector_data construct is not intended to be used as a queue.
 -- Instead, is is used as a method for sharing the reflector tables between multiple threads.
 -- Calls against this construct will be get()/set() to reinforce the intent that this
 -- is not a queue. This holds two separate tables which are peers and pool.
@@ -86,7 +82,7 @@ local reselector_channel = lanes.linda()
 
 -- The signal_to_ratecontrol is intended to be used by the ratecontroller thread
 -- to wait on a signal from the baseliner thread that new data is available as they come in,
--- for ratecontrol algorithms that really getting the data as soon as it's ready
+-- for ratecontrol algorithms that really getting the data as soon as it's ready.
 local signal_to_ratecontrol = lanes.linda()
 
 ---------------------------- Begin Conductor ----------------------------
@@ -109,6 +105,19 @@ local function conductor()
     if settings.plugin_ratecontrol then
         util.logger(util.loglevel.INFO, "Loaded ratecontrol plugin: " .. settings.plugin_ratecontrol.name)
     end
+
+    local owd_tables = {}
+    -- Set up construct for owd_data for each egress iface
+    for k, v in pairs(settings.sqm_ifaces) do
+        if v["direction"] == "egress" then
+            owd_tables[k] = {
+                baseline = {},
+                recent = {}
+            }
+        end
+    end
+    -- print(util.get_table_dump(owd_tables))
+    owd_data:set("owd_tables", owd_tables)
 
     -- Random seed
     local _, now_ns = util.get_current_time()

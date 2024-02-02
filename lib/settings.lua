@@ -26,6 +26,8 @@ local util = require 'utility'
 local app_version = ""
 local plugin_ratecontrol = nil
 
+local sqm_ifaces = {}
+
 -- print all of the module exported values, ignoring functions
 local function print_all()
     local tmp_tbl = {}
@@ -116,6 +118,22 @@ local function load_reflector_list(file_path, ip_version)
     return reflectors
 end
 
+local function store_sqm_iface(sqm_queue)
+    if tonumber(sqm_queue["enabled"]) == 1 then
+        local iface_name = sqm_queue["interface"]
+        sqm_ifaces[iface_name] = {
+            qdisc = sqm_queue["qdisc"],
+            direction = "egress",
+            linked_iface = "ifb4" .. iface_name
+        }
+        sqm_ifaces["ifb4" .. iface_name] = {
+            qdisc = sqm_queue["qdisc"],
+            direction = "ingress",
+            linked_iface = iface_name
+        }
+    end
+end
+
 -- a stub for plugins to retrieve their UCI settings
 --  parameters
 --      plugin      - the name of the plugin. Do change '-' to '_' to avoid breaking UCI
@@ -182,6 +200,9 @@ function M.initialise(requires, version, arg_reflector_data)
             util.logger(util.loglevel.FATAL,
                 "SQM is not enabled on this OpenWrt system. Please enable it before starting sqm-autorate.")
             os.exit(1, true)
+        else
+            uci_settings:foreach("sqm", "queue", store_sqm_iface)
+            M.sqm_ifaces = sqm_ifaces
         end
     end
 

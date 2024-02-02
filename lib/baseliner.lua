@@ -22,6 +22,8 @@ local util = require 'utility'
 
 local settings, owd_data, stats_queue, reselector_channel --, signal_to_ratecontrol
 
+local ul_if
+
 -- calculate an ewma factor so that at tick it takes dur to get frac change during step response
 local function ewma_factor(tick, dur)
     return math.exp(math.log(0.5) / (dur / tick))
@@ -33,6 +35,8 @@ function M.configure(arg_settings, arg_owd_data, arg_stats_queue, arg_resel_ecto
     stats_queue = assert(arg_stats_queue, "a stats queue linda is required")
     reselector_channel = assert(arg_resel_ector_channel, 'need the reselector channel linda')
     -- signal_to_ratecontrol = assert(_signal_to_ratecontrol, "a linda to signal the ratecontroller is required")
+
+    ul_if = settings.ul_if
 
     return M
 end
@@ -52,8 +56,8 @@ function M.baseline_calculator()
     local fast_factor = ewma_factor(settings.tick_duration, 0.4)
 
     local owd_tables = owd_data:get("owd_tables")
-    local owd_baseline = owd_tables["baseline"]
-    local owd_recent = owd_tables["recent"]
+    local owd_baseline = owd_tables[ul_if]["baseline"]
+    local owd_recent = owd_tables[ul_if]["recent"]
 
     while true do
         local _, time_data = stats_queue:receive(nil, "stats")
@@ -126,10 +130,11 @@ function M.baseline_calculator()
                     min(owd_baseline[time_data.reflector].down_ewma, owd_recent[time_data.reflector].down_ewma)
             end
             -- Set the values back into the shared tables
-            owd_data:set("owd_tables", {
+            owd_tables[ul_if] = {
                 baseline = owd_baseline,
                 recent = owd_recent
-            })
+            }
+            owd_data:set("owd_tables", owd_tables)
 
             if settings.log_level.level >= util.loglevel.DEBUG.level then
                 for ref, val in pairs(owd_baseline) do

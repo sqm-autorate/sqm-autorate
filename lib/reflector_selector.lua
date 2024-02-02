@@ -22,11 +22,15 @@ local util = require 'utility'
 
 local settings, owd_data, reflector_data, reselector_channel
 
+local ul_if
+
 function M.configure(arg_settings, arg_owd_data, arg_reflector_data, arg_reselector_channel)
     settings = assert(arg_settings, 'need the settings')
     owd_data = assert(arg_owd_data, 'need the owd linda')
     reflector_data = assert(arg_reflector_data, 'need the reflector data linda')
     reselector_channel = assert(arg_reselector_channel, 'need the reselector channel linda')
+
+    ul_if = settings.ul_if
 
     return M
 end
@@ -86,7 +90,7 @@ function M.reflector_peer_selector()
 
         local candidates = {}
         local owd_tables = owd_data:get("owd_tables")
-        local owd_recent = owd_tables["recent"]
+        local owd_recent = owd_tables[ul_if]["recent"]
 
         for _, peer in ipairs(next_peers) do
             if owd_recent[peer] then

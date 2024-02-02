@@ -50,12 +50,14 @@ local function read_stats_file(file)
     return bytes
 end
 
-local function update_cake_bandwidth(iface, rate_in_kbit)
+local function update_bandwidth(iface, qdisc, rate_in_kbit)
     local is_changed = false
     if (iface == dl_if and rate_in_kbit >= min_dl_rate) or
         (iface == ul_if and rate_in_kbit >= min_ul_rate) then
-        os.execute(string.format("tc qdisc change root dev %s cake bandwidth %sKbit", iface, rate_in_kbit))
-        is_changed = true
+        if qdisc == "cake" then
+            os.execute(string.format("tc qdisc change root dev %s cake bandwidth %sKbit", iface, rate_in_kbit))
+            is_changed = true
+        end
     end
     return is_changed
 end
@@ -87,8 +89,8 @@ function M.configure(arg_settings, arg_owd_data, arg_reflector_data, arg_reselec
     plugin_ratecontrol = settings.plugin_ratecontrol
 
     -- Set initial TC values
-    update_cake_bandwidth(dl_if, base_dl_rate)
-    update_cake_bandwidth(ul_if, base_ul_rate)
+    update_bandwidth(dl_if, "cake", base_dl_rate)
+    update_bandwidth(ul_if, "cake", base_ul_rate)
 
     return M
 end
@@ -113,8 +115,8 @@ function M.ratecontrol()
 
     local cur_dl_rate = base_dl_rate * 0.6
     local cur_ul_rate = base_ul_rate * 0.6
-    update_cake_bandwidth(dl_if, cur_dl_rate)
-    update_cake_bandwidth(ul_if, cur_ul_rate)
+    update_bandwidth(dl_if, "cake", cur_dl_rate)
+    update_bandwidth(ul_if, "cake", cur_ul_rate)
 
     local rx_bytes_file = io.open(base.rx_bytes_path)
     local tx_bytes_file = io.open(base.tx_bytes_path)
@@ -158,8 +160,8 @@ function M.ratecontrol()
         if now_t - lastchg_t > min_change_interval then
             -- if it's been long enough, and the stats indicate needing to change speeds
             local owd_tables = owd_data:get("owd_tables")
-            local owd_baseline = owd_tables["baseline"]
-            local owd_recent = owd_tables["recent"]
+            local owd_baseline = owd_tables[ul_if]["baseline"]
+            local owd_recent = owd_tables[ul_if]["recent"]
 
             local reflector_tables = reflector_data:get("reflector_tables")
             local reflector_list = reflector_tables["peers"]
@@ -373,10 +375,10 @@ function M.ratecontrol()
 
                 -- TC modification
                 if next_dl_rate ~= cur_dl_rate then
-                    update_cake_bandwidth(dl_if, next_dl_rate)
+                    update_bandwidth(dl_if, "cake", next_dl_rate)
                 end
                 if next_ul_rate ~= cur_ul_rate then
-                    update_cake_bandwidth(ul_if, next_ul_rate)
+                    update_bandwidth(ul_if, "cake", next_ul_rate)
                 end
                 cur_dl_rate = next_dl_rate
                 cur_ul_rate = next_ul_rate
