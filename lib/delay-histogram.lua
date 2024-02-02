@@ -137,7 +137,7 @@ local low_load_threshold = 0.20      -- below this relative load factor, the net
 local sufficient_seconds = 60 * 10   -- 10 minutes of low load
 local recalculation_seconds = 60 * 5 -- recalculate the delay threshold every 5 minutes
 local cumulative_cutoff = 0.9995     -- cumulative cutoff ratio for the delay threshold, allows 1/2000 above cutoff
-local min_allowed_threshold = 5      -- below this does not bring much benefit
+local min_allowed_threshold = 1      -- below this does not bring much benefit
 local max_allowed_threshold = 39     -- VOIP protocols have a 20ms cycle, it's not good to be more than twice that
 local use_relative_low_load = false  -- low load can be measure in relative (tx_load, rx_load, compared to
 -- low_load_threshold) or absolute (up_utilsation, down_utilisation, compared
