@@ -17,6 +17,9 @@ We do try to keep up and occasionally succeed!
 [![Lua Check](https://github.com/sqm-autorate/sqm-autorate/actions/workflows/lua-analysis.yml/badge.svg?branch=develop%2Fmain)](https://github.com/sqm-autorate/sqm-autorate/actions/workflows/lua-analysis.yml)
 [![Shell Check](https://github.com/sqm-autorate/sqm-autorate/actions/workflows/shell-analysis.yml/badge.svg?branch=develop%2Fmain)](https://github.com/sqm-autorate/sqm-autorate/actions/workflows/shell-analysis.yml)
 
+## OSSF Scorecard
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/sqm-autorate/sqm-autorate/badge)](https://securityscorecards.dev/viewer/?uri=github.com/sqm-autorate/sqm-autorate)
+
 ## Table of Contents
 * [About _sqm-autorate_](#about-sqm-autorate)
 * [Table of Contents](#table-of-contents)
