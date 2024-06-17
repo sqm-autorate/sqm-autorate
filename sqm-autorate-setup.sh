@@ -94,14 +94,14 @@ fi
 curl=''
 transfer=''
 if [ "$(which curl | wc -l)" != "0" ]; then
-    transfer='curl -L -s -o'
+    transfer='curl -L -s'
 
 elif [ "$(which wget | wc -l)" != "0" ]; then
-    transfer='wget -q -O'
+    transfer='wget -q -O-'
 
 else
     curl=curl
-    transfer='curl -L -s -o'
+    transfer='curl -L -s'
 fi
 
 # we can proceed with the installation
@@ -146,8 +146,7 @@ if [ "$is_git_proj" = false ]; then
             echo "ERROR: could not find ${autorate_lib_path}"
             exit 1
         }
-        $transfer "/tmp/sqm-autorate-install.tar.gz" "$repo_tar"
-        tar --strip-components=1 -xzf "/tmp/sqm-autorate-install.tar.gz" -C "$source_path"
+        $transfer "$repo_tar" | tar --strip-components=1 -xz -C "$source_path"
     )
 fi
 
@@ -230,7 +229,7 @@ sed -i-orig "/n    /! s;^\([[:blank:]]*local[[:blank:]]*_VERSION[[:blank:]]*=[[:
 # Clean up temporary files
 if [ "$is_git_proj" = false ]; then
     echo ">>> Cleaning up temporary files..."
-    rm -r /tmp/sqm-autorate-install.tar.gz "$source_path"
+    rm -r "$source_path"
 fi
 
 echo ">>> Installation complete, about to start configuration."
