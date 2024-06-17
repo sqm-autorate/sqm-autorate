@@ -92,14 +92,14 @@ fi
 curl=''
 transfer=''
 if [ "$(which curl | wc -l)" != "0" ]; then
-    transfer='curl -s -o'
+    transfer='curl -L -s -o'
 
 elif [ "$(which wget | wc -l)" != "0" ]; then
     transfer='wget -q -O'
 
 else
     curl=curl
-    transfer='curl -s -o'
+    transfer='curl -L -s -o'
 fi
 
 # we can proceed with the installation
