@@ -44,10 +44,12 @@ name="sqm-autorate"
 
 autorate_lib_path="/usr/lib/sqm-autorate"
 config_file="sqm-autorate.config"
+config_file_target="/etc/config/sqm-autorate"
 configure_file="configure.sh"
 lua_file="sqm-autorate.lua"
 owrt_release_file="/etc/os-release"
 service_file="sqm-autorate.service"
+source_path="$(mktemp -t -d sqm-autorate-XXXXXX)"
 
 # start of pre-installation checks
 cake=$(tc qdisc | grep -i cake)
@@ -92,14 +94,14 @@ fi
 curl=''
 transfer=''
 if [ "$(which curl | wc -l)" != "0" ]; then
-    transfer='curl -s -o'
+    transfer='curl -L -s'
 
 elif [ "$(which wget | wc -l)" != "0" ]; then
-    transfer='wget -q -O'
+    transfer='wget -q -O-'
 
 else
     curl=curl
-    transfer='curl -s -o'
+    transfer='curl -L -s'
 fi
 
 # we can proceed with the installation
@@ -118,13 +120,20 @@ fi
 
 # Install the required packages for sqm-autorate ...
 echo ">>> Installing required packages via opkg..."
-install="opkg install -V0 lua luarocks lua-bit32 luaposix lualanes ${lua_argparse} ${curl}"
+install="opkg install -V0 lua luarocks lua-bit32 luaposix lualanes luci-mod-rpc tar ${lua_argparse} ${curl}"
 $install
 
 echo ">>> Installing required packages via luarocks..."
 luarocks install vstruct
 
-[ -d "./.git" ] && is_git_proj=true || is_git_proj=false
+if [ -d "./.git" ]; then
+    config_file_target="/etc/config/sqm-autorate-NEW"
+    is_git_proj=true
+    rmdir "$source_path"
+    source_path="."
+else   
+    is_git_proj=false
+fi
 
 echo ">>> Creating ${autorate_lib_path}"
 mkdir -p "${autorate_lib_path}"
@@ -137,17 +146,12 @@ if [ "$is_git_proj" = false ]; then
             echo "ERROR: could not find ${autorate_lib_path}"
             exit 1
         }
-        $transfer "$repo_tar" "/tmp/sqm-autorate-install.tar.gz"
-        tar -xzf "/tmp/sqm-autorate-install.tar.gz" -C /tmp
+        $transfer "$repo_tar" | tar --strip-components=1 -xz -C "$source_path"
     )
 fi
 
 echo ">>> Putting lib files into place..."
-if [ "$is_git_proj" = true ]; then
-    cp -r ./lib/. "${autorate_lib_path}"
-else
-    cp -r /tmp/sqm-autorate-sqm-autorate-*/lib/. "${autorate_lib_path}"
-fi
+cp -r "$source_path/lib/." "${autorate_lib_path}"
 
 echo ">>> Making lua and shell files executable..."
 find "${autorate_lib_path}" -type f -regex ".*\.\(lua\|sh\)" | xargs chmod +x
@@ -155,25 +159,11 @@ find "${autorate_lib_path}" -type f -regex ".*\.\(lua\|sh\)" | xargs chmod +x
 echo ">>> Putting config file into place..."
 if [ -f "/etc/config/sqm-autorate" ]; then
     echo "!!! Warning: An sqm-autorate config file already exists. This new config file will be created as $name-NEW. Please review and merge any updates into your existing $name file."
-    if [ "$is_git_proj" = true ]; then
-        cp "./config/$config_file" "/etc/config/$name-NEW"
-    else
-        cp "/tmp/sqm-autorate-sqm-autorate-*/config/$config_file" "/etc/config/$name-NEW"
-    fi
-else
-    if [ "$is_git_proj" = true ]; then
-        cp "./config/$config_file" "/etc/config/$name"
-    else
-        cp "/tmp/sqm-autorate-sqm-autorate-*/config/$config_file" "/etc/config/$name"
-    fi
 fi
+cp "$source_path/config/$config_file" "$config_file_target"
 
 echo ">>> Putting service file into place..."
-if [ "$is_git_proj" = true ]; then
-    cp "./service/$service_file" "/etc/init.d/$name"
-else
-    cp "/tmp/sqm-autorate-sqm-autorate-*/service/$service_file" "/etc/init.d/$name"
-fi
+cp "$source_path/service/$service_file" "/etc/init.d/$name"
 chmod a+x "/etc/init.d/$name"
 
 # transition section 1 - to be removed for release v0.6 or later
@@ -239,7 +229,7 @@ sed -i-orig "/n    /! s;^\([[:blank:]]*local[[:blank:]]*_VERSION[[:blank:]]*=[[:
 # Clean up temporary files
 if [ "$is_git_proj" = false ]; then
     echo ">>> Cleaning up temporary files..."
-    rm -r /tmp/sqm-autorate-install.tar.gz /tmp/sqm-autorate-sqm-autorate-*
+    rm -r "$source_path"
 fi
 
 echo ">>> Installation complete, about to start configuration."
