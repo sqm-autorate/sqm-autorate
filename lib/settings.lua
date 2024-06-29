@@ -160,7 +160,7 @@ function M.initialise(requires, version, arg_reflector_data)
         return min(max(value, lowest), highest)
     end
 
-    -- Figure out if we are running on OpenWrt here and load luci.model.uci if available...
+    -- Figure out if we are running on OpenWrt here and load uci if available...
     local uci_lib
     local uci_settings
     if util.is_module_available("uci") then
