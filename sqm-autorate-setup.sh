@@ -120,7 +120,7 @@ fi
 
 # Install the required packages for sqm-autorate ...
 echo ">>> Installing required packages via opkg..."
-install="opkg install -V0 lua luarocks lua-bit32 luaposix lualanes luci-mod-rpc tar ${lua_argparse} ${curl}"
+install="opkg install -V0 libuci-lua lua luarocks lua-bit32 luaposix lualanes tar ${lua_argparse} ${curl}"
 $install
 
 echo ">>> Installing required packages via luarocks..."

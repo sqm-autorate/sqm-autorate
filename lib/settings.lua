@@ -163,8 +163,8 @@ function M.initialise(requires, version, arg_reflector_data)
     -- Figure out if we are running on OpenWrt here and load luci.model.uci if available...
     local uci_lib
     local uci_settings
-    if util.is_module_available("luci.model.uci") then
-        uci_lib = require("luci.model.uci")
+    if util.is_module_available("uci") then
+        uci_lib = require("uci")
         uci_settings = uci_lib.cursor()
 
         M.plugin = function(plugin_name)
