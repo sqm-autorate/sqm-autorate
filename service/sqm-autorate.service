@@ -10,7 +10,7 @@ PROG=/usr/bin/lua
 SERVICE_NAME="sqm-autorate"
 
 vstruct_installed() {
-    if ! luarocks show vstruct >/dev/null 2>&1; then
+    if ! lua -l vstruct -e '' &>/dev/null; then
         logger -t sqm-autorate "Installing vstruct for lua"
         luarocks install vstruct
     fi
