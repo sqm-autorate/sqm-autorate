@@ -120,9 +120,6 @@ local function conductor()
     lanes.require "posix.sys.socket"
     lanes.require "posix.time"
     lanes.require "vstruct"
-    lanes.require "luci.jsonc"
-    lanes.require "lucihttp"
-    lanes.require "ubus"
 
     -- load all internal modules
     local baseliner_mod = lanes.require 'baseliner'
@@ -136,22 +133,22 @@ local function conductor()
 
     local threads = {}
     threads["receiver"] = lanes.gen("*", {
-        required = { "_bit", "posix.sys.socket", "posix.time", "vstruct", "luci.jsonc", "lucihttp", "ubus" }
+        required = { "_bit", "posix.sys.socket", "posix.time", "vstruct" }
     }, pinger_mod.receiver)()
     threads["baseliner"] = lanes.gen("*", {
-        required = { "posix", "posix.time", "luci.jsonc", "lucihttp", "ubus" }
+        required = { "posix", "posix.time" }
     }, baseliner_mod.baseline_calculator)()
     threads["pinger"] = lanes.gen("*", {
-        required = { "_bit", "posix.sys.socket", "posix.time", "vstruct", "luci.jsonc", "lucihttp", "ubus" }
+        required = { "_bit", "posix.sys.socket", "posix.time", "vstruct" }
     }, pinger_mod.sender)()
     threads["selector"] = lanes.gen("*", {
-        required = { "posix", "posix.time", "luci.jsonc", "lucihttp", "ubus" }
+        required = { "posix", "posix.time" }
     }, reflector_selector_mod.reflector_peer_selector)()
 
     -- -- Wait 10 secs to allow the other threads to stabilize before starting the regulator
     -- util.nsleep(10, 0)
     threads["regulator"] = lanes.gen("*", {
-        required = { "posix", "posix.time", "luci.jsonc", "lucihttp", "ubus" }
+        required = { "posix", "posix.time" }
     }, ratecontroller_mod.ratecontrol)()
 
     -- Start this whole thing in motion!
