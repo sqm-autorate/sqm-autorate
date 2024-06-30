@@ -174,17 +174,6 @@ function M.initialise(requires, version, arg_reflector_data)
         util.logger(util.loglevel.WARN, "did not find uci library")
     end
 
-    -- If we have sqm installed, but it is disabled, this whole thing is moot. Let's bail early in that case.
-    -- TODO is this the correct check? 'tc qdisc | grep -i cake' may be better
-    if uci_settings then
-        local sqm_enabled = tonumber(uci_settings:get("sqm", "@queue[0]", "enabled"))
-        if sqm_enabled == 0 then
-            util.logger(util.loglevel.FATAL,
-                "SQM is not enabled on this OpenWrt system. Please enable it before starting sqm-autorate.")
-            os.exit(1, true)
-        end
-    end
-
     -- Try to load argparse if it's installed
     local args = nil
     if util.is_module_available("argparse") then

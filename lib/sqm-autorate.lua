@@ -96,9 +96,15 @@ local function conductor()
 
     local settings = lanes.require("settings").initialise(requires, _VERSION, reflector_data)
 
-    if settings.sqm_enabled == 0 then
+    if os.execute("tc qdisc show dev " .. settings.dl_if .. " root 2>&1 | grep -q cake") ~= 0 then
         util.logger(util.loglevel.FATAL,
-            "SQM is not enabled on this OpenWrt system. Please enable it before starting sqm-autorate.")
+                    "The download interface " .. settings.dl_if .. " does not have a CAKE instance.")
+        os.exit(1, true)
+    end
+
+    if os.execute("tc qdisc show dev " .. settings.ul_if .. " root 2>&1 | grep -q cake") ~= 0 then
+        util.logger(util.loglevel.FATAL,
+                    "The upload interface " .. settings.ul_if .. " does not have a CAKE instance.")
         os.exit(1, true)
     end
 
