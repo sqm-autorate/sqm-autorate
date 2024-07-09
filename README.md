@@ -174,6 +174,12 @@ If you have some kind of DSL connection, read the
    sh -c "$(wget -q -O- https://raw.githubusercontent.com/sqm-autorate/sqm-autorate/main/sqm-autorate-setup.sh)"
    ```
 
+   Alternatively for the latest release, packages have been made for OpenWrt that be installed instead. They can be found on the release page.
+   ```bash
+   opkg install lua-vstruct_2.1.1-1_all.ipk sqm-autorate_0.6.1-1_all.ipk
+   ```
+   These do not trigger the configuration script automatically, see below how to do it yourself.
+
 4. If the setup script gives a warning about a configuration file `sqm-autorate-NEW`, use that file to replace `/etc/config/sqm-autorate` (first time installation only)
 
 5. The setup script calls `/usr/lib/sqm-autorate/configure.sh`, which can optionally configure `/etc/config/sqm-autorate`.
