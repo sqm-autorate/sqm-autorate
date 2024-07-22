@@ -15,9 +15,16 @@ jobs:
       issues: write
 
     steps:
+      - uses: actions/create-github-app-token@v1
+        id: app-token
+        with:
+          # required
+          app-id: ${{ vars.FF_AUTH_APP_ID }}
+          private-key: ${{ secrets.FF_AUTH_PRIVATE_KEY }}
       - name: Fast forwarding
         uses: sequoia-pgp/fast-forward@v1
         with:
+          github_token: ${{ steps.app-token.outputs.token }}
           merge: true
           # To reduce the workflow's verbosity, use 'on-error'
           # to only post a comment when an error occurs, or 'never' to
