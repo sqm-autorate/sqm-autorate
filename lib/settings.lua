@@ -259,7 +259,7 @@ function M.initialise(requires, version, arg_reflector_data)
         if upload_min_percent == nil then
             M.min_ul_rate = floor(M.base_ul_rate / 5) -- 20%
         else
-            upload_min_percent = limit(tonumber(upload_min_percent), 10, 75)
+            upload_min_percent = limit(tonumber(upload_min_percent), 1, 80)
             M.min_ul_rate = floor(M.base_ul_rate * upload_min_percent / 100)
         end
     end
@@ -272,7 +272,7 @@ function M.initialise(requires, version, arg_reflector_data)
         if download_min_percent == nil then
             M.min_dl_rate = floor(M.base_dl_rate / 5) -- 20%
         else
-            download_min_percent = limit(tonumber(download_min_percent), 10, 75)
+            download_min_percent = limit(tonumber(download_min_percent), 1, 80)
             M.min_dl_rate = floor(M.base_dl_rate * download_min_percent / 100)
         end
     end
