@@ -118,6 +118,7 @@ function M.ratecontrol()
 
     local rx_bytes_file = io.open(base.rx_bytes_path)
     local tx_bytes_file = io.open(base.tx_bytes_path)
+    local BYTES_PER_SEC_TO_KBITS = 8 / 1000
 
     if not rx_bytes_file or not tx_bytes_file then
         util.logger(util.loglevel.FATAL,
@@ -245,13 +246,9 @@ function M.ratecontrol()
                     down_del_stat = util.a_else_b(down_del[3], down_del[1])
 
                     if up_del_stat and down_del_stat then
-                        -- TODO - find where the (8 / 1000) comes from and
-                        -- i. convert to a pre-computed factor
-                        -- ii. ideally, see if it can be defined in terms of constants, eg ticks per
-                        --     second and number of active reflectors
-                        down_utilisation = (8 / 1000) * (cur_rx_bytes - prev_rx_bytes) / (now_t - t_prev_bytes)
+                        down_utilisation = BYTES_PER_SEC_TO_KBITS * (cur_rx_bytes - prev_rx_bytes) / (now_t - t_prev_bytes)
                         rx_load = down_utilisation / cur_dl_rate
-                        up_utilisation = (8 / 1000) * (cur_tx_bytes - prev_tx_bytes) / (now_t - t_prev_bytes)
+                        up_utilisation = BYTES_PER_SEC_TO_KBITS * (cur_tx_bytes - prev_tx_bytes) / (now_t - t_prev_bytes)
                         tx_load = up_utilisation / cur_ul_rate
                         next_ul_rate = cur_ul_rate
                         next_dl_rate = cur_dl_rate
