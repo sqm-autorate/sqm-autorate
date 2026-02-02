@@ -6,6 +6,9 @@ on:
   schedule:
     - cron: '36 3 * * 5'
 
+permissions:
+  contents: read
+
 jobs:
   analyze:
     name: Analyze
@@ -21,8 +24,13 @@ jobs:
         language: [ 'lua' ]
 
     steps:
+    - name: Harden the runner (Audit all outbound calls)
+      uses: step-security/harden-runner@e3f713f2d8f53843e71c69a996d56f51aa9adfb9 # v2.14.1
+      with:
+        egress-policy: audit
+
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
 
     - name: Install Luarocks
       run: |

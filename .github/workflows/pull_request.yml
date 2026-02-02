@@ -2,6 +2,9 @@ name: pull-request
 on:
   pull_request:
     types: [opened, reopened, synchronize]
+permissions:
+  contents: read
+
 jobs:
   check-fast-forward:
     runs-on: ubuntu-latest
@@ -14,8 +17,13 @@ jobs:
       issues: write
 
     steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@e3f713f2d8f53843e71c69a996d56f51aa9adfb9 # v2.14.1
+        with:
+          egress-policy: audit
+
       - name: Checking if fast forwarding is possible
-        uses: sequoia-pgp/fast-forward@v1
+        uses: sequoia-pgp/fast-forward@ea7628bedcb0b0b96e94383ada458d812fca4979 # v1.0.0
         with:
           merge: false
           # To reduce the workflow's verbosity, use 'on-error'

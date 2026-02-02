@@ -2,6 +2,9 @@ name: fast-forward
 on:
   issue_comment:
     types: [created, edited]
+permissions:
+  contents: read
+
 jobs:
   fast-forward:
     # Only run if the comment contains the /fast-forward command.
@@ -15,14 +18,19 @@ jobs:
       issues: write
 
     steps:
-      - uses: actions/create-github-app-token@v1
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@e3f713f2d8f53843e71c69a996d56f51aa9adfb9 # v2.14.1
+        with:
+          egress-policy: audit
+
+      - uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547 # v1.12.0
         id: app-token
         with:
           # required
           app-id: ${{ vars.FF_AUTH_APP_ID }}
           private-key: ${{ secrets.FF_AUTH_PRIVATE_KEY }}
       - name: Fast forwarding
-        uses: sequoia-pgp/fast-forward@v1
+        uses: sequoia-pgp/fast-forward@ea7628bedcb0b0b96e94383ada458d812fca4979 # v1.0.0
         with:
           github_token: ${{ steps.app-token.outputs.token }}
           merge: true
