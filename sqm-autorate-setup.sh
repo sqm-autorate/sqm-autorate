@@ -105,12 +105,28 @@ else
 fi
 
 # we can proceed with the installation
+# work out whether to use apk or opkg
+if command -v apk >/dev/null 2>&1; then
+    pkg_mgr="apk"
+    pkg_update="apk update"
+    pkg_install="apk add"
+    pkg_find="apk search -q -e"
+elif command -v opkg >/dev/null 2>&1; then
+    pkg_mgr="opkg"
+    pkg_update="opkg update -V0"
+    pkg_install="opkg install -V0"
+    pkg_find="opkg find"
+else
+    echo "No supported package manager found (apk or opkg). Cannot install packages."
+    exit 1
+fi
+
 echo ">>> Refreshing package cache. This may take several minutes..."
-opkg update -V0
+$pkg_update
 
 # Try to install lua-argparse if possible...
 lua_argparse=''
-if [ "$(opkg find lua-argparse | wc -l)" = "1" ]; then
+if [ "$($pkg_find lua-argparse | grep -c lua-argparse)" -ge 1 ]; then
     lua_argparse='lua-argparse'
 else
     echo
@@ -119,8 +135,8 @@ else
 fi
 
 # Install the required packages for sqm-autorate ...
-echo ">>> Installing required packages via opkg..."
-install="opkg install -V0 libuci-lua lua luarocks lua-bit32 luaposix lualanes tar ${lua_argparse} ${curl}"
+echo ">>> Installing required packages via ${pkg_mgr}..."
+install="$pkg_install libuci-lua lua luarocks lua-bit32 luaposix lualanes tar ${lua_argparse} ${curl}"
 $install
 
 echo ">>> Installing required packages via luarocks..."
